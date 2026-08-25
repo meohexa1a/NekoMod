@@ -115,6 +115,16 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
     }
 
     override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
+        val x = screenX.toFloat()
+        val y = toLocalY(screenY)
+
+        val pressed = pressedNode
+        if (pressed != null) {
+            val event = PointerEvent(x, y, pointer, arc.input.KeyCode.mouseLeft)
+            pressed.onPointerDrag?.invoke(event)
+            return true
+        }
+
         return mouseMoved(screenX, screenY)
     }
 

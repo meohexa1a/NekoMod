@@ -53,6 +53,12 @@ open class SliderNode : LayoutNode() {
             updateValueFromScreenX(event.x)
         }
 
+        onPointerDrag = { event: PointerEvent ->
+            if (isDragging) {
+                updateValueFromScreenX(event.x)
+            }
+        }
+
         onPointerUp = {
             isDragging = false
         }
@@ -80,14 +86,6 @@ open class SliderNode : LayoutNode() {
             onValueChange?.invoke(finalVal)
             invalidateLayout()
         }
-    }
-
-    override fun draw(renderer: EngineRenderer) {
-        if (isDragging && Core.input != null) {
-            val mouseX = Core.input.mouseX().toFloat()
-            updateValueFromScreenX(mouseX)
-        }
-        super.draw(renderer)
     }
 
     override fun getPrefWidth(): Float = if (width >= 0f) width else maxOf(minWidth, 120f) + padL + padR

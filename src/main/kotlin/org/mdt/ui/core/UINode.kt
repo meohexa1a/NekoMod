@@ -165,6 +165,9 @@ open class UINode {
     /** Invoked on pointer press down. */
     var onPointerDown: ((PointerEvent) -> Unit)? = null
 
+    /** Invoked continuously while dragging a pressed node. */
+    var onPointerDrag: ((PointerEvent) -> Unit)? = null
+
     /** Invoked on pointer release up. */
     var onPointerUp: ((PointerEvent) -> Unit)? = null
 
