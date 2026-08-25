@@ -1,25 +1,26 @@
-@file:Suppress("FunctionName")
+@file:Suppress("FunctionName", "unused")
 
-package org.mdt.ui.compose
+package org.mdt.ui.components.input.textfield
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import arc.graphics.Color
-import org.mdt.ui.widgets.TextFieldNode
+import org.mdt.ui.compose.NodeApplier
+import org.mdt.ui.compose.UIModifier
 
 /**
  * ## TextFieldColors
  *
- * Color palette state configuration for [TextField].
+ * Visual color palette state for [TextField].
  */
 data class TextFieldColors(
     val background: Color = Color.valueOf("181926"),
-    val text: Color = Color.white,
-    val placeholder: Color = Color.valueOf("6e738d"),
+    val text: Color = Color.valueOf("cad3f5"),
+    val placeholder: Color = Color.valueOf("5b6078"),
     val border: Color = Color.valueOf("363a4f"),
     val focusBorder: Color = Color.valueOf("2563eb"),
-    val cursor: Color = Color.valueOf("60a5fa"),
-    val selection: Color = Color.valueOf("2563eb").a(0.45f)
+    val cursor: Color = Color.valueOf("85c1dc"),
+    val selection: Color = Color.valueOf("363a4f").a(0.8f)
 ) {
     companion object {
         val Default = TextFieldColors()
@@ -29,15 +30,15 @@ data class TextFieldColors(
 /**
  * ## TextField
  *
- * Declarative, high-performance interactive text input field with animated focus glow,
- * SDF rounded borders, BMFont glyph cursor positioning, and selection highlighting.
+ * Declarative single-line text input field supporting real-time editing,
+ * cursor positioning, selection, and OS clipboard integration.
  *
- * @param value Current input text string.
- * @param onValueChange Callback invoked whenever text content changes.
+ * @param value Current string value.
+ * @param onValueChange Callback invoked when the user types or modifies text.
  * @param modifier Chainable [UIModifier].
  * @param placeholder Hint text displayed when [value] is empty.
- * @param enabled Whether input is active and interactable.
- * @param colors Color state palette ([TextFieldColors]).
+ * @param enabled Whether this text input accepts focus and typing.
+ * @param colors Styling palette ([TextFieldColors]).
  */
 @Composable
 fun TextField(
@@ -57,7 +58,7 @@ fun TextField(
             node.touchable = enabled
             node.isFocusable = enabled
 
-            node.visuals.fillColor.set(colors.background)
+            node.boxVisuals.fillColor.set(colors.background)
             node.textColor.set(colors.text)
             node.placeholderColor.set(colors.placeholder)
             node.normalBorderColor.set(colors.border)
@@ -75,11 +76,20 @@ fun TextField(
                     invalidateLayout()
                 }
             }
-            set(onValueChange) { this.onValueChange = it }
             set(placeholder) { this.placeholder = it; invalidateLayout() }
+            set(onValueChange) { this.onValueChange = it }
             set(enabled) {
                 this.touchable = it
                 this.isFocusable = it
+            }
+            set(colors) {
+                this.boxVisuals.fillColor.set(it.background)
+                this.textColor.set(it.text)
+                this.placeholderColor.set(it.placeholder)
+                this.normalBorderColor.set(it.border)
+                this.focusBorderColor.set(it.focusBorder)
+                this.cursorColor.set(it.cursor)
+                this.selectionColor.set(it.selection)
             }
             set(modifier) {
                 it.applyTo(this)

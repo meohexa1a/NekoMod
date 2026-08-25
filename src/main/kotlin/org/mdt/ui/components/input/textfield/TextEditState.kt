@@ -1,48 +1,37 @@
-package org.mdt.ui.input
+package org.mdt.ui.components.input.textfield
 
 import arc.Core
 import arc.input.KeyCode
+import arc.math.Mathf
 
 /**
  * ## TextEditState
  *
- * Headless, zero-allocation text editing state machine managing cursor positioning,
- * selection ranges, text insertion/deletion, clipboard operations, and cursor blink cycles.
+ * Headless string manipulation state machine for text inputs.
+ * Manages character insertion, bounds clamping, cursor navigation,
+ * selection ranges, OS clipboard, and blink timers.
  *
- * Designed as a decoupled model for [org.mdt.ui.widgets.TextFieldNode].
+ * See: docs/complex-challenges/complex_challenges_en.md
  */
 class TextEditState(
-    initialText: String = "",
     var onTextChange: ((String) -> Unit)? = null
 ) {
-    var text: String = initialText
+    var text: String = ""
         private set
 
-    /** 0-based character index of the active editing cursor. */
-    var cursor: Int = initialText.length
+    var cursor: Int = 0
         private set
 
-    /** Selection anchor index (-1 when no selection is active). */
     var selectionStart: Int = -1
         private set
 
-    /** Blink countdown timer in seconds. */
-    var blinkTime: Float = 0f
-        private set
+    var isFocused: Boolean = false
 
-    /** Whether the blinking cursor indicator is currently visible. */
     var cursorVisible: Boolean = true
         private set
 
-    var isFocused: Boolean = false
-        set(value) {
-            field = value
-            if (value) {
-                resetBlink()
-            } else {
-                selectionStart = -1
-            }
-        }
+    private var blinkTimer: Float = 0f
+    private val blinkInterval: Float = 0.32f
 
     fun setText(newText: String) {
         if (text != newText) {
@@ -54,7 +43,7 @@ class TextEditState(
     }
 
     fun resetBlink() {
-        blinkTime = 0.32f
+        blinkTimer = 0f
         cursorVisible = true
     }
 
@@ -63,9 +52,9 @@ class TextEditState(
             cursorVisible = false
             return
         }
-        blinkTime -= delta
-        if (blinkTime <= 0f) {
-            blinkTime = 0.32f
+        blinkTimer += delta
+        if (blinkTimer >= blinkInterval) {
+            blinkTimer -= blinkInterval
             cursorVisible = !cursorVisible
         }
     }
@@ -74,32 +63,28 @@ class TextEditState(
 
     fun getSelectionRange(): Pair<Int, Int>? {
         if (!hasSelection()) return null
-        val min = minOf(selectionStart, cursor).coerceIn(0, text.length)
-        val max = maxOf(selectionStart, cursor).coerceIn(0, text.length)
-        return min to max
+        val start = minOf(selectionStart, cursor).coerceIn(0, text.length)
+        val end = maxOf(selectionStart, cursor).coerceIn(0, text.length)
+        return Pair(start, end)
     }
 
-    fun getSelectedText(): String? {
-        val range = getSelectionRange() ?: return null
+    fun getSelectedText(): String {
+        val range = getSelectionRange() ?: return ""
         return text.substring(range.first, range.second)
     }
 
+    fun selectAll() {
+        if (text.isEmpty()) return
+        selectionStart = 0
+        cursor = text.length
+        resetBlink()
+    }
+
+    @Suppress("unused")
     fun clearSelection() {
         selectionStart = -1
     }
 
-    fun selectAll() {
-        if (text.isNotEmpty()) {
-            selectionStart = 0
-            cursor = text.length
-            resetBlink()
-        }
-    }
-
-    /**
-     * Deletes the currently selected text range if active.
-     * @return True if a selection was deleted.
-     */
     fun deleteSelection(): Boolean {
         val range = getSelectionRange() ?: return false
         val newText = text.substring(0, range.first) + text.substring(range.second)
@@ -160,72 +145,97 @@ class TextEditState(
         return false
     }
 
-    fun moveCursor(index: Int, extendSelection: Boolean = false) {
-        val target = index.coerceIn(0, text.length)
+    fun moveLeft(extendSelection: Boolean = false) {
+        if (extendSelection) {
+            if (selectionStart == -1) selectionStart = cursor
+            cursor = (cursor - 1).coerceAtLeast(0)
+        } else {
+            if (hasSelection()) {
+                val range = getSelectionRange()!!
+                cursor = range.first
+                selectionStart = -1
+            } else {
+                cursor = (cursor - 1).coerceAtLeast(0)
+            }
+        }
+        resetBlink()
+    }
+
+    fun moveRight(extendSelection: Boolean = false) {
+        if (extendSelection) {
+            if (selectionStart == -1) selectionStart = cursor
+            cursor = (cursor + 1).coerceAtMost(text.length)
+        } else {
+            if (hasSelection()) {
+                val range = getSelectionRange()!!
+                cursor = range.second
+                selectionStart = -1
+            } else {
+                cursor = (cursor + 1).coerceAtMost(text.length)
+            }
+        }
+        resetBlink()
+    }
+
+    fun moveToStart(extendSelection: Boolean = false) {
         if (extendSelection) {
             if (selectionStart == -1) selectionStart = cursor
         } else {
             selectionStart = -1
         }
-        cursor = target
+        cursor = 0
         resetBlink()
     }
 
-    fun moveLeft(extendSelection: Boolean = false) {
-        if (!extendSelection && hasSelection()) {
-            val range = getSelectionRange()!!
-            cursor = range.first
-            selectionStart = -1
-            resetBlink()
+    fun moveToEnd(extendSelection: Boolean = false) {
+        if (extendSelection) {
+            if (selectionStart == -1) selectionStart = cursor
         } else {
-            moveCursor(cursor - 1, extendSelection)
+            selectionStart = -1
         }
+        cursor = text.length
+        resetBlink()
     }
 
-    fun moveRight(extendSelection: Boolean = false) {
-        if (!extendSelection && hasSelection()) {
-            val range = getSelectionRange()!!
-            cursor = range.second
-            selectionStart = -1
-            resetBlink()
+    fun moveCursor(index: Int, extendSelection: Boolean = false) {
+        val clamped = index.coerceIn(0, text.length)
+        if (extendSelection) {
+            if (selectionStart == -1) selectionStart = cursor
         } else {
-            moveCursor(cursor + 1, extendSelection)
+            selectionStart = -1
         }
+        cursor = clamped
+        resetBlink()
     }
-
-    fun moveToStart(extendSelection: Boolean = false) = moveCursor(0, extendSelection)
-    fun moveToEnd(extendSelection: Boolean = false) = moveCursor(text.length, extendSelection)
 
     fun copy() {
         val sel = getSelectedText()
-        if (!sel.isNullOrEmpty()) {
+        if (sel.isNotEmpty() && Core.app != null) {
             Core.app.clipboardText = sel
         }
     }
 
     fun cut() {
         val sel = getSelectedText()
-        if (!sel.isNullOrEmpty()) {
-            Core.app.clipboardText = sel
+        if (sel.isNotEmpty()) {
+            if (Core.app != null) {
+                Core.app.clipboardText = sel
+            }
             deleteSelection()
         }
     }
 
     fun paste() {
-        val clip = Core.app.clipboardText
-        if (!clip.isNullOrEmpty()) {
-            // Remove carriage returns
-            val sanitized = clip.replace("\r", "")
-            insert(sanitized)
+        if (Core.app != null) {
+            val clip = Core.app.clipboardText
+            if (!clip.isNullOrEmpty()) {
+                insert(clip)
+            }
         }
     }
 
-    /**
-     * Handles printable character insertion. Control keys are handled in onKeyDown.
-     */
     fun onKeyTyped(char: Char): Boolean {
         if (!isFocused) return false
-        // Control characters (< 32, including \b) are handled by onKeyDown
         if (char >= ' ' || char == '\t') {
             insert(char)
             return true
