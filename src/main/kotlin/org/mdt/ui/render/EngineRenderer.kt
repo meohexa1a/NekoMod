@@ -8,8 +8,8 @@ import arc.graphics.gl.FrameBuffer
 import arc.math.Mat
 import org.mdt.ui.core.CanvasNode
 import org.mdt.ui.core.UINode
-import org.mdt.ui.widgets.BoxNode
-import org.mdt.ui.widgets.BoxVisuals
+import org.mdt.ui.components.layout.BoxVisuals
+import org.mdt.ui.components.layout.LayoutNode
 
 /**
  * ## EngineRenderer
@@ -28,8 +28,11 @@ class EngineRenderer {
 
     private fun hasBackdropBlur(node: UINode): Boolean {
         if (!node.visible) return false
-        if (node is BoxNode && node.visuals.blur && node.visuals.backgroundMode == BoxVisuals.BackgroundMode.BACKDROP) {
-            return true
+        if (node is LayoutNode) {
+            val vis = node.visuals
+            if (vis != null && vis.blur && vis.backgroundMode == BoxVisuals.BackgroundMode.BACKDROP) {
+                return true
+            }
         }
         for (child in node.children) {
             if (hasBackdropBlur(child)) return true

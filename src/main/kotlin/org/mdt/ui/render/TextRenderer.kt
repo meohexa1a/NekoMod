@@ -3,8 +3,8 @@ package org.mdt.ui.render
 import arc.graphics.g2d.Font
 import arc.graphics.g2d.GlyphLayout
 import mindustry.ui.Fonts
+import org.mdt.ui.components.text.TextVisuals
 import org.mdt.ui.core.Rect
-import org.mdt.ui.widgets.TextVisuals
 
 class TextRenderer {
     private var prefSizeInvalid = true

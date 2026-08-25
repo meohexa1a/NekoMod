@@ -5,7 +5,7 @@ import arc.graphics.Texture
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.gl.FrameBuffer
-import org.mdt.ui.widgets.BoxVisuals
+import org.mdt.ui.components.layout.BoxVisuals
 
 /**
  * ## BoxBlur

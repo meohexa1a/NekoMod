@@ -5,6 +5,7 @@ import arc.Events
 import arc.util.Log
 import mindustry.game.EventType.ResizeEvent
 import mindustry.game.EventType.Trigger
+import org.mdt.core.image.ImageLoader
 import org.mdt.ui.compose.CompositionManager
 import org.mdt.ui.compose.UIComposition
 import org.mdt.ui.core.CanvasNode
@@ -58,6 +59,9 @@ object EngineRuntime {
         if (w <= 0f || h <= 0f) return
 
         try {
+            // Process queued GPU uploads for ImageLoader
+            ImageLoader.processUploadQueue()
+
             canvas.resize(w, h)
             CompositionManager.frame()
             renderer.render(canvas)
