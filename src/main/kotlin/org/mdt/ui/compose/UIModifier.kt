@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package org.mdt.ui.compose
 
 import arc.graphics.Color
@@ -6,8 +8,8 @@ import org.mdt.ui.core.PointerEvent
 import org.mdt.ui.core.UINode
 import org.mdt.ui.layout.LayoutPreset
 import org.mdt.ui.layout.SizeFlags
-import org.mdt.ui.widgets.BoxNode
-import org.mdt.ui.widgets.BoxVisuals
+import org.mdt.ui.components.layout.BoxVisuals
+import org.mdt.ui.components.layout.LayoutNode
 
 /**
  * ## UIModifier
@@ -176,20 +178,23 @@ fun UIModifier.anchor(preset: LayoutPreset): UIModifier = then(CustomModifier {
 
 /** Sets solid background color. */
 fun UIModifier.background(color: Color): UIModifier = then(CustomModifier {
-    if (it is BoxNode) {
-        it.visuals.fillColor.set(color)
-        it.visuals.backgroundMode = BoxVisuals.BackgroundMode.SOLID
+    (it as? LayoutNode)?.ensureVisuals()?.let { vis ->
+        vis.fillColor.set(color)
+        vis.backgroundMode = BoxVisuals.BackgroundMode.COLOR
     }
 })
 
 /** Sets uniform corner radius on all 4 corners (pixels). */
 fun UIModifier.radius(all: Float): UIModifier = then(CustomModifier {
-    if (it is BoxNode) it.visuals.radius(all)
+    (it as? LayoutNode)?.ensureVisuals()?.radius(all)
 })
+
+/** Shorthand alias for [radius]. */
+fun UIModifier.cornerRadius(all: Float): UIModifier = radius(all)
 
 /** Sets corner radius individually for each corner (pixels). */
 fun UIModifier.radius(tl: Float, tr: Float, br: Float, bl: Float): UIModifier = then(CustomModifier {
-    if (it is BoxNode) it.visuals.radius(tl, tr, br, bl)
+    (it as? LayoutNode)?.ensureVisuals()?.radius(tl, tr, br, bl)
 })
 
 /** Sets border stroke styling. */
@@ -198,43 +203,50 @@ fun UIModifier.border(
     color: Color = Color.white,
     style: BoxVisuals.BorderStyle = BoxVisuals.BorderStyle.SOLID
 ): UIModifier = then(CustomModifier {
-    if (it is BoxNode) it.visuals.border(width, color, style)
+    (it as? LayoutNode)?.ensureVisuals()?.border(width, color, style)
 })
 
-/** Sets inner drop shadow. */
-fun UIModifier.shadow(color: Color = Pal.shadow, spread: Float = 4f, blur: Float = 8f): UIModifier = then(CustomModifier {
-    if (it is BoxNode) it.visuals.shadow(color, spread, blur)
+/** Sets outer drop shadow. */
+fun UIModifier.shadow(
+    color: Color = Pal.shadow,
+    offsetX: Float = 0f,
+    offsetY: Float = 0f,
+    blur: Float = 8f,
+    spread: Float = 4f
+): UIModifier = then(CustomModifier {
+    (it as? LayoutNode)?.ensureVisuals()?.shadow(color, offsetX, offsetY, blur, spread)
 })
 
 /** Sets outer glow effect. */
 fun UIModifier.glow(color: Color, spread: Float = 6f, blur: Float = 12f): UIModifier = then(CustomModifier {
-    if (it is BoxNode) it.visuals.glow(color, spread, blur)
+    (it as? LayoutNode)?.ensureVisuals()?.glow(color, spread, blur)
 })
 
 /**
  * Enables and configures parameterized 2-pass Gaussian backdrop blur.
- *
- * @param blur Whether backdrop blur is active.
- * @param radius Kernel blur radius in pixels (e.g. 2f for subtle, 16f for frosted glass).
- * @param weight Alpha weight of the blurred texture (0.0f to 1.0f).
- * @param blend Blending curve exponent.
- * @param tint Tint color applied to the blurred backdrop texture.
- * @param iterations Number of ping-pong blur passes (1 to 4).
  */
 fun UIModifier.backdrop(
     blur: Boolean = true,
-    radius: Float = 4f,
+    blurRadius: Float = 12f,
     weight: Float = 0.8f,
     blend: Float = 0.8f,
     tint: Color = Color.white,
     iterations: Int = 2
 ): UIModifier = then(CustomModifier {
-    if (it is BoxNode) it.visuals.backdrop(blur, radius, weight, blend, tint, iterations)
+    (it as? LayoutNode)?.ensureVisuals()?.let { vis ->
+        vis.blur = blur
+        vis.blurRadius = blurRadius
+        vis.backdropWeight = weight
+        vis.backdropBlend = blend
+        vis.backdropTint.set(tint)
+        vis.blurIterations = iterations
+        vis.backgroundMode = BoxVisuals.BackgroundMode.BACKDROP
+    }
 })
 
 /** Sets visual opacity (0.0f = fully transparent, 1.0f = fully opaque). */
 fun UIModifier.opacity(value: Float): UIModifier = then(CustomModifier {
-    if (it is BoxNode) it.visuals.opacity = value
+    (it as? LayoutNode)?.ensureVisuals()?.opacity = value
 })
 
 /** Clips child content to this node's rectangular bounding box. */
@@ -247,9 +259,32 @@ fun UIModifier.clipToBounds(): UIModifier = clip(true)
 
 // --- INTERACTIVITY ---
 
-/** Attaches single-click callback. */
-fun UIModifier.onClick(block: () -> Unit): UIModifier = then(CustomModifier {
-    it.onClick = block
+/** Attaches click action with optional press state callback. */
+fun UIModifier.clickable(
+    onPressStateChanged: ((Boolean) -> Unit)? = null,
+    onClick: () -> Unit
+): UIModifier = then(CustomModifier { target ->
+    target.onClick = onClick
+    if (onPressStateChanged != null) {
+        val prevDown = target.onPointerDown
+        val prevUp = target.onPointerUp
+        target.onPointerDown = {
+            prevDown?.invoke(it)
+            onPressStateChanged(true)
+        }
+        target.onPointerUp = {
+            prevUp?.invoke(it)
+            onPressStateChanged(false)
+        }
+    }
+})
+
+/** Attaches simple click callback. */
+fun UIModifier.onClick(block: () -> Unit): UIModifier = clickable(onClick = block)
+
+/** Attaches hover listener. */
+fun UIModifier.hoverable(onHover: (Boolean) -> Unit): UIModifier = then(CustomModifier {
+    it.onHover = onHover
 })
 
 /** Attaches double-click callback. */
@@ -258,9 +293,7 @@ fun UIModifier.onDoubleClick(block: () -> Unit): UIModifier = then(CustomModifie
 })
 
 /** Attaches hover state change listener. */
-fun UIModifier.onHover(block: (Boolean) -> Unit): UIModifier = then(CustomModifier {
-    it.onHover = block
-})
+fun UIModifier.onHover(block: (Boolean) -> Unit): UIModifier = hoverable(block)
 
 /** Attaches pointer down listener. */
 fun UIModifier.onPointerDown(block: (PointerEvent) -> Unit): UIModifier = then(CustomModifier {
