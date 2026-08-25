@@ -169,7 +169,7 @@ class GridContainerNode(var columns: Int = 2, var gap: Float = 4f) : BoxNode() {
  */
 class SpacerNode(w: Float = 0f, h: Float = 0f, stretch: Float = 1f) : BoxNode() {
     init {
-        visuals.opacity = 0.0
+        visuals.opacity = 0.0f
         if (w > 0f || h > 0f) {
             width = w; minWidth = w; maxWidth = w
             height = h; minHeight = h; maxHeight = h

@@ -146,6 +146,9 @@ open class UINode {
     var isFocused: Boolean = false
         internal set
 
+    /** Whether child rendering should be clipped to this node's bounding box. */
+    var clip: Boolean = false
+
     /** Dirty flag indicating layout recalculation is required. */
     var isLayoutDirty: Boolean = true
 
@@ -176,6 +179,15 @@ open class UINode {
 
     /** Invoked on scroll wheel action. */
     var onScroll: ((ScrollEvent) -> Unit)? = null
+
+    /** Invoked when a character is typed while focused. Return true to consume. */
+    var onKeyTyped: ((Char) -> Boolean)? = null
+
+    /** Invoked when a key is pressed while focused. Return true to consume. */
+    var onKeyDown: ((arc.input.KeyCode) -> Boolean)? = null
+
+    /** Invoked when a key is released while focused. Return true to consume. */
+    var onKeyUp: ((arc.input.KeyCode) -> Boolean)? = null
 
     /** Whether pointer is currently hovering over this node. */
     var isHovered: Boolean = false
@@ -234,8 +246,24 @@ open class UINode {
     /** Renders this node and its children to the GPU. */
     open fun draw(renderer: EngineRenderer) {
         if (!visible) return
+
+        val shouldClip = clip && bounds.width > 0f && bounds.height > 0f
+        var pushed = false
+        if (shouldClip) {
+            pushed = org.mdt.ui.render.ScissorStack.push(bounds)
+            if (!pushed) {
+                // Completely clipped outside visible bounds
+                org.mdt.ui.render.ScissorStack.pop()
+                return
+            }
+        }
+
         drawSelf(renderer)
         drawChildren(renderer)
+
+        if (shouldClip && pushed) {
+            org.mdt.ui.render.ScissorStack.pop()
+        }
     }
 
     /** Renders the visual representation of this node. */

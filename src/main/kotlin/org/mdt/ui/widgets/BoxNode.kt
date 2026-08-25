@@ -72,7 +72,7 @@ open class BoxNode : UINode() {
     }
 
     override fun drawSelf(renderer: EngineRenderer) {
-        if (visuals.opacity > 0.0) {
+        if (visuals.opacity > 0.0f) {
             BoxRenderer.draw(bounds.x, bounds.y, bounds.width, bounds.height, visuals, renderer.blurProcessor)
         }
     }

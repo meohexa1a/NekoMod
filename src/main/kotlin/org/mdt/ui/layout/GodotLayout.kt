@@ -291,20 +291,20 @@ object GodotLayout {
             if (child.height > 0f) child.height else if (child.getPrefHeight() > 0f) child.getPrefHeight() else 0f
         }
 
-        // Compute X
+        // Compute X (Factoring in Margins)
         val x = when {
-            anchor.anchorLeft != anchor.anchorRight -> parentX + parentW * anchor.anchorLeft + anchor.offsetLeft
-            anchor.anchorLeft == 1f -> parentX + parentW + anchor.offsetRight - w
-            anchor.anchorLeft == 0.5f -> parentX + parentW * 0.5f + anchor.offsetLeft - w * 0.5f
-            else -> parentX + parentW * anchor.anchorLeft + anchor.offsetLeft
+            anchor.anchorLeft != anchor.anchorRight -> parentX + parentW * anchor.anchorLeft + anchor.offsetLeft + child.marginL
+            anchor.anchorLeft == 1f -> parentX + parentW + anchor.offsetRight - w - child.marginR
+            anchor.anchorLeft == 0.5f -> parentX + parentW * 0.5f + anchor.offsetLeft - w * 0.5f + child.marginL - child.marginR
+            else -> parentX + parentW * anchor.anchorLeft + anchor.offsetLeft + child.marginL
         }
 
-        // Compute Y (OpenGL coordinate: y=0 is bottom, y=parentH is top)
+        // Compute Y (OpenGL coordinate: y=0 is bottom, y=parentH is top, factoring in Margins)
         val y = when {
-            anchor.anchorTop != anchor.anchorBottom -> parentY + parentH * (1f - anchor.anchorBottom) + anchor.offsetBottom
-            anchor.anchorTop == 0f -> parentY + parentH - anchor.offsetTop - h
-            anchor.anchorTop == 0.5f -> parentY + parentH * 0.5f - anchor.offsetTop - h * 0.5f
-            else -> parentY + parentH * (1f - anchor.anchorTop) - anchor.offsetTop
+            anchor.anchorTop != anchor.anchorBottom -> parentY + parentH * (1f - anchor.anchorBottom) + anchor.offsetBottom + child.marginB
+            anchor.anchorTop == 0f -> parentY + parentH - anchor.offsetTop - h - child.marginT
+            anchor.anchorTop == 0.5f -> parentY + parentH * 0.5f - anchor.offsetTop - h * 0.5f + child.marginB - child.marginT
+            else -> parentY + parentH * (1f - anchor.anchorTop) - anchor.offsetTop + child.marginB
         }
 
         child.setBounds(x, y, w, h)
