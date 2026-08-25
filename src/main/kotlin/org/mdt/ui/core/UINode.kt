@@ -261,7 +261,7 @@ open class UINode {
         drawSelf(renderer)
         drawChildren(renderer)
 
-        if (shouldClip && pushed) {
+        if (pushed) {
             org.mdt.ui.render.ScissorStack.pop()
         }
     }

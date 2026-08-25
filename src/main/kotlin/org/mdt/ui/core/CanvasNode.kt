@@ -1,6 +1,5 @@
 package org.mdt.ui.core
 
-import arc.util.Log
 import org.mdt.ui.layout.GodotLayout
 import org.mdt.ui.render.EngineRenderer
 
@@ -27,8 +26,6 @@ class CanvasNode : UINode() {
 
         super.layout()
         isLayoutDirty = false
-
-        Log.info("[CanvasNode Layout Tree]\n" + dumpTree())
     }
 
     override fun draw(renderer: EngineRenderer) {
