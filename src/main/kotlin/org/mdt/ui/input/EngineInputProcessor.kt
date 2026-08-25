@@ -2,7 +2,6 @@ package org.mdt.ui.input
 
 import arc.input.InputProcessor
 import arc.input.KeyCode
-import arc.util.Log
 import arc.util.Time
 import org.mdt.ui.core.CanvasNode
 import org.mdt.ui.core.PointerEvent
@@ -12,16 +11,33 @@ import org.mdt.ui.core.UINode
 class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
     var hoveredNode: UINode? = null
     var pressedNode: UINode? = null
+    var focusedNode: UINode? = null
+        private set
 
     private var lastClickTime: Long = 0
     private var lastClickNode: UINode? = null
 
     private fun toLocalY(screenY: Int): Float = screenY.toFloat()
 
+    fun requestFocus(node: UINode?) {
+        if (focusedNode === node) return
+        focusedNode?.let {
+            it.isFocused = false
+        }
+        focusedNode = node
+        node?.let {
+            it.isFocused = true
+        }
+    }
+
+    fun clearFocus() {
+        requestFocus(null)
+    }
+
     private fun findActionableNode(hit: UINode?): UINode? {
         var cur = hit
         while (cur != null && cur !== canvas) {
-            if (cur.onClick != null || cur.onDoubleClick != null || cur.onPointerDown != null || cur.onPointerUp != null) {
+            if (cur.onClick != null || cur.onDoubleClick != null || cur.onPointerDown != null || cur.onPointerUp != null || cur.isFocusable) {
                 return cur
             }
             cur = cur.parent
@@ -48,14 +64,22 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
             val actionable = findActionableNode(hit)
             if (actionable != null) {
                 pressedNode = actionable
+                // Focus handling
+                if (actionable.isFocusable) {
+                    requestFocus(actionable)
+                } else {
+                    clearFocus()
+                }
+
                 val event = PointerEvent(x, y, pointer, button)
                 actionable.onPointerDown?.invoke(event)
-                Log.info("[EngineInput] touchDown at ($x, $y) -> hit: ${hit.javaClass.simpleName}, actionable: ${actionable.javaClass.simpleName}")
                 return true
             }
+            clearFocus()
             return true
         }
 
+        clearFocus()
         pressedNode = null
         return false
     }
@@ -79,7 +103,6 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
                     lastClickTime = 0
                     lastClickNode = null
                 } else {
-                    Log.info("[EngineInput] Invoking onClick on ${pressed.javaClass.simpleName}")
                     pressed.onClick?.invoke()
                     lastClickTime = now
                     lastClickNode = pressed
@@ -133,7 +156,18 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
         return false
     }
 
-    override fun keyDown(keyCode: KeyCode): Boolean = false
-    override fun keyUp(keyCode: KeyCode): Boolean = false
-    override fun keyTyped(character: Char): Boolean = false
+    override fun keyDown(keyCode: KeyCode): Boolean {
+        val focused = focusedNode ?: return false
+        return focused.onKeyDown?.invoke(keyCode) ?: false
+    }
+
+    override fun keyUp(keyCode: KeyCode): Boolean {
+        val focused = focusedNode ?: return false
+        return focused.onKeyUp?.invoke(keyCode) ?: false
+    }
+
+    override fun keyTyped(character: Char): Boolean {
+        val focused = focusedNode ?: return false
+        return focused.onKeyTyped?.invoke(character) ?: false
+    }
 }
