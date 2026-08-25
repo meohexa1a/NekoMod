@@ -74,7 +74,7 @@ fun Text(
     text: String,
     modifier: UIModifier = UIModifier,
     color: Color = Color.white,
-    scale: Double = 1.0,
+    scale: Float = 1.0f,
     align: Int = Align.left,
     wrap: Boolean = false,
     ellipsis: String? = null

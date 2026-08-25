@@ -2,7 +2,11 @@
 
 package org.mdt.ui.compose
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import arc.graphics.Color
 import arc.util.Align
 import org.mdt.ui.layout.LayoutPreset
@@ -72,7 +76,7 @@ fun Button(
     modifier: UIModifier = UIModifier,
     enabled: Boolean = true,
     colors: ButtonColors = ButtonColors.Default,
-    radius: Double = 6.0,
+    radius: Float = 6f,
     minWidth: Float = 72f,
     minHeight: Float = 32f,
     onDoubleClick: (() -> Unit)? = null
@@ -82,8 +86,8 @@ fun Button(
         .minSize(minWidth, minHeight)
         .radius(radius)
         .background(if (enabled) colors.fill else colors.disabled)
-        .border(1.0, if (enabled) colors.border else Color.valueOf("24273a"))
-        .opacity(if (enabled) 1.0 else 0.4)
+        .border(1f, if (enabled) colors.border else Color.valueOf("24273a"))
+        .opacity(if (enabled) 1.0f else 0.4f)
         .touchable(enabled)
         .onClick { if (enabled) onClick() }
         .then(if (onDoubleClick != null) UIModifier.onDoubleClick(onDoubleClick) else UIModifier)
@@ -101,7 +105,7 @@ fun Button(
         Text(
             text = text,
             color = if (enabled) colors.content else Color.gray,
-            scale = 0.9,
+            scale = 0.9f,
             align = Align.center
         )
     }
@@ -110,7 +114,8 @@ fun Button(
 /**
  * ## Toggle
  *
- * Sleek capsule pill toggle switch with sliding knob indicator.
+ * Smoothly animated capsule pill toggle switch (300ms transition) with sliding knob indicator
+ * and color interpolation.
  *
  * @param checked Current boolean state.
  * @param onToggle Callback invoked when toggled.
@@ -119,43 +124,49 @@ fun Button(
  * @param height Pill height in pixels.
  * @param onColor Track color when checked is true.
  * @param offColor Track color when checked is false.
+ * @param durationMillis Animation transition duration in milliseconds (default: 300ms).
  */
 @Composable
 fun Toggle(
     checked: Boolean,
     onToggle: () -> Unit,
     modifier: UIModifier = UIModifier,
-    width: Float = 44f,
+    width: Float = 46f,
     height: Float = 24f,
     onColor: Color = Color.valueOf("2563eb"),
-    offColor: Color = Color.valueOf("24273a")
+    offColor: Color = Color.valueOf("24273a"),
+    durationMillis: Int = 300
 ) {
+    val progress by animateFloatAsState(
+        targetValue = if (checked) 1f else 0f,
+        animationSpec = tween(durationMillis = durationMillis, easing = FastOutSlowInEasing)
+    )
+
+    val currentTrackColor = Color(offColor).lerp(onColor, progress)
+    val currentBorderColor = Color(Color.valueOf("363a4f")).lerp(Color.valueOf("60a5fa"), progress)
+
     val pillModifier = UIModifier
         .fixed(width, height)
-        .radius(height * 0.5)
-        .background(if (checked) onColor else offColor)
-        .border(1.0, if (checked) Color.valueOf("60a5fa") else Color.valueOf("363a4f"))
+        .radius(height * 0.5f)
+        .background(currentTrackColor)
+        .border(1f, currentBorderColor)
         .onClick(onToggle)
         .then(modifier)
 
     val knobSize = height - 6f
-    val knobModifier = if (checked) {
-        UIModifier
-            .anchor(LayoutPreset.CENTER_RIGHT)
-            .margin(right = 3f)
-            .fixed(knobSize, knobSize)
-            .radius(knobSize * 0.5)
-            .background(Color.white)
-            .shadow(Color.black.a(0.3f), spread = 1.0, blur = 3.0)
-    } else {
-        UIModifier
-            .anchor(LayoutPreset.CENTER_LEFT)
-            .margin(left = 3f)
-            .fixed(knobSize, knobSize)
-            .radius(knobSize * 0.5)
-            .background(Color.valueOf("9399b2"))
-            .shadow(Color.black.a(0.3f), spread = 1.0, blur = 3.0)
-    }
+    val minMargin = 3f
+    val maxMargin = width - knobSize - 3f
+    val currentMarginLeft = minMargin + (maxMargin - minMargin) * progress
+
+    val currentKnobColor = Color(Color.valueOf("a6adc8")).lerp(Color.white, progress)
+
+    val knobModifier = UIModifier
+        .anchor(LayoutPreset.CENTER_LEFT)
+        .margin(left = currentMarginLeft)
+        .fixed(knobSize, knobSize)
+        .radius(knobSize * 0.5f)
+        .background(currentKnobColor)
+        .shadow(Color.black.a(0.35f), spread = 1f, blur = 4f)
 
     Box(modifier = pillModifier) {
         Box(modifier = knobModifier)
@@ -180,8 +191,8 @@ fun Card(
     modifier: UIModifier = UIModifier,
     backgroundColor: Color = Color.valueOf("14151f").a(0.92f),
     borderColor: Color = Color.valueOf("363a4f"),
-    borderWidth: Double = 1.0,
-    radius: Double = 10.0,
+    borderWidth: Float = 1.0f,
+    radius: Float = 10.0f,
     padding: Float = 18f,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -189,9 +200,9 @@ fun Card(
         .pad(padding)
         .radius(radius)
         .background(backgroundColor)
-        .backdrop(blur = true, radius = 4f, weight = 0.85, tint = Color.valueOf("181926"))
+        .backdrop(blur = true, radius = 4f, weight = 0.85f, tint = Color.valueOf("181926"))
         .border(borderWidth, borderColor)
-        .shadow(Color.black.a(0.4f), spread = 2.0, blur = 10.0)
+        .shadow(Color.black.a(0.4f), spread = 2f, blur = 10f)
         .then(modifier)
 
     Box(modifier = cardModifier, content = content)

@@ -183,18 +183,18 @@ fun UIModifier.background(color: Color): UIModifier = then(CustomModifier {
 })
 
 /** Sets uniform corner radius on all 4 corners (pixels). */
-fun UIModifier.radius(all: Double): UIModifier = then(CustomModifier {
+fun UIModifier.radius(all: Float): UIModifier = then(CustomModifier {
     if (it is BoxNode) it.visuals.radius(all)
 })
 
 /** Sets corner radius individually for each corner (pixels). */
-fun UIModifier.radius(tl: Double, tr: Double, br: Double, bl: Double): UIModifier = then(CustomModifier {
+fun UIModifier.radius(tl: Float, tr: Float, br: Float, bl: Float): UIModifier = then(CustomModifier {
     if (it is BoxNode) it.visuals.radius(tl, tr, br, bl)
 })
 
 /** Sets border stroke styling. */
 fun UIModifier.border(
-    width: Double,
+    width: Float,
     color: Color = Color.white,
     style: BoxVisuals.BorderStyle = BoxVisuals.BorderStyle.SOLID
 ): UIModifier = then(CustomModifier {
@@ -202,12 +202,12 @@ fun UIModifier.border(
 })
 
 /** Sets inner drop shadow. */
-fun UIModifier.shadow(color: Color = Pal.shadow, spread: Double = 4.0, blur: Double = 8.0): UIModifier = then(CustomModifier {
+fun UIModifier.shadow(color: Color = Pal.shadow, spread: Float = 4f, blur: Float = 8f): UIModifier = then(CustomModifier {
     if (it is BoxNode) it.visuals.shadow(color, spread, blur)
 })
 
 /** Sets outer glow effect. */
-fun UIModifier.glow(color: Color, spread: Double = 6.0, blur: Double = 12.0): UIModifier = then(CustomModifier {
+fun UIModifier.glow(color: Color, spread: Float = 6f, blur: Float = 12f): UIModifier = then(CustomModifier {
     if (it is BoxNode) it.visuals.glow(color, spread, blur)
 })
 
@@ -216,7 +216,7 @@ fun UIModifier.glow(color: Color, spread: Double = 6.0, blur: Double = 12.0): UI
  *
  * @param blur Whether backdrop blur is active.
  * @param radius Kernel blur radius in pixels (e.g. 2f for subtle, 16f for frosted glass).
- * @param weight Alpha weight of the blurred texture (0.0 to 1.0).
+ * @param weight Alpha weight of the blurred texture (0.0f to 1.0f).
  * @param blend Blending curve exponent.
  * @param tint Tint color applied to the blurred backdrop texture.
  * @param iterations Number of ping-pong blur passes (1 to 4).
@@ -224,18 +224,26 @@ fun UIModifier.glow(color: Color, spread: Double = 6.0, blur: Double = 12.0): UI
 fun UIModifier.backdrop(
     blur: Boolean = true,
     radius: Float = 4f,
-    weight: Double = 0.8,
-    blend: Double = 0.8,
+    weight: Float = 0.8f,
+    blend: Float = 0.8f,
     tint: Color = Color.white,
     iterations: Int = 2
 ): UIModifier = then(CustomModifier {
     if (it is BoxNode) it.visuals.backdrop(blur, radius, weight, blend, tint, iterations)
 })
 
-/** Sets visual opacity (0.0 = fully transparent, 1.0 = fully opaque). */
-fun UIModifier.opacity(value: Double): UIModifier = then(CustomModifier {
+/** Sets visual opacity (0.0f = fully transparent, 1.0f = fully opaque). */
+fun UIModifier.opacity(value: Float): UIModifier = then(CustomModifier {
     if (it is BoxNode) it.visuals.opacity = value
 })
+
+/** Clips child content to this node's rectangular bounding box. */
+fun UIModifier.clip(clip: Boolean = true): UIModifier = then(CustomModifier {
+    it.clip = clip
+})
+
+/** Shorthand alias for [clip]. */
+fun UIModifier.clipToBounds(): UIModifier = clip(true)
 
 // --- INTERACTIVITY ---
 
