@@ -36,7 +36,7 @@ open class TextFieldNode : LayoutNode() {
     var focusBorderColor: Color = Color(Color.valueOf("2563eb"))
     var focusGlowColor: Color = Color(Color.valueOf("2563eb").a(0.4f))
 
-    var fontScale: Float = 0.9f
+    var fontScale: Float = 1.0f
     var onValueChange: ((String) -> Unit)? = null
 
     val boxVisuals: BoxVisuals = ensureVisuals()

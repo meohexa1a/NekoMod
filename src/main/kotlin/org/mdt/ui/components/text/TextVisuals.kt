@@ -1,17 +1,20 @@
 package org.mdt.ui.components.text
 
 import arc.graphics.Color
+import arc.graphics.g2d.Font
 import arc.util.Align
+import mindustry.ui.Fonts
 
 /**
  * ## TextVisuals
  *
- * Typography parameters for text styling and layout measurement.
+ * Typography parameters for text styling, font selection, and layout measurement.
  *
  * See: docs/architecture/architecture_en.md
  */
 class TextVisuals {
     var text: String = ""
+    var font: Font = Fonts.def
     var color: Color = Color(Color.white)
     var fontScaleX: Float = 1.0f
     var fontScaleY: Float = 1.0f
@@ -34,6 +37,11 @@ class TextVisuals {
             labelAlign = value
             lineAlign = value
         }
+
+    fun font(font: Font): TextVisuals {
+        this.font = font
+        return this
+    }
 
     fun color(color: Color): TextVisuals {
         this.color.set(color)

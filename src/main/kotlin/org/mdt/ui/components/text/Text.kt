@@ -5,7 +5,9 @@ package org.mdt.ui.components.text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import arc.graphics.Color
+import arc.graphics.g2d.Font
 import arc.util.Align
+import mindustry.ui.Fonts
 import org.mdt.ui.compose.NodeApplier
 import org.mdt.ui.compose.UIModifier
 
@@ -17,7 +19,8 @@ import org.mdt.ui.compose.UIModifier
  * @param text Content string to display.
  * @param modifier Chainable [UIModifier].
  * @param color Text tint color.
- * @param scale Font scale multiplier.
+ * @param font Font family ([Fonts.def], [Fonts.tech], [Fonts.large], [Fonts.outline]).
+ * @param scale Font scale multiplier (default 1.0f for pixel-perfect clarity).
  * @param align Horizontal text alignment ([Align.left], [Align.center], [Align.right]).
  * @param wrap Whether to enable multi-line text wrapping.
  */
@@ -26,6 +29,7 @@ fun Text(
     text: String,
     modifier: UIModifier = UIModifier,
     color: Color = Color.white,
+    font: Font = Fonts.def,
     scale: Float = 1.0f,
     align: Int = Align.left,
     wrap: Boolean = false
@@ -33,6 +37,7 @@ fun Text(
     ComposeNode<TextNode, NodeApplier>(
         factory = {
             val node = TextNode(text)
+            node.textVisuals.font = font
             node.textVisuals.color.set(color)
             node.textVisuals.fontScale = scale
             node.textVisuals.align = align
@@ -42,6 +47,10 @@ fun Text(
         },
         update = {
             set(text) { this.text = it }
+            set(font) {
+                this.textVisuals.font = it
+                invalidateLayout()
+            }
             set(color) { this.textVisuals.color.set(it) }
             set(scale) {
                 this.textVisuals.fontScale = it

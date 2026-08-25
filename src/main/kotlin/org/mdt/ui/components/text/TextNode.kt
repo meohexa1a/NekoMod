@@ -3,14 +3,13 @@ package org.mdt.ui.components.text
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.GlyphLayout
-import mindustry.ui.Fonts
 import org.mdt.ui.components.layout.LayoutNode
 import org.mdt.ui.render.EngineRenderer
 
 /**
  * ## TextNode
  *
- * Virtual DOM node rendering BMFont glyphs with caching and typography configurations.
+ * Virtual DOM node rendering BMFont glyphs with typography configurations and font selection.
  *
  * See: docs/architecture/architecture_en.md
  */
@@ -35,29 +34,31 @@ open class TextNode(
 
     override fun getPrefWidth(): Float {
         if (width >= 0f) return width
-        val f = Fonts.def
+        val f = textVisuals.font
         val oldSX = f.scaleX
         val oldSY = f.scaleY
-        f.data.setScale(textVisuals.fontScale, textVisuals.fontScale)
+        val isScaled = textVisuals.fontScaleX != 1.0f || textVisuals.fontScaleY != 1.0f
+        if (isScaled) f.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
 
         layoutHelper.setText(f, text)
         val textW = layoutHelper.width
 
-        f.data.setScale(oldSX, oldSY)
+        if (isScaled) f.data.setScale(oldSX, oldSY)
         return (if (minWidth >= 0f) maxOf(textW, minWidth) else textW) + padL + padR
     }
 
     override fun getPrefHeight(): Float {
         if (height >= 0f) return height
-        val f = Fonts.def
+        val f = textVisuals.font
         val oldSX = f.scaleX
         val oldSY = f.scaleY
-        f.data.setScale(textVisuals.fontScale, textVisuals.fontScale)
+        val isScaled = textVisuals.fontScaleX != 1.0f || textVisuals.fontScaleY != 1.0f
+        if (isScaled) f.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
 
         layoutHelper.setText(f, text)
         val textH = layoutHelper.height
 
-        f.data.setScale(oldSX, oldSY)
+        if (isScaled) f.data.setScale(oldSX, oldSY)
         return (if (minHeight >= 0f) maxOf(textH, minHeight) else textH) + padT + padB
     }
 
@@ -69,10 +70,11 @@ open class TextNode(
         val innerY = bounds.y + padB
         val innerH = bounds.height - padT - padB
 
-        val f = Fonts.def
+        val f = textVisuals.font
         val oldSX = f.scaleX
         val oldSY = f.scaleY
-        f.data.setScale(textVisuals.fontScale, textVisuals.fontScale)
+        val isScaled = textVisuals.fontScaleX != 1.0f || textVisuals.fontScaleY != 1.0f
+        if (isScaled) f.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
 
         f.color = textVisuals.color
         val capH = f.data.capHeight
@@ -80,7 +82,7 @@ open class TextNode(
 
         f.draw(text, innerX, drawY)
 
-        f.data.setScale(oldSX, oldSY)
+        if (isScaled) f.data.setScale(oldSX, oldSY)
         Draw.color(Color.white)
     }
 

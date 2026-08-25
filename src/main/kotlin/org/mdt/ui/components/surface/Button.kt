@@ -67,7 +67,7 @@ fun Button(
     modifier: UIModifier = UIModifier,
     colors: ButtonColors = ButtonColors.Default,
     radius: Float = 6f,
-    fontScale: Float = 0.9f
+    fontScale: Float = 1.0f
 ) {
     var isHovered by remember { mutableStateOf(false) }
     var isPressed by remember { mutableStateOf(false) }

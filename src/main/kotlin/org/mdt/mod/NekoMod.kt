@@ -54,12 +54,12 @@ class NekoMod : Mod() {
                             Text(
                                 text = i18n("app.title"),
                                 color = Color.white,
-                                scale = 1.1f
+                                scale = 1.0f
                             )
                             Text(
                                 text = i18n("app.subtitle"),
                                 color = Color.valueOf("9399b2"),
-                                scale = 0.8f
+                                scale = 1.0f
                             )
                         }
                     }
@@ -76,22 +76,15 @@ class NekoMod : Mod() {
                         modifier = Modifier.fillMaxWidth().height(32f).tooltip("Interactive Text Input")
                     )
 
-                    Row(arrangement = Arrangement.spacedBy(10f)) {
-                        Text(
-                            text = "Power: ${(sliderVal * 100f).toInt()}%",
-                            color = Color.valueOf("cad3f5"),
-                            scale = 0.85f,
-                            modifier = Modifier.width(85f)
-                        )
-                        Slider(
-                            value = sliderVal,
-                            onValueChange = {
-                                sliderVal = it
-                                KVStore.default.putFloat("demo_slider", it)
-                            },
-                            modifier = Modifier.width(130f).tooltip("Drag to adjust power output")
-                        )
-                    }
+                    Slider(
+                        value = sliderVal,
+                        onValueChange = {
+                            sliderVal = it
+                            KVStore.default.putFloat("demo_slider", it)
+                        },
+                        label = "Power Output",
+                        modifier = Modifier.fillMaxWidth().height(30f).tooltip("Drag to adjust power output")
+                    )
 
                     ProgressBar(
                         progress = sliderVal,

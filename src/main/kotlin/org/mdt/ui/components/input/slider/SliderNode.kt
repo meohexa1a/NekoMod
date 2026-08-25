@@ -1,19 +1,23 @@
 package org.mdt.ui.components.input.slider
 
-import arc.Core
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
-import arc.graphics.g2d.Fill
+import arc.graphics.g2d.GlyphLayout
 import arc.math.Mathf
+import mindustry.ui.Fonts
+import org.mdt.ui.components.layout.BoxVisuals
 import org.mdt.ui.components.layout.LayoutNode
 import org.mdt.ui.core.PointerEvent
+import org.mdt.ui.core.Rect
+import org.mdt.ui.render.BoxRenderer
 import org.mdt.ui.render.EngineRenderer
+import org.mdt.ui.render.ScissorStack
 
 /**
  * ## SliderNode
  *
- * Interactive draggable slider node supporting custom value ranges, step increments,
- * and sleek circular thumb knob rendering.
+ * Modern capsule pill slider node (iOS & Material 3 inspired) supporting full-width
+ * smooth drag adjustment, integrated left title/label, and right value readout.
  *
  * See: docs/roadmap/roadmap_en.md
  */
@@ -22,9 +26,7 @@ open class SliderNode : LayoutNode() {
     var value: Float = 0.0f
         set(v) {
             val clamped = v.coerceIn(valueRange.start, valueRange.endInclusive)
-            val finalVal = if (step > 0f) {
-                Mathf.round(clamped / step) * step
-            } else clamped
+            val finalVal = if (step > 0f) Mathf.round(clamped / step) * step else clamped
 
             if (field != finalVal) {
                 field = finalVal
@@ -36,17 +38,36 @@ open class SliderNode : LayoutNode() {
     var step: Float = 0f
     var onValueChange: ((Float) -> Unit)? = null
 
+    var label: String? = null
+        set(v) {
+            if (field != v) {
+                field = v
+                invalidateLayout()
+            }
+        }
+
+    var valueText: String? = null
+        set(v) {
+            if (field != v) {
+                field = v
+                invalidateLayout()
+            }
+        }
+
     var trackColor: Color = Color(Color.valueOf("181926"))
     var activeTrackColor: Color = Color(Color.valueOf("2563eb"))
-    var thumbColor: Color = Color(Color.white)
-    var thumbRadius: Float = 6f
-    var trackHeight: Float = 4f
+    var borderColor: Color = Color(Color.valueOf("363a4f"))
+    var labelColor: Color = Color(Color.white)
+    var valueColor: Color = Color(Color.valueOf("cad3f5"))
 
     private var isDragging = false
 
+    private val trackVisuals = BoxVisuals()
+    private val fillVisuals = BoxVisuals()
+
     init {
-        minHeight = 24f
-        minWidth = 100f
+        minHeight = 30f
+        minWidth = 140f
 
         onPointerDown = { event: PointerEvent ->
             isDragging = true
@@ -71,8 +92,8 @@ open class SliderNode : LayoutNode() {
     }
 
     private fun updateValueFromScreenX(screenX: Float) {
-        val innerX = bounds.x + padL + thumbRadius
-        val innerW = bounds.width - padL - padR - thumbRadius * 2f
+        val innerX = bounds.x + padL
+        val innerW = bounds.width - padL - padR
         if (innerW <= 0f) return
 
         val ratio = ((screenX - innerX) / innerW).coerceIn(0f, 1f)
@@ -88,8 +109,8 @@ open class SliderNode : LayoutNode() {
         }
     }
 
-    override fun getPrefWidth(): Float = if (width >= 0f) width else maxOf(minWidth, 120f) + padL + padR
-    override fun getPrefHeight(): Float = if (height >= 0f) height else maxOf(minHeight, 24f) + padT + padB
+    override fun getPrefWidth(): Float = if (width >= 0f) width else maxOf(minWidth, 180f) + padL + padR
+    override fun getPrefHeight(): Float = if (height >= 0f) height else maxOf(minHeight, 30f) + padT + padB
 
     override fun drawSelf(renderer: EngineRenderer) {
         val w = bounds.width - padL - padR
@@ -98,35 +119,50 @@ open class SliderNode : LayoutNode() {
 
         val innerX = bounds.x + padL
         val innerY = bounds.y + padB
-        val centerY = innerY + h * 0.5f
-
-        val trackLeft = innerX + thumbRadius
-        val trackWidth = maxOf(0f, w - thumbRadius * 2f)
-
-        // 1. Draw Inactive Track
-        Draw.color(trackColor)
-        Fill.rect(trackLeft + trackWidth * 0.5f, centerY, trackWidth, trackHeight)
-
-        // 2. Draw Active Track
+        val radius = h * 0.5f
         val progress = getProgress()
-        val activeW = trackWidth * progress
-        if (activeW > 0f) {
-            Draw.color(activeTrackColor)
-            Fill.rect(trackLeft + activeW * 0.5f, centerY, activeW, trackHeight)
+
+        // 1. Draw Background Capsule Track
+        trackVisuals.radius(radius)
+        trackVisuals.fillColor.set(trackColor)
+        trackVisuals.border(1f, borderColor)
+        BoxRenderer.draw(innerX, innerY, w, h, trackVisuals, renderer.blurProcessor)
+
+        // 2. Draw Active Fill Capsule (Clipped smoothly to progress)
+        if (progress > 0.001f) {
+            val fillW = w * progress
+            val pushed = ScissorStack.push(Rect(innerX, innerY, fillW, h))
+            if (pushed) {
+                fillVisuals.radius(radius)
+                fillVisuals.fillColor.set(activeTrackColor)
+                BoxRenderer.draw(innerX, innerY, w, h, fillVisuals, renderer.blurProcessor)
+                ScissorStack.pop()
+            }
         }
 
-        // 3. Draw Thumb Knob
-        val thumbX = trackLeft + activeW
-        val currentRadius = if (isDragging) thumbRadius * 1.25f else thumbRadius
+        // 3. Draw Integrated Text Overlays (Pixel-Perfect 1.0f BMFont)
+        val f = Fonts.def
+        val textY = innerY + (h + f.data.capHeight) * 0.5f
 
-        // Subtle knob shadow
-        Draw.color(Color.black.a(0.35f))
-        Fill.circle(thumbX, centerY - 1f, currentRadius + 1f)
+        // Left Label
+        val currentLabel = label
+        if (!currentLabel.isNullOrEmpty()) {
+            f.color = labelColor
+            f.draw(currentLabel, innerX + 12f, textY)
+        }
 
-        // Knob circle
-        Draw.color(thumbColor)
-        Fill.circle(thumbX, centerY, currentRadius)
+        // Right Value
+        val valText = valueText ?: "${(value * 100f).toInt()}%"
+        if (valText.isNotEmpty()) {
+            glyphLayout.setText(f, valText)
+            f.color = valueColor
+            f.draw(valText, innerX + w - 12f - glyphLayout.width, textY)
+        }
 
         Draw.color(Color.white)
+    }
+
+    companion object {
+        private val glyphLayout = GlyphLayout()
     }
 }
