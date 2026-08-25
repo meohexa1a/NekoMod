@@ -97,9 +97,7 @@ object ImageLoader {
                 uploadQueue.add(UploadTask(url, pixmap, onResult))
             } catch (e: Throwable) {
                 Log.err("[ImageLoader] Failed to download image from $url: ${e.message}")
-                AsyncDispatcher.onMainThread {
-                    onResult(null, e)
-                }
+                AsyncDispatcher.onMainThread { onResult(null, e) }
             }
         }
     }
@@ -125,9 +123,7 @@ object ImageLoader {
                 val pixmap = Pixmap(bytes, 0, bytes.size)
                 uploadQueue.add(UploadTask(path, pixmap, onResult))
             } catch (e: Throwable) {
-                AsyncDispatcher.onMainThread {
-                    onResult(null, e)
-                }
+                AsyncDispatcher.onMainThread { onResult(null, e) }
             }
         }
     }
@@ -147,9 +143,7 @@ object ImageLoader {
                 val pixmap = Pixmap(bytes, 0, bytes.size)
                 uploadQueue.add(UploadTask(cacheKey, pixmap, onResult))
             } catch (e: Throwable) {
-                AsyncDispatcher.onMainThread {
-                    onResult(null, e)
-                }
+                AsyncDispatcher.onMainThread { onResult(null, e) }
             }
         }
     }

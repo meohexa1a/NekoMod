@@ -43,7 +43,7 @@ object BoxMeasurePolicy : MeasurePolicy {
     }
 
     override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availW: Float, availH: Float) {
-        GodotLayout.layoutAnchors(node.children, availW, availH)
+        GodotLayout.layoutAnchors(node.children, parentW = availW, parentH = availH, parentX = innerX, parentY = innerY)
     }
 }
 

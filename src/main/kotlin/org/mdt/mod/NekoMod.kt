@@ -80,7 +80,8 @@ class NekoMod : Mod() {
                         Text(
                             text = "Power: ${(sliderVal * 100f).toInt()}%",
                             color = Color.valueOf("cad3f5"),
-                            scale = 0.85f
+                            scale = 0.85f,
+                            modifier = Modifier.width(85f)
                         )
                         Slider(
                             value = sliderVal,
