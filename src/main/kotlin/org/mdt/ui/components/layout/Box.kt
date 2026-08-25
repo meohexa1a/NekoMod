@@ -1,0 +1,39 @@
+@file:Suppress("FunctionName", "unused")
+
+package org.mdt.ui.components.layout
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ComposeNode
+import org.mdt.ui.compose.BoxScope
+import org.mdt.ui.compose.NodeApplier
+import org.mdt.ui.compose.UIModifier
+import org.mdt.ui.layout.policy.BoxMeasurePolicy
+
+/**
+ * ## Box
+ *
+ * Fundamental container layout positioning children relative to anchor points.
+ */
+@Composable
+fun Box(
+    modifier: UIModifier = UIModifier,
+    content: @Composable BoxScope.() -> Unit = {}
+) {
+    ComposeNode<LayoutNode, NodeApplier>(
+        factory = {
+            val node = LayoutNode()
+            node.measurePolicy = BoxMeasurePolicy
+            modifier.applyTo(node)
+            node
+        },
+        update = {
+            set(modifier) {
+                it.applyTo(this)
+                invalidateLayout()
+            }
+        },
+        content = {
+            BoxScope.content()
+        }
+    )
+}
