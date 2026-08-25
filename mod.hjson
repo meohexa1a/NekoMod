@@ -1,0 +1,7 @@
+{
+    name: "nekmodkotlin"
+    displayName: "NekoMod Kotlin"
+    main: "org.mdt.mod.NekoMod"
+    java: true
+    minGameVersion: 159
+}
