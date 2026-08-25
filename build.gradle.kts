@@ -49,7 +49,10 @@ dependencies {
 
     implementation("org.codehaus.janino:janino:3.1.12")
     implementation("com.squareup.okio:okio:3.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     implementation("org.jetbrains.compose.runtime:runtime-desktop:1.7.1")
+    implementation("org.jetbrains.compose.animation:animation-core-desktop:1.7.1")
 }
 
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
