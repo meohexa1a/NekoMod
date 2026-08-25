@@ -44,7 +44,7 @@ object BoxRenderer {
         Core.atlas.white().texture.bind()
         Draw.flush()
 
-        val margin = 1f + (if (hasGlow(visuals)) (visuals.glowSpread + visuals.glowBlur).toFloat() else 0f)
+        val margin = 1f + (if (hasGlow(visuals)) (visuals.glowSpread + visuals.glowBlur) else 0f)
         val qx = x - margin
         val qy = y - margin
         val qw = w + margin * 2f
@@ -64,14 +64,15 @@ object BoxRenderer {
         )
         Draw.flush()
         Draw.shader(prev)
+        Gl.activeTexture(Gl.texture0)
     }
 
     private fun applyCommon(s: Shader, v: BoxVisuals, w: Float, h: Float) {
         s.setUniformf("u_size", w, h)
-        s.setUniformf("u_opacity", v.opacity.toFloat())
+        s.setUniformf("u_opacity", v.opacity)
         s.setUniformf("u_cornerRadii",
-            v.topLeftRadius.toFloat(), v.topRightRadius.toFloat(),
-            v.bottomRightRadius.toFloat(), v.bottomLeftRadius.toFloat())
+            v.topLeftRadius, v.topRightRadius,
+            v.bottomRightRadius, v.bottomLeftRadius)
         s.setUniformf("u_edgeSoftness", 1f)
         s.setUniformf("u_fillMode", v.backgroundMode.fillMode.toFloat())
         s.setUniformf("u_fillColor", v.fillColor.r, v.fillColor.g, v.fillColor.b, v.fillColor.a)
@@ -79,20 +80,20 @@ object BoxRenderer {
 
     private fun applyFill(s: Shader, v: BoxVisuals) {
         if (v.backgroundMode != BoxVisuals.BackgroundMode.TEXTURE || v.fillTexture == null) return
-        s.setUniformf("u_uvScale", v.uvScaleX.toFloat(), v.uvScaleY.toFloat())
-        s.setUniformf("u_uvOffset", v.uvOffsetX.toFloat(), v.uvOffsetY.toFloat())
-        Gl.activeTexture(Gl.texture2d + Shaders.TEX_UNIT_FILL)
+        s.setUniformf("u_uvScale", v.uvScaleX, v.uvScaleY)
+        s.setUniformf("u_uvOffset", v.uvOffsetX, v.uvOffsetY)
+        Gl.activeTexture(Gl.texture0 + Shaders.TEX_UNIT_FILL)
         v.fillTexture!!.bind()
     }
 
     private fun applyBorder(s: Shader, v: BoxVisuals, w: Float, h: Float) {
-        if (v.borderWidth > 0.001) {
-            s.setUniformf("u_borderWidth", minOf(v.borderWidth.toFloat(), minOf(w, h) * 0.5f))
+        if (v.borderWidth > 0.001f) {
+            s.setUniformf("u_borderWidth", minOf(v.borderWidth, minOf(w, h) * 0.5f))
             s.setUniformf("u_borderColor", v.borderColor.r, v.borderColor.g, v.borderColor.b, v.borderColor.a)
             s.setUniformf("u_borderStyle", v.borderStyle.value.toFloat())
             if (v.borderStyle != BoxVisuals.BorderStyle.SOLID) {
-                s.setUniformf("u_dashLength", v.dashLength.toFloat())
-                s.setUniformf("u_dashRatio", v.dashRatio.toFloat())
+                s.setUniformf("u_dashLength", v.dashLength)
+                s.setUniformf("u_dashRatio", v.dashRatio)
             }
         } else {
             s.setUniformf("u_borderWidth", 0f)
@@ -100,23 +101,23 @@ object BoxRenderer {
     }
 
     private fun applyInnerShadow(s: Shader, v: BoxVisuals) {
-        if (v.innerShadowColor.a > 0.001f && (v.innerShadowSpread > 0.001 || v.innerShadowBlur > 0.001)) {
+        if (v.innerShadowColor.a > 0.001f && (v.innerShadowSpread > 0.001f || v.innerShadowBlur > 0.001f)) {
             s.setUniformf("u_innerShadowColor", v.innerShadowColor.r, v.innerShadowColor.g, v.innerShadowColor.b, v.innerShadowColor.a)
-            s.setUniformf("u_innerShadowSpread", v.innerShadowSpread.toFloat())
-            s.setUniformf("u_innerShadowBlur", v.innerShadowBlur.toFloat())
+            s.setUniformf("u_innerShadowSpread", v.innerShadowSpread)
+            s.setUniformf("u_innerShadowBlur", v.innerShadowBlur)
         } else {
             s.setUniformf("u_innerShadowColor", 0f, 0f, 0f, 0f)
         }
     }
 
     private fun hasGlow(v: BoxVisuals): Boolean =
-        v.glowColor.a > 0.001f && (v.glowSpread > 0.001 || v.glowBlur > 0.001)
+        v.glowColor.a > 0.001f && (v.glowSpread > 0.001f || v.glowBlur > 0.001f)
 
     private fun applyGlow(s: Shader, v: BoxVisuals) {
         if (hasGlow(v)) {
             s.setUniformf("u_glowColor", v.glowColor.r, v.glowColor.g, v.glowColor.b, v.glowColor.a)
-            s.setUniformf("u_glowSpread", v.glowSpread.toFloat())
-            s.setUniformf("u_glowBlur", v.glowBlur.toFloat())
+            s.setUniformf("u_glowSpread", v.glowSpread)
+            s.setUniformf("u_glowBlur", v.glowBlur)
         } else {
             s.setUniformf("u_glowColor", 0f, 0f, 0f, 0f)
         }
@@ -124,11 +125,11 @@ object BoxRenderer {
 
     private fun applyBackdrop(s: Shader, v: BoxVisuals, backdrop: Texture?) {
         if (backdrop != null && v.backgroundMode == BoxVisuals.BackgroundMode.BACKDROP) {
-            s.setUniformf("u_backdropWeight", v.backdropWeight.toFloat())
+            s.setUniformf("u_backdropWeight", v.backdropWeight)
             s.setUniformf("u_backdropCoords", 0f, 0f, 1f, 1f)
-            s.setUniformf("u_backdropBlend", v.backdropBlend.toFloat())
-            s.setUniformf("u_backdropMinAlpha", v.backdropMinAlpha.toFloat())
-            Gl.activeTexture(Gl.texture2d + Shaders.TEX_UNIT_BACKDROP)
+            s.setUniformf("u_backdropBlend", v.backdropBlend)
+            s.setUniformf("u_backdropMinAlpha", v.backdropMinAlpha)
+            Gl.activeTexture(Gl.texture0 + Shaders.TEX_UNIT_BACKDROP)
             backdrop.bind()
         } else {
             s.setUniformf("u_backdropWeight", 0f)
@@ -136,11 +137,11 @@ object BoxRenderer {
     }
 
     private fun applyFilter(s: Shader, v: BoxVisuals) {
-        if (v.filterMode != BoxVisuals.FilterMode.NONE && v.filterAmount > 0.001) {
-            s.setUniformf("u_colorFilter", v.filterMode.value.toFloat(), v.filterAmount.toFloat(), 0f, 0f)
+        if (v.filterMode != BoxVisuals.FilterMode.NONE && v.filterAmount > 0.001f) {
+            s.setUniformf("u_colorFilter", v.filterMode.value.toFloat(), v.filterAmount, 0f, 0f)
         } else {
             s.setUniformf("u_colorFilter", 0f, 0f, 0f, 0f)
         }
-        s.setUniformf("u_noiseAmount", v.noiseAmount.toFloat())
+        s.setUniformf("u_noiseAmount", v.noiseAmount)
     }
 }

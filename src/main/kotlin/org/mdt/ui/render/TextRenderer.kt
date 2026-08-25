@@ -31,8 +31,8 @@ class TextRenderer {
         val f = font()
         val oldSX = f.scaleX
         val oldSY = f.scaleY
-        val scaled = visuals.fontScaleX != 1.0 || visuals.fontScaleY != 1.0
-        if (scaled) f.data.setScale(visuals.fontScaleX.toFloat(), visuals.fontScaleY.toFloat())
+        val scaled = visuals.fontScaleX != 1.0f || visuals.fontScaleY != 1.0f
+        if (scaled) f.data.setScale(visuals.fontScaleX, visuals.fontScaleY)
 
         prefSizeInvalid = false
         if (visuals.wrap && visuals.ellipsis == null) {
@@ -52,8 +52,8 @@ class TextRenderer {
         val f = font()
         val oldSX = f.scaleX
         val oldSY = f.scaleY
-        val scaled = visuals.fontScaleX != 1.0 || visuals.fontScaleY != 1.0
-        if (scaled) f.data.setScale(visuals.fontScaleX.toFloat(), visuals.fontScaleY.toFloat())
+        val scaled = visuals.fontScaleX != 1.0f || visuals.fontScaleY != 1.0f
+        if (scaled) f.data.setScale(visuals.fontScaleX, visuals.fontScaleY)
 
         f.color = visuals.color
 

@@ -38,16 +38,13 @@ class EngineRenderer {
     }
 
     private fun captureScreen(sw: Int, sh: Int): Texture? {
-        val fbW = maxOf(2, (sw * SCREEN_CAPTURE_SCALE).toInt())
-        val fbH = maxOf(2, (sh * SCREEN_CAPTURE_SCALE).toInt())
-
         val existing = screenCaptureFbo
-        if (existing != null && (existing.width != fbW || existing.height != fbH)) {
+        if (existing != null && (existing.width != sw || existing.height != sh)) {
             existing.dispose()
             screenCaptureFbo = null
         }
         if (screenCaptureFbo == null) {
-            screenCaptureFbo = FrameBuffer(fbW, fbH).apply {
+            screenCaptureFbo = FrameBuffer(sw, sh).apply {
                 texture.setFilter(Texture.TextureFilter.linear)
             }
         }
@@ -58,7 +55,7 @@ class EngineRenderer {
         Gl.disable(Gl.blend)
         Gl.depthMask(false)
         Gl.bindTexture(Gl.texture2d, fbo.texture.textureObjectHandle)
-        Gl.copyTexSubImage2D(Gl.texture2d, 0, 0, 0, 0, 0, fbW, fbH)
+        Gl.copyTexSubImage2D(Gl.texture2d, 0, 0, 0, 0, 0, sw, sh)
         Gl.bindTexture(Gl.texture2d, 0)
         if (blendWas) Gl.enable(Gl.blend) else Gl.disable(Gl.blend)
         Gl.depthMask(true)
@@ -92,9 +89,5 @@ class EngineRenderer {
         screenCaptureFbo?.dispose()
         screenCaptureFbo = null
         blurProcessor.dispose()
-    }
-
-    companion object {
-        private const val SCREEN_CAPTURE_SCALE = 0.5f
     }
 }
