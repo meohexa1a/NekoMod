@@ -5,38 +5,46 @@ package org.mdt.ui.compose
 import androidx.compose.runtime.Composable
 import arc.graphics.Color
 import arc.util.Align
+import org.mdt.ui.layout.LayoutPreset
 
 /**
  * ## ButtonColors
  *
- * Color palette state configuration for interactive buttons.
+ * Professional color palette state configuration for interactive buttons.
  */
 data class ButtonColors(
-    val fill: Color = Color.valueOf("2a2a3a"),
-    val hover: Color = Color.valueOf("45475a"),
-    val pressed: Color = Color.valueOf("585b70"),
-    val content: Color = Color.white,
-    val disabled: Color = Color.valueOf("181825")
+    val fill: Color = Color.valueOf("24273a"),
+    val hover: Color = Color.valueOf("363a4f"),
+    val pressed: Color = Color.valueOf("494d64"),
+    val content: Color = Color.valueOf("cad3f5"),
+    val border: Color = Color.valueOf("494d64"),
+    val disabled: Color = Color.valueOf("181926")
 ) {
     companion object {
         val Default = ButtonColors()
+
         val Primary = ButtonColors(
-            fill = Color.valueOf("89b4fa"),
-            hover = Color.valueOf("b4befe"),
-            pressed = Color.valueOf("74c7ec"),
-            content = Color.valueOf("11111b")
+            fill = Color.valueOf("2563eb"),
+            hover = Color.valueOf("3b82f6"),
+            pressed = Color.valueOf("1d4ed8"),
+            content = Color.white,
+            border = Color.valueOf("60a5fa")
         )
+
         val Danger = ButtonColors(
-            fill = Color.valueOf("f38ba8"),
-            hover = Color.valueOf("eba0ac"),
-            pressed = Color.valueOf("e78284"),
-            content = Color.valueOf("11111b")
+            fill = Color.valueOf("dc2626"),
+            hover = Color.valueOf("ef4444"),
+            pressed = Color.valueOf("b91c1c"),
+            content = Color.white,
+            border = Color.valueOf("f87171")
         )
+
         val Success = ButtonColors(
-            fill = Color.valueOf("a6e3a1"),
-            hover = Color.valueOf("94e2d5"),
-            pressed = Color.valueOf("81c8be"),
-            content = Color.valueOf("11111b")
+            fill = Color.valueOf("059669"),
+            hover = Color.valueOf("10b981"),
+            pressed = Color.valueOf("047857"),
+            content = Color.white,
+            border = Color.valueOf("34d399")
         )
     }
 }
@@ -44,7 +52,8 @@ data class ButtonColors(
 /**
  * ## Button
  *
- * Pre-styled interactive button component with automated hover and click state styling.
+ * Sleek, professional interactive button with automated hover, press feedback,
+ * clean typography, and subtle border strokes.
  *
  * @param text Button label text.
  * @param onClick Callback invoked when button is clicked.
@@ -64,15 +73,16 @@ fun Button(
     enabled: Boolean = true,
     colors: ButtonColors = ButtonColors.Default,
     radius: Double = 6.0,
-    minWidth: Float = 80f,
-    minHeight: Float = 36f,
+    minWidth: Float = 72f,
+    minHeight: Float = 32f,
     onDoubleClick: (() -> Unit)? = null
 ) {
     val buttonModifier = UIModifier
-        .pad(horizontal = 16f, vertical = 8f)
+        .pad(horizontal = 14f, vertical = 6f)
         .minSize(minWidth, minHeight)
         .radius(radius)
         .background(if (enabled) colors.fill else colors.disabled)
+        .border(1.0, if (enabled) colors.border else Color.valueOf("24273a"))
         .opacity(if (enabled) 1.0 else 0.4)
         .touchable(enabled)
         .onClick { if (enabled) onClick() }
@@ -91,6 +101,7 @@ fun Button(
         Text(
             text = text,
             color = if (enabled) colors.content else Color.gray,
+            scale = 0.9,
             align = Align.center
         )
     }
@@ -99,41 +110,62 @@ fun Button(
 /**
  * ## Toggle
  *
- * Binary state toggle switch component.
+ * Sleek capsule pill toggle switch with sliding knob indicator.
  *
  * @param checked Current boolean state.
  * @param onToggle Callback invoked when toggled.
  * @param modifier Chainable [UIModifier].
- * @param size Box dimension size in pixels.
- * @param radius Corner radius in pixels.
- * @param onColor Color when checked is true.
- * @param offColor Color when checked is false.
+ * @param width Pill width in pixels.
+ * @param height Pill height in pixels.
+ * @param onColor Track color when checked is true.
+ * @param offColor Track color when checked is false.
  */
 @Composable
 fun Toggle(
     checked: Boolean,
     onToggle: () -> Unit,
     modifier: UIModifier = UIModifier,
-    size: Float = 36f,
-    radius: Double = 6.0,
-    onColor: Color = Color.valueOf("7ED321"),
-    offColor: Color = Color.valueOf("2a2a3a")
+    width: Float = 44f,
+    height: Float = 24f,
+    onColor: Color = Color.valueOf("2563eb"),
+    offColor: Color = Color.valueOf("24273a")
 ) {
-    val toggleModifier = UIModifier
-        .fixed(size, size)
-        .pad(4f)
-        .radius(radius)
+    val pillModifier = UIModifier
+        .fixed(width, height)
+        .radius(height * 0.5)
         .background(if (checked) onColor else offColor)
+        .border(1.0, if (checked) Color.valueOf("60a5fa") else Color.valueOf("363a4f"))
         .onClick(onToggle)
         .then(modifier)
 
-    Box(modifier = toggleModifier)
+    val knobSize = height - 6f
+    val knobModifier = if (checked) {
+        UIModifier
+            .anchor(LayoutPreset.CENTER_RIGHT)
+            .margin(right = 3f)
+            .fixed(knobSize, knobSize)
+            .radius(knobSize * 0.5)
+            .background(Color.white)
+            .shadow(Color.black.a(0.3f), spread = 1.0, blur = 3.0)
+    } else {
+        UIModifier
+            .anchor(LayoutPreset.CENTER_LEFT)
+            .margin(left = 3f)
+            .fixed(knobSize, knobSize)
+            .radius(knobSize * 0.5)
+            .background(Color.valueOf("9399b2"))
+            .shadow(Color.black.a(0.3f), spread = 1.0, blur = 3.0)
+    }
+
+    Box(modifier = pillModifier) {
+        Box(modifier = knobModifier)
+    }
 }
 
 /**
  * ## Card
  *
- * Pre-styled surface card container with border outline, background fill, and padding.
+ * Sleek glassmorphism surface card container with subtle borders and backdrop blur.
  *
  * @param modifier Chainable [UIModifier].
  * @param backgroundColor Card fill color.
@@ -146,18 +178,20 @@ fun Toggle(
 @Composable
 fun Card(
     modifier: UIModifier = UIModifier,
-    backgroundColor: Color = Color.valueOf("1e1e2e"),
-    borderColor: Color = Color.valueOf("89b4fa"),
-    borderWidth: Double = 1.8,
-    radius: Double = 12.0,
-    padding: Float = 20f,
+    backgroundColor: Color = Color.valueOf("14151f").a(0.92f),
+    borderColor: Color = Color.valueOf("363a4f"),
+    borderWidth: Double = 1.0,
+    radius: Double = 10.0,
+    padding: Float = 18f,
     content: @Composable BoxScope.() -> Unit
 ) {
     val cardModifier = UIModifier
         .pad(padding)
         .radius(radius)
         .background(backgroundColor)
+        .backdrop(blur = true, radius = 4f, weight = 0.85, tint = Color.valueOf("181926"))
         .border(borderWidth, borderColor)
+        .shadow(Color.black.a(0.4f), spread = 2.0, blur = 10.0)
         .then(modifier)
 
     Box(modifier = cardModifier, content = content)
@@ -166,7 +200,7 @@ fun Card(
 /**
  * ## Divider
  *
- * Thin horizontal separator line bar.
+ * Subtle, modern separator line.
  *
  * @param modifier Chainable [UIModifier].
  * @param color Stroke line color.
@@ -175,8 +209,8 @@ fun Card(
 @Composable
 fun Divider(
     modifier: UIModifier = UIModifier,
-    color: Color = Color.valueOf("45475a"),
-    thickness: Float = 1.5f
+    color: Color = Color.valueOf("2a2d3f"),
+    thickness: Float = 1.0f
 ) {
     val dividerModifier = UIModifier
         .fillMaxWidth()

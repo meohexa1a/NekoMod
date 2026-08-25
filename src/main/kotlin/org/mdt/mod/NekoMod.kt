@@ -29,22 +29,18 @@ class NekoMod : Mod() {
 
             Card(
                 modifier = Modifier.anchor(LayoutPreset.CENTER),
-                backgroundColor = Color.valueOf("1e1e2e"),
-                borderColor = Color.valueOf("89b4fa"),
-                borderWidth = 1.8,
-                radius = 12.0,
-                padding = 20f
+                padding = 18f
             ) {
-                Column(gap = 12f) {
+                Column(gap = 10f) {
                     Text(
-                        text = "Pure KMP UI Engine",
-                        color = Color.valueOf("cdd6f4"),
-                        scale = 1.3
+                        text = "NEKOMOD ENGINE",
+                        color = Color.white,
+                        scale = 1.15
                     )
                     Text(
-                        text = "Standardized Scoped DSL & Godot Layout",
-                        color = Color.valueOf("a6adc8"),
-                        scale = 0.95
+                        text = "Declarative KMP Virtual DOM • 60 FPS GPU Render",
+                        color = Color.valueOf("9399b2"),
+                        scale = 0.85
                     )
                     Divider(modifier = Modifier.margin(vertical = 4f))
                     Row(
