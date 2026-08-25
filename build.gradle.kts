@@ -58,7 +58,7 @@ dependencies {
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     description = "Build desktop mod JAR"
     from(rootProject.projectDir) {
-        include("mod.hjson")
+        include("mod.json")
         include("icon.png")
     }
 
