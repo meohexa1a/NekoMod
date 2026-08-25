@@ -15,7 +15,8 @@ Chào mừng bạn đến với hệ thống tài liệu chính thức của **N
 | **5. Thuật toán Dàn trang & Tọa độ**<br>*Layout Engine & Coordinate System* | [layout_engine_vi.md](./layout-engine/layout_engine_vi.md) | [layout_engine_en.md](./layout-engine/layout_engine_en.md) |
 | **6. Hướng dẫn viết Compose DSL**<br>*Compose Multiplatform DSL & Modifiers* | [compose_dsl_vi.md](./compose-dsl/compose_dsl_vi.md) | [compose_dsl_en.md](./compose-dsl/compose_dsl_en.md) |
 | **7. GPU Rendering & Shaders**<br>*SDF Shaders & 2-Pass Gaussian Blur* | [rendering_shaders_vi.md](./rendering-shaders/rendering_shaders_vi.md) | [rendering_shaders_en.md](./rendering-shaders/rendering_shaders_en.md) |
-| **8. Lộ trình phát triển tương lai**<br>*Future Development Roadmap* | [roadmap_vi.md](./roadmap/roadmap_vi.md) | [roadmap_en.md](./roadmap/roadmap_en.md) |
+| **8. Bản đồ Cấu trúc Mã nguồn**<br>*Codebase Architecture & LOC Map* | [codebase_map_vi.md](./architecture/codebase_map_vi.md) | [codebase_map_en.md](./architecture/codebase_map_en.md) |
+| **9. Lộ trình phát triển tương lai**<br>*Future Development Roadmap* | [roadmap_vi.md](./roadmap/roadmap_vi.md) | [roadmap_en.md](./roadmap/roadmap_en.md) |
 
 ---
 

@@ -5,28 +5,32 @@ Tài liệu này vạch ra kế hoạch phát triển theo từng giai đoạn (
 ---
 
 ## 🎯 Giai đoạn 1: Chuẩn hóa Nền tảng (ĐÃ HOÀN THÀNH ✅)
-* [x] Xây dựng Virtual Node DOM (`UINode`, `CanvasNode`).
+* [x] Xây dựng Virtual Node DOM (`UINode`, `CanvasNode`, `LayoutNode`).
 * [x] Tích hợp Compose Multiplatform Runtime (`CompositionManager`, `NodeApplier`).
+* [x] Chuẩn hóa kiến trúc `LayoutNode + MeasurePolicy` (Zero-Overhead DOM).
 * [x] Port thuật toán Container 2-Pass của Godot Engine (`GodotLayout`).
 * [x] Hệ thống Box Model toàn diện (Margin & Padding thống nhất trên `UINode`).
 * [x] Chuỗi `UIModifier` mạch lạc và Scopes có bảo vệ `@UIDslMarker`.
 * [x] Bộ Widget cơ bản (`Button`, `Toggle`, `Card`, `Divider`, `Text`, `Row`, `Column`, `Grid`, `Spacer`).
 * [x] Shader SDF bo góc và làm mờ hậu cảnh Glassmorphism (`BoxRenderer`, `BoxBlur`).
+* [x] Hệ thống Hạ tầng Cốt lõi (`AsyncDispatcher`, `HttpEngine`, `Storage`, `KVStore`, `LRUTextureCache`, `ImageLoader`, `I18nEngine`).
 
 ---
 
-## 🚀 Giai đoạn 2: Bộ Widget Nâng cao (Widget Toolkit Expansion)
-* [ ] **`ScrollView` & Scissor Clipping:**
-  * Cuộn trang mượt mà theo trục dọc/ngang.
-  * Cắt xén vùng hiển thị bằng OpenGL Scissor (`ScissorStack`) để nội dung dài không tràn ra ngoài.
-  * Thanh cuộn (Scrollbar) tùy biến màu sắc và độ dày.
-* [ ] **`TextField` / Input Văn bản:**
-  * Nhập liệu văn bản bằng bàn phím thực tế.
-  * Quản lý con trỏ nhấp nháy (Caret), bôi đen (Selection), Copy/Paste (`Ctrl+C`, `Ctrl+V`).
+## 🚀 Giai đoạn 2: Bộ Widget Nâng cao (ĐANG TRIỂN KHAI 🔄)
+* [x] **`ScrollView` & Scissor Clipping:**
+  * Cuộn trang mượt mà theo trục dọc/ngang với con lăn chuột và kéo chuột.
+  * Cắt xén phần cứng OpenGL Scissor (`ScissorStack`) đa tầng.
+  * Thanh cuộn (Scrollbar track & thumb) hiện đại, thanh mảnh.
+* [x] **`TextField` / Input Văn bản:**
+  * Bộ máy trạng thái nhập liệu độc lập (`TextEditState`).
+  * Quản lý con trỏ nhấp nháy, bôi đen (Selection), Copy/Paste (`Ctrl+C`, `Ctrl+V`, `Ctrl+X`, `Ctrl+A`).
+  * Tương thích 100% với bộ gõ tiếng Việt Telex (Unikey, EVKey).
+* [x] **`Image` & `ImageNode`:**
+  * Hỗ trợ đa nguồn ảnh: URL Internet (OkHttp), Sprite Atlas Mindustry, và file cục bộ.
+  * Tự động điều tiết băng thông VRAM với hàng đợi Frame Budget.
 * [ ] **`Slider` & `ProgressBar`:**
   * Thanh kéo giá trị âm lượng, tỷ lệ, thanh máu / tiến độ xây dựng.
-* [ ] **`ImageNode`:**
-  * Vẽ icon và texture Mindustry (`TextureRegion`, `AtlasRegion`) với các chế độ Scale (`Fit`, `Crop`, `Stretch`).
 * [ ] **`Dropdown` & `Tooltip`:**
   * Menu thả xuống và hộp thoại gợi ý thông tin bám theo vị trí con trỏ chuột.
 
@@ -43,8 +47,8 @@ Tài liệu này vạch ra kế hoạch phát triển theo từng giai đoạn (
 
 ---
 
-## 🛠️ Giai đoạn 4: Trình Soạn thảo UI trong Game (In-game UI Inspector & Editor)
-* [ ] **UI Inspector (`F12`):**
-  * Soi trực tiếp bounding box, margin, padding và cây phân cấp node khi hover chuột trên màn hình game.
+## 🛠️ Giai đoạn 4: Kiến trúc Schema & Hot-Reload (Data-Driven Declarative UI)
 * [ ] **Schema Parser (HJSON / JSON UI):**
   * Nạp và tải lại giao diện động từ các file `.hjson` / `.json` mà không cần biên dịch lại mod (Live Hot-Reload).
+* [ ] **2-Way Data-Binding Bridge:**
+  * Liên kết tự động giữa Schema JSON và biến trạng thái trong `KVStore`.
