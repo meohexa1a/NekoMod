@@ -5,112 +5,106 @@ package org.mdt.ui.components.display.tooltip
 import arc.Core
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
-import arc.graphics.g2d.Fill
 import arc.graphics.g2d.GlyphLayout
 import mindustry.ui.Fonts
+import org.mdt.ui.components.layout.BoxVisuals
 import org.mdt.ui.compose.CustomModifier
 import org.mdt.ui.compose.UIModifier
-import org.mdt.ui.core.UINode
+import org.mdt.ui.render.BoxRenderer
 import org.mdt.ui.render.EngineRenderer
 
 /**
- * ## TooltipNode
+ * ## TooltipManager
  *
- * Floating tooltip overlay node displaying explanatory text on hover.
+ * Top-layer overlay manager rendering floating tooltips with SDF rounded corners,
+ * glowing borders, and 1.0x BMFont clarity above all other UI elements.
  */
-class TooltipNode(var text: String) : UINode() {
+object TooltipManager {
+    var activeText: String? = null
+    var hoverTimer: Float = 0f
+    private var lastTarget: Any? = null
 
-    private var hoverTimer: Float = 0f
-    private var isTargetHovered = false
-
-    var backgroundColor: Color = Color(Color.valueOf("181926").a(0.95f))
-    var borderColor: Color = Color(Color.valueOf("363a4f"))
-    var textColor: Color = Color(Color.valueOf("cad3f5"))
-    var fontScale: Float = 0.8f
-
-    init {
-        touchable = false
+    val tooltipVisuals = BoxVisuals().apply {
+        fillColor.set(Color.valueOf("10111a").a(0.96f))
+        borderColor.set(Color.valueOf("3b82f6").a(0.7f))
+        borderWidth = 1f
+        setRadius(8f)
+        shadowColor.set(Color.black.a(0.5f))
+        shadowBlur = 12f
+        shadowSpread = 2f
     }
 
-    fun onTargetHoverChanged(hovered: Boolean) {
-        if (isTargetHovered != hovered) {
-            isTargetHovered = hovered
-            if (!hovered) {
-                hoverTimer = 0f
-            }
+    private val layoutHelper = GlyphLayout()
+
+    fun show(target: Any, text: String) {
+        if (lastTarget != target) {
+            lastTarget = target
+            activeText = text
+            hoverTimer = 0f
         }
     }
 
-    override fun draw(renderer: EngineRenderer) {
+    fun hide(target: Any) {
+        if (lastTarget == target) {
+            lastTarget = null
+            activeText = null
+            hoverTimer = 0f
+        }
+    }
+
+    fun drawTopLayer(renderer: EngineRenderer) {
+        val text = activeText ?: return
+        if (text.isEmpty()) return
+
         val dt = if (Core.graphics != null) Core.graphics.deltaTime else 0.016f
-        if (isTargetHovered) {
-            hoverTimer += dt
-        }
+        hoverTimer += dt
+        if (hoverTimer < 0.25f) return
 
-        if (isTargetHovered && hoverTimer >= 0.35f && text.isNotEmpty()) {
-            drawTooltip()
-        }
-    }
-
-    private fun drawTooltip() {
-        val mouseX = if (Core.input != null) Core.input.mouseX().toFloat() else bounds.x
-        val mouseY = if (Core.input != null) Core.input.mouseY().toFloat() else bounds.y
+        val mouseX = if (Core.input != null) Core.input.mouseX().toFloat() else 0f
+        val mouseY = if (Core.input != null) Core.input.mouseY().toFloat() else 0f
+        val screenW = if (Core.graphics != null) Core.graphics.width.toFloat() else 1920f
+        val screenH = if (Core.graphics != null) Core.graphics.height.toFloat() else 1080f
 
         val f = Fonts.def
-        val oldSX = f.scaleX
-        val oldSY = f.scaleY
-        f.data.setScale(fontScale, fontScale)
-
         layoutHelper.setText(f, text)
         val textW = layoutHelper.width
         val textH = layoutHelper.height
 
-        val padH = 8f
-        val padV = 5f
+        val padH = 12f
+        val padV = 8f
         val boxW = textW + padH * 2f
         val boxH = textH + padV * 2f
 
-        val posX = mouseX + 12f
-        val posY = mouseY - boxH - 6f
+        val rawX = mouseX + 14f
+        val rawY = mouseY + 14f
 
-        // Draw shadow
-        Draw.color(Color.black.a(0.4f))
-        Fill.rect(posX + boxW * 0.5f, posY + boxH * 0.5f - 2f, boxW + 2f, boxH + 2f)
+        val posX = rawX.coerceIn(8f, maxOf(8f, screenW - boxW - 8f))
+        val posY = rawY.coerceIn(8f, maxOf(8f, screenH - boxH - 8f))
 
-        // Draw background
-        Draw.color(backgroundColor)
-        Fill.rect(posX + boxW * 0.5f, posY + boxH * 0.5f, boxW, boxH)
+        // Draw top-layer SDF rounded box with glowing border and shadow
+        BoxRenderer.draw(posX, posY, boxW, boxH, tooltipVisuals, renderer.blurProcessor)
 
-        // Draw text
-        f.color = textColor
+        // Draw text at pixel-perfect scale 1.0f
+        f.color = Color.valueOf("cad3f5")
         f.draw(text, posX + padH, posY + padV + f.data.capHeight)
-
-        f.data.setScale(oldSX, oldSY)
         Draw.color(Color.white)
-    }
-
-    companion object {
-        private val layoutHelper = GlyphLayout()
     }
 }
 
 /**
- * Attaches a floating tooltip to this UI component.
+ * Attaches a top-layer floating tooltip to this UI component.
  */
 fun UIModifier.tooltip(text: String): UIModifier = then(CustomModifier { target ->
-    val tooltipNode = TooltipNode(text)
     val prevEnter = target.onPointerEnter
     val prevExit = target.onPointerExit
 
     target.onPointerEnter = {
         prevEnter?.invoke()
-        tooltipNode.onTargetHoverChanged(true)
+        TooltipManager.show(target, text)
     }
 
     target.onPointerExit = {
         prevExit?.invoke()
-        tooltipNode.onTargetHoverChanged(false)
+        TooltipManager.hide(target)
     }
-
-    target.addChild(tooltipNode)
 })

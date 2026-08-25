@@ -27,9 +27,7 @@ class TextureHandle(
      * Increments the reference count by 1.
      */
     fun retain(): TextureHandle {
-        if (!isDisposed) {
-            refCount.incrementAndGet()
-        }
+        if (!isDisposed) refCount.incrementAndGet()
         return this
     }
 
@@ -39,9 +37,7 @@ class TextureHandle(
     fun release() {
         if (isDisposed) return
         val remaining = refCount.decrementAndGet()
-        if (remaining <= 0) {
-            onZeroRefs(this)
-        }
+        if (remaining <= 0) onZeroRefs(this)
     }
 
     /**

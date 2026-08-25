@@ -21,7 +21,8 @@ interface MeasurePolicy {
 /**
  * ## BoxMeasurePolicy
  *
- * Default layout policy arranging children via Godot-style anchors and bounds fitting.
+ * Layout policy supporting Hug Content (intrinsic sizing), Godot anchors,
+ * and content alignment.
  */
 object BoxMeasurePolicy : MeasurePolicy {
     override fun measureWidth(node: LayoutNode): Float {
@@ -43,14 +44,31 @@ object BoxMeasurePolicy : MeasurePolicy {
     }
 
     override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availW: Float, availH: Float) {
-        GodotLayout.layoutAnchors(node.children, parentW = availW, parentH = availH, parentX = innerX, parentY = innerY)
+        for (child in node.children) {
+            if (!child.visible) continue
+            val a = child.anchorData
+            val hasExplicitAnchor = a.anchorLeft != 0f || a.anchorRight != 0f || a.anchorTop != 0f || a.anchorBottom != 0f ||
+                    a.offsetLeft != 0f || a.offsetRight != 0f || a.offsetTop != 0f || a.offsetBottom != 0f
+
+            if (hasExplicitAnchor) {
+                GodotLayout.layoutSingleAnchor(child, innerX, innerY, availW, availH)
+            } else {
+                // Standard unanchored box child: fit inside box with alignment and size flags
+                GodotLayout.fitChildInRect(
+                    child = child,
+                    rx = innerX, ry = innerY, rw = availW, rh = availH,
+                    hFlags = child.sizeFlagsHorizontal,
+                    vFlags = child.sizeFlagsVertical
+                )
+            }
+        }
     }
 }
 
 /**
  * ## ColumnMeasurePolicy
  *
- * Vertical linear layout policy arranging children top-to-bottom.
+ * Vertical linear layout policy arranging children top-to-bottom with Hug Content and Weight distribution.
  */
 data class ColumnMeasurePolicy(
     val gap: Float = 0f,
@@ -97,7 +115,7 @@ data class ColumnMeasurePolicy(
 /**
  * ## RowMeasurePolicy
  *
- * Horizontal linear layout policy arranging children left-to-right.
+ * Horizontal linear layout policy arranging children left-to-right with Hug Content and Weight distribution.
  */
 data class RowMeasurePolicy(
     val gap: Float = 0f,
@@ -144,15 +162,39 @@ data class RowMeasurePolicy(
 /**
  * ## GridMeasurePolicy
  *
- * Multi-column grid table layout policy.
+ * Grid layout policy arranging children in uniform/flexible columns and rows.
  */
 data class GridMeasurePolicy(
-    val columns: Int = 2,
+    val columns: Int = 1,
     val hGap: Float = 0f,
     val vGap: Float = 0f
 ) : MeasurePolicy {
-    override fun measureWidth(node: LayoutNode): Float = 0f
-    override fun measureHeight(node: LayoutNode): Float = 0f
+    override fun measureWidth(node: LayoutNode): Float {
+        if (columns <= 0) return 0f
+        val visibleChildren = node.children.filter { it.visible }
+        if (visibleChildren.isEmpty()) return 0f
+        val colWidths = FloatArray(columns)
+        for (i in visibleChildren.indices) {
+            val c = i % columns
+            colWidths[c] = maxOf(colWidths[c], GodotLayout.getChildMinWidth(visibleChildren[i]))
+        }
+        val totalGaps = if (columns > 1) (columns - 1) * hGap else 0f
+        return colWidths.sum() + totalGaps
+    }
+
+    override fun measureHeight(node: LayoutNode): Float {
+        if (columns <= 0) return 0f
+        val visibleChildren = node.children.filter { it.visible }
+        if (visibleChildren.isEmpty()) return 0f
+        val rows = (visibleChildren.size + columns - 1) / columns
+        val rowHeights = FloatArray(rows)
+        for (i in visibleChildren.indices) {
+            val r = i / columns
+            rowHeights[r] = maxOf(rowHeights[r], GodotLayout.getChildMinHeight(visibleChildren[i]))
+        }
+        val totalGaps = if (rows > 1) (rows - 1) * vGap else 0f
+        return rowHeights.sum() + totalGaps
+    }
 
     override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availW: Float, availH: Float) {
         GodotLayout.layoutGrid(

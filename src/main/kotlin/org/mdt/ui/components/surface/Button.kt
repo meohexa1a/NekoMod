@@ -8,6 +8,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import arc.graphics.Color
+import arc.graphics.g2d.Font
+import arc.util.Align
+import mindustry.ui.Fonts
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.text.Text
 import org.mdt.ui.compose.UIModifier
@@ -28,17 +31,25 @@ data class ButtonColors(
 ) {
     companion object {
         val Default = ButtonColors(
-            background = Color.valueOf("24273a"),
+            background = Color.valueOf("1a1c2e").a(0.85f),
             text = Color.valueOf("cad3f5"),
-            hover = Color.valueOf("363a4f"),
-            active = Color.valueOf("494d64"),
-            border = Color.valueOf("494d64")
+            hover = Color.valueOf("282b45"),
+            active = Color.valueOf("3b82f6"),
+            border = Color.valueOf("363a4f")
+        )
+        val Ghost = ButtonColors(
+            background = Color.clear,
+            text = Color.valueOf("cad3f5"),
+            hover = Color.valueOf("2563eb").a(0.2f),
+            active = Color.valueOf("2563eb").a(0.4f),
+            border = Color.clear
         )
         val Primary = ButtonColors(
             background = Color.valueOf("2563eb"),
             text = Color.white,
             hover = Color.valueOf("1d4ed8"),
-            active = Color.valueOf("1e40af")
+            active = Color.valueOf("1e40af"),
+            border = Color.valueOf("60a5fa").a(0.4f)
         )
         val Success = ButtonColors(
             background = Color.valueOf("059669"),
@@ -66,8 +77,12 @@ fun Button(
     onClick: () -> Unit,
     modifier: UIModifier = UIModifier,
     colors: ButtonColors = ButtonColors.Default,
-    radius: Float = 6f,
-    fontScale: Float = 1.0f
+    radius: Float = 8f,
+    font: Font = Fonts.def,
+    fontScale: Float = 1.0f,
+    paddingV: Float = 10f,
+    paddingH: Float = 16f,
+    align: Int = Align.left
 ) {
     var isHovered by remember { mutableStateOf(false) }
     var isPressed by remember { mutableStateOf(false) }
@@ -78,12 +93,17 @@ fun Button(
         else -> colors.background
     }
 
+    val currentBorder = if (isHovered && colors.border != Color.clear) {
+        colors.border.cpy().mul(1.3f)
+    } else colors.border
+
     Box(
         modifier = UIModifier
             .cornerRadius(radius)
             .background(bgColor)
-            .border(1f, colors.border)
-            .pad(left = 12f, right = 12f, top = 6f, bottom = 6f)
+            .border(1f, currentBorder)
+            .shadow(if (isHovered) Color.black.a(0.35f) else Color.clear, blur = 8f, spread = 1f)
+            .pad(left = paddingH, right = paddingH, top = paddingV, bottom = paddingV)
             .clickable(
                 onClick = onClick,
                 onPressStateChanged = { isPressed = it }
@@ -94,7 +114,9 @@ fun Button(
         Text(
             text = text,
             color = colors.text,
-            scale = fontScale
+            font = font,
+            scale = fontScale,
+            align = align
         )
     }
 }

@@ -8,7 +8,7 @@ import mindustry.game.EventType.Trigger
 import org.mdt.core.image.ImageLoader
 import org.mdt.ui.compose.CompositionManager
 import org.mdt.ui.compose.UIComposition
-import org.mdt.ui.core.CanvasNode
+import org.mdt.core.ui.CanvasNode
 import org.mdt.ui.input.EngineInputProcessor
 import org.mdt.ui.render.EngineRenderer
 

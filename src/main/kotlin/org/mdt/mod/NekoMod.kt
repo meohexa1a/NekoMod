@@ -1,132 +1,49 @@
 package org.mdt.mod
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import arc.Core
 import arc.Events
-import arc.graphics.Color
+import arc.scene.event.Touchable
+import mindustry.Vars
 import mindustry.game.EventType.ClientLoadEvent
+import mindustry.game.EventType.Trigger
 import mindustry.mod.Mod
-import org.mdt.core.i18n.i18n
-import org.mdt.core.store.KVStore
 import org.mdt.ui.EngineRuntime
-import org.mdt.ui.components.display.image.*
-import org.mdt.ui.components.display.progress.*
-import org.mdt.ui.components.display.tooltip.*
-import org.mdt.ui.components.input.slider.*
-import org.mdt.ui.components.input.textfield.*
-import org.mdt.ui.components.layout.*
-import org.mdt.ui.components.surface.*
-import org.mdt.ui.components.text.*
-import org.mdt.ui.compose.*
-import org.mdt.ui.layout.Arrangement
-import org.mdt.ui.layout.LayoutPreset
+import org.mdt.ui.screens.MainMenuScreen
 
+/**
+ * ## NekoMod
+ *
+ * Mindustry mod entry point bootstrapping the Pure KMP UI Engine and modern Main Menu.
+ *
+ * See: docs/architecture/architecture_en.md
+ */
 class NekoMod : Mod() {
 
     override fun init() {
         Events.on(ClientLoadEvent::class.java) {
             Core.app.post { setup() }
         }
+
+        // Completely turn off Mindustry's legacy Arc menuGroup
+        Events.run(Trigger.update) {
+            if (Vars.state == null || Vars.state.isMenu) {
+                disableLegacyMenuGroup()
+            }
+        }
     }
 
     private fun setup() {
+        disableLegacyMenuGroup()
+
+        // Launch NekoMod Declarative UI Engine with MainMenuScreen
         EngineRuntime.setContent {
-            // Restore persistent state from KVStore
-            var counter by remember { mutableStateOf(KVStore.default.getInt("demo_counter", 0)) }
-            var toggled by remember { mutableStateOf(KVStore.default.getBoolean("demo_toggled", true)) }
-            var inputText by remember { mutableStateOf(KVStore.default.getString("demo_input", "NekoMod Pure KMP Engine")) }
-            var sliderVal by remember { mutableStateOf(KVStore.default.getFloat("demo_slider", 0.65f)) }
-
-            Card(
-                modifier = Modifier.anchor(LayoutPreset.CENTER),
-                padding = 18f
-            ) {
-                Column(gap = 10f) {
-                    Row(arrangement = Arrangement.spacedBy(10f)) {
-                        Image(
-                            source = "https://raw.githubusercontent.com/Anuken/Mindustry/master/core/assets-raw/sprites/blocks/distribution/router.png",
-                            modifier = Modifier.size(32f, 32f).tooltip("Mindustry Router Block")
-                        )
-                        Column(gap = 2f) {
-                            Text(
-                                text = i18n("app.title"),
-                                color = Color.white,
-                                scale = 1.0f
-                            )
-                            Text(
-                                text = i18n("app.subtitle"),
-                                color = Color.valueOf("9399b2"),
-                                scale = 1.0f
-                            )
-                        }
-                    }
-
-                    Divider(modifier = Modifier.margin(vertical = 2f))
-
-                    TextField(
-                        value = inputText,
-                        onValueChange = {
-                            inputText = it
-                            KVStore.default.putString("demo_input", it)
-                        },
-                        placeholder = "Type message or command...",
-                        modifier = Modifier.fillMaxWidth().height(32f).tooltip("Interactive Text Input")
-                    )
-
-                    Slider(
-                        value = sliderVal,
-                        onValueChange = {
-                            sliderVal = it
-                            KVStore.default.putFloat("demo_slider", it)
-                        },
-                        label = "Power Output",
-                        modifier = Modifier.fillMaxWidth().height(30f).tooltip("Drag to adjust power output")
-                    )
-
-                    ProgressBar(
-                        progress = sliderVal,
-                        barHeight = 4f,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = if (sliderVal > 0.8f) ProgressColors.Danger else ProgressColors.Primary
-                    )
-
-                    Divider(modifier = Modifier.margin(vertical = 2f))
-
-                    Row(
-                        arrangement = Arrangement.spacedBy(10f)
-                    ) {
-                        Button(
-                            text = i18n("btn.count", "count" to counter),
-                            colors = ButtonColors.Primary,
-                            modifier = Modifier.tooltip("Increment counter"),
-                            onClick = {
-                                counter++
-                                KVStore.default.putInt("demo_counter", counter)
-                            }
-                        )
-                        Button(
-                            text = i18n("btn.reset"),
-                            colors = ButtonColors.Danger,
-                            modifier = Modifier.tooltip("Reset counter to zero"),
-                            onClick = {
-                                counter = 0
-                                KVStore.default.putInt("demo_counter", 0)
-                            }
-                        )
-                        Toggle(
-                            checked = toggled,
-                            modifier = Modifier.tooltip("Toggle feature switch"),
-                            onToggle = {
-                                toggled = !toggled
-                                KVStore.default.putBoolean("demo_toggled", toggled)
-                            }
-                        )
-                    }
-                }
-            }
+            MainMenuScreen()
         }
+    }
+
+    private fun disableLegacyMenuGroup() {
+        val menuGroup = Vars.ui?.menuGroup ?: return
+        menuGroup.visible = false
+        menuGroup.touchable = Touchable.disabled
     }
 }

@@ -3,7 +3,7 @@ package org.mdt.ui.render
 import arc.Core
 import arc.graphics.Gl
 import arc.graphics.g2d.Draw
-import org.mdt.ui.core.Rect
+import org.mdt.core.ui.Rect
 import java.util.ArrayDeque
 
 /**

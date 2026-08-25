@@ -1,4 +1,4 @@
-package org.mdt.ui.core
+package org.mdt.core.ui
 
 import arc.input.KeyCode
 

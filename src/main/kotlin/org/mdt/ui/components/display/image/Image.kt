@@ -7,14 +7,15 @@ import androidx.compose.runtime.ComposeNode
 import arc.graphics.Color
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.image.ImageSource
+import org.mdt.core.net.RequestBuilder
 import org.mdt.ui.compose.NodeApplier
 import org.mdt.ui.compose.UIModifier
 
 /**
  * ## Image
  *
- * Declarative image composable supporting remote URLs, sprite atlas regions,
- * and local files.
+ * Declarative image composable supporting remote URLs (with auth headers / request template),
+ * sprite atlas regions, and local files.
  *
  * @param source Image origin ([ImageSource] or String URL/Atlas name).
  * @param modifier Chainable [UIModifier].
@@ -61,6 +62,25 @@ fun Image(
 ) {
     Image(
         source = ImageSource.of(source),
+        modifier = modifier,
+        scaleMode = scaleMode,
+        tint = tint
+    )
+}
+
+/**
+ * Convenience overload accepting a remote URL with an HTTP request builder template (headers, auth, query params).
+ */
+@Composable
+fun Image(
+    url: String,
+    modifier: UIModifier = UIModifier,
+    scaleMode: ScaleMode = ScaleMode.FIT,
+    tint: Color = Color.white,
+    configureRequest: RequestBuilder.() -> Unit
+) {
+    Image(
+        source = ImageSource.Url(url, configureRequest),
         modifier = modifier,
         scaleMode = scaleMode,
         tint = tint

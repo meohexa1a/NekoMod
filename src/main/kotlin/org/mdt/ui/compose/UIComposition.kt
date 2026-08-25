@@ -7,7 +7,7 @@ import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.Snapshot
 import arc.util.Log
 import kotlinx.coroutines.*
-import org.mdt.ui.core.UINode
+import org.mdt.core.ui.UINode
 
 object CompositionManager {
     val clock = BroadcastFrameClock()

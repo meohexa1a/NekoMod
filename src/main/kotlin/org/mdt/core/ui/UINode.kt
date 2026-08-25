@@ -1,4 +1,4 @@
-package org.mdt.ui.core
+package org.mdt.core.ui
 
 import arc.math.geom.Vec2
 import org.mdt.ui.layout.AnchorData

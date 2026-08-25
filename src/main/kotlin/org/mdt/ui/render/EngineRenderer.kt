@@ -7,15 +7,17 @@ import arc.graphics.Texture
 import arc.graphics.g2d.Draw
 import arc.graphics.gl.FrameBuffer
 import arc.math.Mat
+import mindustry.Vars
+import mindustry.graphics.MenuRenderer
 import org.mdt.ui.components.layout.BoxVisuals
 import org.mdt.ui.components.layout.LayoutNode
-import org.mdt.ui.core.CanvasNode
-import org.mdt.ui.core.UINode
+import org.mdt.core.ui.CanvasNode
+import org.mdt.core.ui.UINode
 
 /**
  * ## EngineRenderer
  *
- * Master UI GPU renderer managing orthographic projection, shared physical screen capture,
+ * Master UI GPU renderer managing orthographic projection, native background rendering,
  * and backdrop blur coordinator.
  *
  * See: docs/rendering-shaders/rendering_shaders_en.md
@@ -26,6 +28,16 @@ class EngineRenderer {
     /** Shared backdrop blur processor instance. */
     val blurProcessor = BoxBlur()
     private var screenCaptureFbo: FrameBuffer? = null
+    private var menuRenderer: MenuRenderer? = null
+
+    private fun getOrCreateMenuRenderer(): MenuRenderer {
+        var renderer = menuRenderer
+        if (renderer == null) {
+            renderer = MenuRenderer()
+            menuRenderer = renderer
+        }
+        return renderer
+    }
 
     private fun hasBackdropBlur(node: UINode): Boolean {
         if (!node.visible) return false
@@ -76,10 +88,17 @@ class EngineRenderer {
         val sh = canvas.screenHeight.toInt()
         if (sw <= 0 || sh <= 0 || !canvas.visible) return
 
+        // 1. Render animated game menu background directly when at Main Menu
+        if (Vars.state == null || Vars.state.isMenu) {
+            try {
+                getOrCreateMenuRenderer().render()
+            } catch (_: Throwable) {}
+        }
+
         // Update ScissorStack viewport scaling
         ScissorStack.setViewport(canvas.screenWidth, canvas.screenHeight)
 
-        // 1. Single Shared Screen Capture if any node requires backdrop blur
+        // 2. Single Shared Screen Capture if any node requires backdrop blur
         val sharedCapture = if (BoxRenderer.blurEnabled && hasBackdropBlur(canvas)) captureScreen(sw, sh) else null
         blurProcessor.setSharedCapture(sharedCapture, canvas.screenWidth, canvas.screenHeight)
 
@@ -89,6 +108,7 @@ class EngineRenderer {
         Draw.proj(0f, 0f, canvas.screenWidth, canvas.screenHeight)
         Draw.color(Color.white)
 
+        // 3. Render Virtual DOM UI tree
         canvas.draw(this)
 
         Draw.flush()
@@ -101,5 +121,9 @@ class EngineRenderer {
         screenCaptureFbo?.dispose()
         screenCaptureFbo = null
         blurProcessor.dispose()
+        try {
+            menuRenderer?.dispose()
+            menuRenderer = null
+        } catch (_: Throwable) {}
     }
 }

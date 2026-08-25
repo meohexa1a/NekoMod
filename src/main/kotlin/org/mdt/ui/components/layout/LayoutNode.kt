@@ -1,6 +1,6 @@
 package org.mdt.ui.components.layout
 
-import org.mdt.ui.core.UINode
+import org.mdt.core.ui.UINode
 import org.mdt.ui.layout.policy.BoxMeasurePolicy
 import org.mdt.ui.layout.policy.MeasurePolicy
 import org.mdt.ui.render.BoxRenderer

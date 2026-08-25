@@ -6,7 +6,7 @@ import arc.graphics.g2d.Font
 import arc.graphics.g2d.GlyphLayout
 import mindustry.ui.Fonts
 import org.mdt.ui.components.text.TextVisuals
-import org.mdt.ui.core.Rect
+import org.mdt.core.ui.Rect
 
 class TextRenderer {
     private var prefSizeInvalid = true

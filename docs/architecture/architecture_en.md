@@ -56,7 +56,7 @@ This document details the architecture of the **NekoMod UI Engine** — a pure K
 
 ## 3. Subsystem Breakdown
 
-### A. Virtual Node Hierarchy (`org.mdt.ui.core` & `components.layout`)
+### A. Virtual Node Hierarchy (`org.mdt.core.ui` & `components.layout`)
 * **`UINode`**: Core foundation containing 4-sided Margins, Paddings, sizing flags (`minWidth`, `minHeight`, `sizeFlagsHorizontal`, `sizeFlagsVertical`, `stretchRatio`), child lists, and pointer callbacks (`onClick`, `onHover`, `onPointerDown`, `onPointerDrag`, `onPointerUp`).
 * **`LayoutNode`**: Unified container node backed by a swappable `measurePolicy: MeasurePolicy` (`BoxMeasurePolicy`, `ColumnMeasurePolicy`, `RowMeasurePolicy`, `GridMeasurePolicy`) and zero-overhead lazy visual allocation via `ensureVisuals()`.
 * **`CanvasNode`**: Root viewport container managing screen resize events and driving the top-level 2-pass layout cascade.

@@ -9,7 +9,8 @@ import org.mdt.ui.render.EngineRenderer
 /**
  * ## TextNode
  *
- * Virtual DOM node rendering BMFont glyphs with typography configurations and font selection.
+ * Virtual DOM node rendering BMFont glyphs with typography configurations,
+ * multi-line wrapping, and font selection.
  *
  * See: docs/architecture/architecture_en.md
  */
@@ -34,6 +35,11 @@ open class TextNode(
 
     override fun getPrefWidth(): Float {
         if (width >= 0f) return width
+        if (textVisuals.wrap) {
+            // When wrapping is enabled, return 0 or minimum width to avoid expanding container beyond bounds
+            return (if (minWidth >= 0f) minWidth else 0f) + padL + padR
+        }
+
         val f = textVisuals.font
         val oldSX = f.scaleX
         val oldSY = f.scaleY
@@ -55,7 +61,12 @@ open class TextNode(
         val isScaled = textVisuals.fontScaleX != 1.0f || textVisuals.fontScaleY != 1.0f
         if (isScaled) f.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
 
-        layoutHelper.setText(f, text)
+        val targetW = if (bounds.width > 0f) bounds.width - padL - padR else (if (width > 0f) width - padL - padR else 0f)
+        if (textVisuals.wrap && targetW > 0f) {
+            layoutHelper.setText(f, text, textVisuals.color, targetW, textVisuals.align, true)
+        } else {
+            layoutHelper.setText(f, text)
+        }
         val textH = layoutHelper.height
 
         if (isScaled) f.data.setScale(oldSX, oldSY)
@@ -68,6 +79,7 @@ open class TextNode(
 
         val innerX = bounds.x + padL
         val innerY = bounds.y + padB
+        val innerW = bounds.width - padL - padR
         val innerH = bounds.height - padT - padB
 
         val f = textVisuals.font
@@ -77,10 +89,17 @@ open class TextNode(
         if (isScaled) f.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
 
         f.color = textVisuals.color
-        val capH = f.data.capHeight
-        val drawY = innerY + (innerH + capH) * 0.5f
 
-        f.draw(text, innerX, drawY)
+        if (textVisuals.wrap && innerW > 0f) {
+            layoutHelper.setText(f, text, textVisuals.color, innerW, textVisuals.align, true)
+            val capH = f.data.capHeight
+            val drawY = innerY + (innerH + layoutHelper.height) * 0.5f
+            f.draw(text, innerX, drawY, innerW, textVisuals.align, true)
+        } else {
+            val capH = f.data.capHeight
+            val drawY = innerY + (innerH + capH) * 0.5f
+            f.draw(text, innerX, drawY)
+        }
 
         if (isScaled) f.data.setScale(oldSX, oldSY)
         Draw.color(Color.white)

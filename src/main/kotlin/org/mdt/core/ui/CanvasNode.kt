@@ -1,5 +1,6 @@
-package org.mdt.ui.core
+package org.mdt.core.ui
 
+import org.mdt.ui.components.display.tooltip.TooltipManager
 import org.mdt.ui.layout.GodotLayout
 import org.mdt.ui.render.EngineRenderer
 
@@ -33,5 +34,8 @@ class CanvasNode : UINode() {
             layout()
         }
         super.draw(renderer)
+
+        // Draw top-layer overlays (Tooltips, Modals, Popups) strictly above all children
+        TooltipManager.drawTopLayer(renderer)
     }
 }

@@ -23,36 +23,24 @@ object AsyncDispatcher {
      */
     val Main: CoroutineDispatcher = object : CoroutineDispatcher() {
         override fun dispatch(context: CoroutineContext, block: Runnable) {
-            if (Core.app != null) {
-                Core.app.post(block)
-            } else {
-                block.run()
-            }
+            if (Core.app != null) Core.app.post(block) else block.run()
         }
     }
 
     /**
      * Launches a background asynchronous coroutine task on [Dispatchers.IO].
      */
-    fun launch(block: suspend CoroutineScope.() -> Unit): Job {
-        return scope.launch(block = block)
-    }
+    fun launch(block: suspend CoroutineScope.() -> Unit): Job = scope.launch(block = block)
 
     /**
      * Posts a callback block onto the Mindustry Main/Render thread.
      */
     fun onMainThread(block: () -> Unit) {
-        if (Core.app != null) {
-            Core.app.post(block)
-        } else {
-            block()
-        }
+        if (Core.app != null) Core.app.post(block) else block()
     }
 
     /**
      * Disposes and cancels all active background coroutine jobs.
      */
-    fun dispose() {
-        supervisorJob.cancelChildren()
-    }
+    fun dispose() = supervisorJob.cancelChildren()
 }

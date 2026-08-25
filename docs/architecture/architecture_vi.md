@@ -56,7 +56,7 @@ Tài liệu này giải thích chi tiết kiến trúc của **NekoMod UI Engine
 
 ## 3. Chi tiết các Thành phần Chính
 
-### A. Virtual Node Hierarchy (`org.mdt.ui.core` & `components.layout`)
+### A. Virtual Node Hierarchy (`org.mdt.core.ui` & `components.layout`)
 * **`UINode`**: Lớp cơ sở chứa toàn bộ thuộc tính Box Model (4 hướng Margin và 4 hướng Padding), trạng thái kích thước (`minWidth`, `minHeight`, `sizeFlagsHorizontal`, `sizeFlagsVertical`, `stretchRatio`), danh sách con, và các sự kiện (`onClick`, `onHover`, `onPointerDown`, `onPointerDrag`, `onPointerUp`).
 * **`LayoutNode`**: Container hợp nhất đa năng sở hữu `measurePolicy: MeasurePolicy` (hỗ trợ `BoxMeasurePolicy`, `ColumnMeasurePolicy`, `RowMeasurePolicy`, `GridMeasurePolicy`) và cơ chế tạo hiệu ứng hình ảnh lười `ensureVisuals()` (Zero-Overhead).
 * **`CanvasNode`**: Node gốc đại diện cho toàn bộ khung nhìn (Viewport) màn hình, chịu trách nhiệm đón nhận sự kiện thay đổi kích thước cửa sổ và kích hoạt dàn trang 2-pass.

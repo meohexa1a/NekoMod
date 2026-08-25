@@ -17,11 +17,10 @@ import java.util.concurrent.ConcurrentLinkedQueue
 /**
  * ## ImageLoader
  *
- * Asynchronous, zero-frame-stall image pipeline with Burst Upload Throttling.
- * Performs network I/O and byte decoding on background coroutines,
- * then uploads to GPU texture on the main render thread with a per-frame budget.
+ * Asynchronous, zero-frame-stall image pipeline with Burst Upload Throttling
+ * and automatic fallback to Mindustry's iconic 'ohno' meme texture on error.
  *
- * See: docs/complex-challenges/complex_challenges_en.md
+ * See: docs/core-subsystems/core_subsystems_en.md
  */
 object ImageLoader {
 
@@ -66,14 +65,14 @@ object ImageLoader {
             } catch (e: Throwable) {
                 Log.err("[ImageLoader] Failed to upload texture for ${task.cacheKey}", e)
                 task.pixmap.dispose()
-                task.onResult(null, e)
+                fallbackToOhno(task.onResult, e)
             }
         }
     }
 
     fun load(source: ImageSource, onResult: (TextureHandle?, Throwable?) -> Unit) {
         when (source) {
-            is ImageSource.Url -> loadFromUrl(source.url, onResult)
+            is ImageSource.Url -> loadFromUrl(source, onResult)
             is ImageSource.Asset -> loadFromAsset(source.path, onResult)
             is ImageSource.LocalFile -> loadFromFile(source, onResult)
             is ImageSource.Region -> {
@@ -83,8 +82,15 @@ object ImageLoader {
         }
     }
 
-    private fun loadFromUrl(url: String, onResult: (TextureHandle?, Throwable?) -> Unit) {
-        val cached = LRUTextureCache.shared.get(url)
+    private fun fallbackToOhno(onResult: (TextureHandle?, Throwable?) -> Unit, error: Throwable) {
+        val fallback = ImageSource.fallbackRegion()
+        val handle = LRUTextureCache.shared.put("atlas:ohno", fallback.texture)
+        AsyncDispatcher.onMainThread { onResult(handle, error) }
+    }
+
+    private fun loadFromUrl(source: ImageSource.Url, onResult: (TextureHandle?, Throwable?) -> Unit) {
+        val cacheKey = source.url
+        val cached = LRUTextureCache.shared.get(cacheKey)
         if (cached != null) {
             onResult(cached, null)
             return
@@ -92,12 +98,12 @@ object ImageLoader {
 
         AsyncDispatcher.launch {
             try {
-                val bytes = Net.get(url).awaitBytes()
+                val bytes = Net.get(source.url, source.configureRequest ?: {}).awaitBytes()
                 val pixmap = Pixmap(bytes, 0, bytes.size)
-                uploadQueue.add(UploadTask(url, pixmap, onResult))
+                uploadQueue.add(UploadTask(cacheKey, pixmap, onResult))
             } catch (e: Throwable) {
-                Log.err("[ImageLoader] Failed to download image from $url: ${e.message}")
-                AsyncDispatcher.onMainThread { onResult(null, e) }
+                Log.err("[ImageLoader] Failed to download image from ${source.url}: ${e.message}")
+                fallbackToOhno(onResult, e)
             }
         }
     }
@@ -123,7 +129,7 @@ object ImageLoader {
                 val pixmap = Pixmap(bytes, 0, bytes.size)
                 uploadQueue.add(UploadTask(path, pixmap, onResult))
             } catch (e: Throwable) {
-                AsyncDispatcher.onMainThread { onResult(null, e) }
+                fallbackToOhno(onResult, e)
             }
         }
     }
@@ -143,7 +149,7 @@ object ImageLoader {
                 val pixmap = Pixmap(bytes, 0, bytes.size)
                 uploadQueue.add(UploadTask(cacheKey, pixmap, onResult))
             } catch (e: Throwable) {
-                AsyncDispatcher.onMainThread { onResult(null, e) }
+                fallbackToOhno(onResult, e)
             }
         }
     }

@@ -1,4 +1,4 @@
-package org.mdt.ui.core
+package org.mdt.core.ui
 
 data class Rect(
     var x: Float = 0f,

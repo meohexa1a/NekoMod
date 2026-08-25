@@ -17,7 +17,7 @@ enum class ScaleMode {
  * ## ImageNode
  *
  * Virtual DOM node rendering a static texture or dynamic image with automatic
- * [TextureHandle] lifecycle reference counting.
+ * [TextureHandle] lifecycle reference counting and 'ohno' error fallback.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
@@ -58,26 +58,27 @@ open class ImageNode : LayoutNode() {
         handle = null
     }
 
-    private fun getRegion(): TextureRegion? = explicitRegion ?: handle?.region
+    private fun getRegion(): TextureRegion =
+        explicitRegion ?: handle?.region ?: ImageSource.fallbackRegion()
 
     override fun getPrefWidth(): Float {
         if (width >= 0f) return width
         val r = getRegion()
-        val regW = if (r != null) r.width.toFloat() else 0f
+        val regW = r.width.toFloat()
         return (if (minWidth >= 0f) maxOf(regW, minWidth) else regW) + padL + padR
     }
 
     override fun getPrefHeight(): Float {
         if (height >= 0f) return height
         val r = getRegion()
-        val regH = if (r != null) r.height.toFloat() else 0f
+        val regH = r.height.toFloat()
         return (if (minHeight >= 0f) maxOf(regH, minHeight) else regH) + padT + padB
     }
 
     override fun drawSelf(renderer: EngineRenderer) {
         super.drawSelf(renderer)
 
-        val reg = getRegion() ?: return
+        val reg = getRegion()
         val w = bounds.width - padL - padR
         val h = bounds.height - padT - padB
         if (w <= 0f || h <= 0f) return

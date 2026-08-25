@@ -3,10 +3,10 @@ package org.mdt.ui.input
 import arc.input.InputProcessor
 import arc.input.KeyCode
 import arc.util.Time
-import org.mdt.ui.core.CanvasNode
-import org.mdt.ui.core.PointerEvent
-import org.mdt.ui.core.ScrollEvent
-import org.mdt.ui.core.UINode
+import org.mdt.core.ui.CanvasNode
+import org.mdt.core.ui.PointerEvent
+import org.mdt.core.ui.ScrollEvent
+import org.mdt.core.ui.UINode
 
 class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
     var hoveredNode: UINode? = null

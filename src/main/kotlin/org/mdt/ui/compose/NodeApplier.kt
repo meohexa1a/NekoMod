@@ -1,7 +1,7 @@
 package org.mdt.ui.compose
 
 import androidx.compose.runtime.AbstractApplier
-import org.mdt.ui.core.UINode
+import org.mdt.core.ui.UINode
 
 class NodeApplier(root: UINode) : AbstractApplier<UINode>(root) {
     override fun insertTopDown(index: Int, instance: UINode) {

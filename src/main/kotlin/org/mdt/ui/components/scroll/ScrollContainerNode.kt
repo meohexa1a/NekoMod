@@ -5,8 +5,8 @@ import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.math.Mathf
 import org.mdt.ui.components.layout.LayoutNode
-import org.mdt.ui.core.PointerEvent
-import org.mdt.ui.core.ScrollEvent
+import org.mdt.core.ui.PointerEvent
+import org.mdt.core.ui.ScrollEvent
 import org.mdt.ui.render.EngineRenderer
 
 /**

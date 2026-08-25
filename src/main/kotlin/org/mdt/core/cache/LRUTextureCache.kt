@@ -69,9 +69,7 @@ class LRUTextureCache(
             iterator.remove()
             currentVramBytes -= handle.byteSize
 
-            AsyncDispatcher.onMainThread {
-                handle.disposeDirectly()
-            }
+            AsyncDispatcher.onMainThread { handle.disposeDirectly() }
         }
     }
 
@@ -81,9 +79,7 @@ class LRUTextureCache(
     fun clear() {
         synchronized(lruMap) {
             for (handle in lruMap.values) {
-                AsyncDispatcher.onMainThread {
-                    handle.disposeDirectly()
-                }
+                AsyncDispatcher.onMainThread { handle.disposeDirectly() }
             }
             lruMap.clear()
             currentVramBytes = 0L

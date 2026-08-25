@@ -4,8 +4,8 @@ package org.mdt.ui.compose
 
 import arc.graphics.Color
 import mindustry.graphics.Pal
-import org.mdt.ui.core.PointerEvent
-import org.mdt.ui.core.UINode
+import org.mdt.core.ui.PointerEvent
+import org.mdt.core.ui.UINode
 import org.mdt.ui.layout.LayoutPreset
 import org.mdt.ui.layout.SizeFlags
 import org.mdt.ui.components.layout.BoxVisuals

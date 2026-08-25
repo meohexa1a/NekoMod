@@ -45,6 +45,13 @@ class BoxVisuals {
     var bottomRightRadius: Float = 0f
     var bottomLeftRadius: Float = 0f
 
+    fun setRadius(r: Float) {
+        topLeftRadius = r
+        topRightRadius = r
+        bottomRightRadius = r
+        bottomLeftRadius = r
+    }
+
     // Border
     var borderWidth: Float = 0f
     var borderColor: Color = Color(Color.clear)
