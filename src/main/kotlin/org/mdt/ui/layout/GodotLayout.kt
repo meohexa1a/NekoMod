@@ -310,7 +310,7 @@ object GodotLayout {
         child.setBounds(x, y, w, h)
     }
 
-    fun layoutAnchors(children: List<UINode>, parentX: Float = 0f, parentY: Float = 0f, parentW: Float, parentH: Float) {
+    fun layoutAnchors(children: List<UINode>, parentW: Float, parentH: Float, parentX: Float = 0f, parentY: Float = 0f) {
         for (child in children) {
             if (!child.visible) continue
             layoutSingleAnchor(child, parentX, parentY, parentW, parentH)
