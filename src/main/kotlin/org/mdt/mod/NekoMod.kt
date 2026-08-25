@@ -38,7 +38,7 @@ class NekoMod : Mod() {
                 Column(gap = 10f) {
                     Row(arrangement = Arrangement.spacedBy(10f)) {
                         Image(
-                            source = "https://raw.githubusercontent.com/Anuken/Mindustry/master/icon.png",
+                            source = "icon",
                             modifier = Modifier.size(32f, 32f)
                         )
                         Column(gap = 2f) {

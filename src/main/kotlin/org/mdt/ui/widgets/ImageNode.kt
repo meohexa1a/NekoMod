@@ -78,7 +78,7 @@ open class ImageNode : UINode() {
 
     override fun drawSelf(renderer: EngineRenderer) {
         val handle = activeHandle ?: return
-        val region = handle.region
+        val region = (source as? ImageSource.Region)?.region ?: handle.region
         val w = bounds.width - padL - padR
         val h = bounds.height - padT - padB
         if (w <= 0f || h <= 0f) return

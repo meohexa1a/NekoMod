@@ -1,5 +1,6 @@
 package org.mdt.core.image
 
+import arc.Core
 import arc.graphics.g2d.TextureRegion
 import okio.Path
 
@@ -19,10 +20,15 @@ sealed class ImageSource {
             is ImageSource -> source
             is TextureRegion -> Region(source)
             is Path -> LocalFile(source)
-            is String -> if (source.startsWith("http://") || source.startsWith("https://")) {
-                Url(source)
-            } else {
-                Asset(source)
+            is String -> when {
+                source.startsWith("http://") || source.startsWith("https://") -> Url(source)
+                source.startsWith("atlas:") -> {
+                    val name = source.removePrefix("atlas:")
+                    val reg = Core.atlas?.find(name) ?: Core.atlas?.white() ?: TextureRegion()
+                    Region(reg)
+                }
+                Core.atlas != null && Core.atlas.has(source) -> Region(Core.atlas.find(source))
+                else -> Asset(source)
             }
             else -> throw IllegalArgumentException("Unsupported image source: $source")
         }
