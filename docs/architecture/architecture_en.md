@@ -1,72 +1,70 @@
 # UI Engine Architecture Overview
 
-This document details the architecture of the **NekoMod UI Engine** — a pure Kotlin Multiplatform (KMP) declarative UI framework running on an independent Virtual DOM tree rendered directly to the GPU via OpenGL without depending on Arc/Mindustry's legacy Scene2D.
+This document details the architecture of the **NekoMod UI Engine** — a pure Kotlin Multiplatform (KMP) declarative UI framework operating on a standalone Virtual DOM tree and rendering directly to the GPU via OpenGL 2.0 / GLSL 120.
 
 ---
 
-## 1. Design Goals
+## 1. Core Architectural Objectives
 
-1. **High Performance:** Direct GPU rendering using Signed Distance Field (SDF) shaders and a 2-pass Gaussian blur pipeline maintaining 60+ FPS.
-2. **Modern Declarative Paradigm:** Powered by Compose Multiplatform Runtime (`mutableStateOf`), supporting automated recomposition on state changes.
-3. **Robust Layout Model:** Implements Godot Engine's 2-pass container algorithm to eliminate overlap bugs, handle flexible stretch ratios, and distribute spacing cleanly.
-4. **Decoupled Architecture:** Clean separation of concerns between layout calculation, event handling, and GPU rendering.
+1. **High Performance ($144\text{ FPS}$):** GPU-native SDF shader rendering, strict `Float` type invariant eliminating cast overhead, and zero synchronous VRAM stalls.
+2. **Modern Declarativity:** Powered by Compose Multiplatform Runtime for reactive state management (`mutableStateOf`) with automatic fine-grained recomposition.
+3. **Robust Layout Paradigm:** 2-Pass Godot container algorithm paired with modular `MeasurePolicy` strategies, resolving child overlap and flexible flex expansion.
+4. **Modularity & Scalability:** Strict layer decoupling across layout, input, and render tiers using Feature-Sliced Package Co-location.
 
 ---
 
-## 2. 5-Layer Architecture
+## 2. 5-Layer Architectural Model
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│ 1. COMPOSE DECLARATIVE LAYER                                           │
-│    Card, Row, Column, Text, Button, Toggle, Divider, UIModifier        │
+│ 1. COMPOSE DECLARATIVE LAYER (Declarative Frontend)                    │
+│    Card, Row, Column, Text, Slider, Toggle, Button, UIModifier         │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ (NodeApplier & BroadcastFrameClock)
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│ 2. VIRTUAL DOM TREE                                                    │
-│    CanvasNode (Root) ──► BoxNode ──► ColumnNode ──► TextNode           │
-│    • Manages: parent/children, bounds (Rect), margin, padding, focus  │
+│ 2. VIRTUAL DOM TREE (In-Memory Node Hierarchy)                         │
+│    CanvasNode (Root) ──► LayoutNode (Box/Row/Col) ──► TextNode         │
+│    • Node State: parent/children, bounds (Rect), margin, padding, focus│
+│    • MeasurePolicy: BoxMeasurePolicy, ColumnMeasurePolicy, ...        │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ (isLayoutDirty cascade)
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│ 3. LAYOUT ENGINE (Godot 2-Pass Layout)                                 │
+│ 3. LAYOUT ENGINE (2-Pass Godot Sizing Algorithm)                       │
 │    GodotLayout (layoutBox, layoutGrid, fitChildInRect, layoutAnchors)   │
-│    • Pass 1: Compute Preferred/Minimum Sizes                           │
-│    • Pass 2: Slot Allocation & Margin Insetting                        │
+│    • Pass 1: Measure Preferred & Minimum Dimensions                    │
+│    • Pass 2: Slot Allocation & Margin Inset Placement                  │
 └───────────────────────────────────┬────────────────────────────────────┘
-                                    │ (Draw Loop Trigger)
+                                    │ (Draw Loop Trigger: Trigger.uiDrawEnd)
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│ 4. GPU RENDERING PIPELINE                                              │
+│ 4. GPU RENDERING PIPELINE (Hardware GPU Drawing)                       │
 │    EngineRenderer (Orthographic Projection 0..Width, 0..Height)        │
-│    • BoxRenderer (SDF Shader for rounded rects, borders, shadows)     │
-│    • BoxBlur (2-Pass Gaussian Blur FrameBuffer)                        │
-│    • TextRenderer (BMFont Baseline alignment & localization bundle)    │
+│    • BoxRenderer (SDF Shader corners, borders, shadows, outer glow)   │
+│    • TextRenderer (BMFont Baseline alignment @ scale = 1.0f)           │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │ (User Interactions)
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│ 5. INPUT & EVENT DISPATCHING                                           │
-│    EngineInputProcessor (Hit testing, Actionable Ancestor, Hover)      │
+│ 5. INPUT & EVENT DISPATCHING (Interaction & Routing)                   │
+│    EngineInputProcessor (Reverse-DFS Hit-Testing, onPointerDrag, Focus)│
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Core Modules
+## 3. Subsystem Breakdown
 
-### A. Virtual Node Hierarchy (`org.mdt.ui.core`)
-* **`UINode`**: The base class for all UI elements. Holds the full Box Model (4-sided Margin and Padding), size constraints (`minWidth`, `minHeight`, `sizeFlagsHorizontal`, `sizeFlagsVertical`, `stretchRatio`), children list, event listeners (`onClick`, `onHover`, `onPointerDown`, `onPointerUp`), and coordinate transform helpers (`localToGlobal`, `globalToLocal`, `getGlobalBounds`).
-* **`CanvasNode`**: Root container representing the full screen viewport. Synchronizes with window resizing and triggers `layout()` recalculation whenever an `isLayoutDirty` flag is set.
+### A. Virtual Node Hierarchy (`org.mdt.ui.core` & `components.layout`)
+* **`UINode`**: Core foundation containing 4-sided Margins, Paddings, sizing flags (`minWidth`, `minHeight`, `sizeFlagsHorizontal`, `sizeFlagsVertical`, `stretchRatio`), child lists, and pointer callbacks (`onClick`, `onHover`, `onPointerDown`, `onPointerDrag`, `onPointerUp`).
+* **`LayoutNode`**: Unified container node backed by a swappable `measurePolicy: MeasurePolicy` (`BoxMeasurePolicy`, `ColumnMeasurePolicy`, `RowMeasurePolicy`, `GridMeasurePolicy`) and zero-overhead lazy visual allocation via `ensureVisuals()`.
+* **`CanvasNode`**: Root viewport container managing screen resize events and driving the top-level 2-pass layout cascade.
 
-### B. Compose Multiplatform Integration (`org.mdt.ui.compose`)
-* **`NodeApplier`**: Extends `AbstractApplier<UINode>`, translating Compose tree operations into deterministic top-down modifications on the virtual `UINode` tree.
-* **`CompositionManager`**: Drives the frame clock (`BroadcastFrameClock`) and observes snapshot writes (`Snapshot.registerGlobalWriteObserver`) to trigger asynchronous recomposition without blocking the main game loop.
+### B. Recomposition & Frame Clock (`org.mdt.ui.compose`)
+* **`UIComposition`**: Manages the `Recomposer` lifecycle and `NodeApplier` bound to `rootCanvas`.
+* **`BroadcastFrameClock`**: Synchronizes recomposition ticks with Mindustry's frame loop via `Trigger.uiDrawEnd` or `EngineRuntime.draw()`.
 
-### C. Box Model (Margin $\rightarrow$ Border $\rightarrow$ Padding $\rightarrow$ Content)
-Every node strictly follows the standard Box Model:
-1. **Margin (Outward Spacing):** Creates separation space between the node and neighboring siblings.
-2. **Bounds / Border (Visual Outline):** The actual graphical boundary drawn on screen (fill color, rounded corners, border strokes, shadows).
-3. **Padding (Inward Spacing):** Inner insets separating the border boundary from inner content or child nodes.
-4. **Content:** The actual rendered payload (`TextNode` glyphs or child container nodes).
+### C. Input Pipeline & Gestures (`org.mdt.ui.input`)
+* **`EngineInputProcessor`**: Executes Reverse-DFS hit-testing to identify the deepest actionable leaf node under the pointer.
+* **Event-Driven Drag Routing:** Continuous pointer drag gestures are dispatched directly from `touchDragged` to `pressedNode.onPointerDrag`, ensuring seamless tracking across the entire screen.

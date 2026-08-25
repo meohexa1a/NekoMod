@@ -5,7 +5,7 @@ This document provides a comprehensive directory breakdown of all source files a
 ---
 
 ## 📊 Project Statistics Overview
-* **Total Kotlin Source Files (`.kt`):** 49 files
+* **Total Kotlin Source Files (`.kt`):** 47 files
 * **Organization Paradigm:** Feature Co-location — Virtual DOM Node, Composable, and State Machine for a single widget reside together in a dedicated directory.
 * **Files per Directory:** Max 2–4 files (clean, intuitive, painless small edits).
 
@@ -73,7 +73,6 @@ This document provides a comprehensive directory breakdown of all source files a
 * [`FlexLayouts.kt`](../../src/main/kotlin/org/mdt/ui/components/layout/FlexLayouts.kt): Composable `Row()` and `Column()`.
 * [`Grid.kt`](../../src/main/kotlin/org/mdt/ui/components/layout/Grid.kt): Composable `Grid()`.
 * [`Spacer.kt`](../../src/main/kotlin/org/mdt/ui/components/layout/Spacer.kt): Composable `Spacer()`.
-* [`Containers.kt`](../../src/main/kotlin/org/mdt/ui/components/layout/Containers.kt): Backward-compatible container nodes.
 
 ### 📝 4.2 Typography & Text (`components.text.*`)
 * [`Text.kt`](../../src/main/kotlin/org/mdt/ui/components/text/Text.kt): Composable `Text()`.

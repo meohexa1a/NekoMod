@@ -1,66 +1,46 @@
 # Core Subsystems Architecture
 
-This document details NekoMod's core foundation subsystems, including asynchronous OkHttp networking, atomic Okio storage, LRU texture caching, and next-gen i18n localization.
+This document details NekoMod's foundational core subsystems, including asynchronous OkHttp networking, crash-resilient Okio persistence, LRU texture caching, and hierarchical localization.
 
 ---
 
-## 1. Asynchronous Networking & Zero Frame Stalls (`org.mdt.core.net`)
+## 1. Asynchronous Networking & Zero Frame Stall (`org.mdt.core.net`)
 
-* **Engine:** Backed by `OkHttpClient` with connection pooling (reusing HTTP/2 sockets).
-* **Game Loop Safety:** All network I/O and byte decoding execute asynchronously on Kotlin Coroutines `Dispatchers.IO`. Results never stall or hitch the game's 60-144 FPS render loop.
+* **Engine:** Singleton `OkHttpClient` with HTTP/2 Connection Pooling.
+* **Thread Safety:** Network I/O executes strictly on `Dispatchers.IO`. Byte streams and image decoding never stall Mindustry's OpenGL render thread (0 frame drop).
 * **Fluent DSL:**
   ```kotlin
-  val responseText = Net.get("https://api.example.com/data") {
-      header("Authorization", "Bearer $token")
-      param("type", "latest")
-  }.awaitString()
+  val responseBytes = Net.get("https://raw.githubusercontent.com/.../image.png").awaitBytes()
   ```
 
 ---
 
-## 2. Safe GPU VRAM Management & Texture Caching (`org.mdt.core.cache` & `image`)
+## 2. VRAM Lifecycle & LRU Texture Cache (`org.mdt.core.cache` & `image`)
 
-* **Problem Solved:** Unmanaged OpenGL texture creation quickly leads to VRAM bloat or native memory leaks.
 * **Reference Counting (`TextureHandle`):**
-  * When `ImageNode` mounts to the UI tree: `handle.retain()`.
-  * When `ImageNode` is unmounted/destroyed: `handle.release()`.
-* **LRU Bounded Cache (`LRUTextureCache`):**
-  * Hard VRAM ceiling (default: 64MB).
-  * Automatically evicts and disposes oldest unused textures on Mindustry's OpenGL Render Thread (`Core.app.post`).
+  * Node mount: `handle.acquire()`.
+  * Node unmount: `handle.release()`.
+* **64MB LRU Texture Cache (`LRUTextureCache`):**
+  * Memory ceiling bounded to 64MB.
+  * Least recently used textures are disposed safely on Mindustry's render thread (`Core.app.post`).
+* **VRAM Upload Throttling:** `ImageLoader` caps GPU texture uploads to a maximum of 4 textures per frame in `processUploadQueue()` to maintain 60/144 FPS smoothness.
 
 ---
 
-## 3. Asynchronous Image Pipeline (`AsyncImageLoader` & `ImageNode`)
+## 3. Atomic Disk Persistence (`KVStore` & `Storage` via Okio)
 
-4-step non-blocking image pipeline:
-```
-1. URL Request ──► 2. Fetch Bytes (OkHttp) ──► 3. Decode Pixmap (Background) ──► 4. Upload Texture (GL Thread)
-```
-* **Composable DSL:**
+* **Disk Location:** Persisted in Mindustry's mod data directory: `%APPDATA%\Mindustry\nekomod\*.kv`.
+* **Dual-Tier Caching:** Instant $O(1)$ in-memory lookups via `ConcurrentHashMap` backed by asynchronous Okio disk writes.
+* **300ms Debounce & Nano-Staging Atomic Writes:** Mutations debounce for 300ms before writing to a unique nano-timestamped staging file (`default.kv.nanoTime().tmp`) under a `synchronized(lock)` block prior to `atomicMove`, preventing Windows NTFS file locking conflicts.
+* **Usage Example:**
   ```kotlin
-  Image(
-      source = "https://raw.githubusercontent.com/.../icon.png",
-      modifier = Modifier.size(48f, 48f),
-      scaleMode = ScaleMode.FIT
-  )
+  KVStore.default.putInt("demo_counter", 10)
+  val count = KVStore.default.getInt("demo_counter", 0)
   ```
 
 ---
 
-## 4. Crash-Resilient Atomic Storage (`KVStore` via Okio)
+## 4. Hierarchical Localization Engine (`I18nEngine`)
 
-* **Dual Cache Architecture:** In-memory `ConcurrentHashMap` for instant $O(1)$ reads + asynchronous disk persistence via Okio.
-* **Atomic File Writes:** Writes to staging `.tmp` file before atomic replacement, completely preventing corrupted settings files if the process is terminated abruptly.
-* **Usage:**
-  ```kotlin
-  KVStore.default.putInt("user_score", 150)
-  val score = KVStore.default.getInt("user_score", 0)
-  ```
-
----
-
-## 5. Next-Gen Internationalization (`I18nEngine`)
-
-* Hierarchical nested keys: `i18n("app.title")`.
-* Dynamic parameter interpolation: `i18n("btn.count", "count" to 5)`.
-* Hot-reloadable locale dictionaries.
+* **Nested Dot Notation:** Resolves localized keys with parameter substitution: `i18n("app.title")`, `i18n("btn.count", "count" to 5)`.
+* **Automatic Locale Detection:** Defaults to game/system language settings (`vi`, `en`).

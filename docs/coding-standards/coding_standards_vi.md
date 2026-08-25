@@ -4,72 +4,73 @@ Tài liệu này xác lập toàn bộ các quy chuẩn lập trình, quy ước
 
 ---
 
-## 1. Hệ thống Kiểu số & Đồ họa (Type System: `Float` 100%)
+## 🎨 I. Đồ họa, Shaders & Typography
 
+### 1. Hệ thống Kiểu số & Đồ họa (Type System: `Float` 100%)
 * **Quy tắc bắt buộc:** Toàn bộ kích thước hình học (`width`, `height`), lề (`margin`, `padding`), bán kính bo góc (`radius`), độ dày viền (`borderWidth`), độ mờ (`opacity`), hệ số mờ (`blurRadius`, `backdropWeight`) và tỷ lệ giãn nở (`weight`) **bắt buộc sử dụng `Float`** (hậu tố `f`).
-* **Lý do kỹ thuật:**
+* **Lý do:**
   1. Đồng bộ hoàn hảo với hệ tọa độ OpenGL và Arc Graphics engine.
   2. Triệt tiêu hoàn toàn chi phí ép kiểu `.toFloat()` khi nạp uniform vào GPU Shaders.
-  3. Code Compose tự nhiên: `Modifier.pad(12f).radius(8f).border(1f, Color.white).opacity(0.9f)`.
+
+### 2. OpenGL Active Texture Enum
+* Luôn gọi `Gl.activeTexture(Gl.texture0 + unit)`, tuyệt đối **không** dùng `Gl.texture2d + unit` (gây lỗi OpenGL invalid enum).
+
+### 3. Quy chuẩn Arc Shader Headers & Precisions
+* Tuyệt đối không tự khai báo `#ifdef GL_ES` hay `#version` trong các file shader thô (`*.frag`, `*.vert`). Trình biên dịch shader của Arc (`arc.graphics.gl.Shader`) sẽ tự động chèn ngầm; việc khai báo thủ công gây lỗi trùng lặp và crash game khi khởi động.
+
+### 4. Vòng lặp Render Hooks
+* Các tác vụ nạp Texture GPU từ hàng đợi, xử lý FrameBuffer và UI tick phải được thực thi trong `Trigger.uiDrawEnd` hoặc `EngineRuntime.draw()`.
+
+### 5. Tiêu chuẩn Typography & BMFont Natural Scaling
+* **Quy chuẩn:** Render Bitmap Fonts (`Fonts.def`, `Fonts.tech`, `Fonts.large`) ở tỷ lệ chuẩn **`scale = 1.0f`** (hoặc số nguyên $2.0\times$).
+* **Lý do:** BMFont là ảnh lưới pixel cố định. Việc scale số lẻ (`0.8f`, `0.85f`, `0.9f`, `1.1f`) khiến GPU nội suy nét $1\text{px}$ thành $1.5\text{px}$ gây mờ, nhòe và dính chữ.
+* **Phân cấp thị giác:** Tạo sự phân cấp bằng **Màu sắc / Độ sáng** (`Color.white` vs `Color.valueOf("9399b2")`) hoặc chuyển đổi bộ font (`Fonts.large` cho tiêu đề, `Fonts.tech` cho số liệu).
 
 ---
 
-## 2. Quy ước Tầng Compose Declarative & Modifier
+## 🎮 II. Xử lý Đầu vào & Cử chỉ
 
-### A. Thứ tự tham số trong `@Composable` function
-Mọi component giao diện phải tuân thủ thứ tự tham số chuẩn của Compose:
-1. **Dữ liệu chính (Content/State):** `text: String`, `source: Any`, `checked: Boolean`.
-2. **Sự kiện callback:** `onClick: () -> Unit`, `onToggle: () -> Unit`.
-3. **Tham số Modifier:** `modifier: UIModifier = UIModifier` (hoặc `Modifier`).
-4. **Cấu hình tùy chọn (Tùy biến Visual):** `colors: ButtonColors`, `radius: Float`, `scale: Float`.
-5. **Slot Lambda con:** `content: @Composable BoxScope.() -> Unit = {}` (luôn ở vị trí cuối cùng).
+### 6. Xử lý Bàn phím & IME Tiếng Việt
+* Xử lý phím `Backspace` độc quyền trong `onKeyDown(KeyCode.backspace)`.
+* `onKeyTyped` chỉ xử lý các ký tự in được ($\ge 32$) và bỏ qua `\b` để tránh lỗi xoá 2 lần ký tự khi dùng bộ gõ Tiếng Việt (Unikey/EVKey).
 
-### B. Chaining `UIModifier`
-* Mọi component dựng sẵn khi cấu hình style mặc định **bắt buộc phải kết thúc bằng `.then(modifier)`** để người gọi bên ngoài có thể ghi đè hoặc bổ sung thuộc tính layout/interactivity.
+### 7. Điều hướng Kéo thả theo Sự kiện (`onPointerDrag`)
+* Định tuyến sự kiện kéo chuột liên tục thông qua `onPointerDrag` trong `EngineInputProcessor.touchDragged()`.
+* Không thăm dò `Core.input` thủ công trong các hàm vẽ `drawSelf()` để đảm bảo mượt mà và không giật lag.
 
 ---
 
-## 3. Quản lý Luồng (Thread Dispatching) & An toàn VRAM
+## 🧩 III. Kiến trúc Mã nguồn & Phong cách
 
-```
-┌────────────────────────────────────────────────────────┐
-│ BACKGROUND THREAD (Dispatchers.IO)                     │
-│ • OkHttp Network I/O & Streaming                       │
-│ • Okio Disk Reading & Atomic Writing                   │
-│ • Background Pixmap Byte Decoding                      │
-└──────────────────────────┬─────────────────────────────┘
-                           │ AsyncDispatcher.onMainThread / Core.app.post
-                           ▼
-┌────────────────────────────────────────────────────────┐
-│ RENDER THREAD (Mindustry OpenGL Loop - 60 FPS)         │
-│ • OpenGL Texture Creation & GPU Uploads                │
-│ • Virtual DOM Mutations & Composition Clock            │
-│ • 2-Pass Godot Layout & SDF Shader Drawing             │
-└────────────────────────────────────────────────────────┘
-```
+### 8. Cấu trúc Package Feature Co-location
+* Tổ chức các Widget UI theo gói chuyên biệt (`components.input.textfield`, `components.input.slider`, `components.display.image`,...) gom nhóm Virtual Node, Composable và State Machine cùng một nơi (tối đa 2–4 file/thư mục).
 
-* **Quy tắc Quản lý VRAM:**
-  * Tuyệt đối không khởi tạo `Texture(...)` trực tiếp trong hàm `@Composable`.
-  * Toàn bộ GPU Texture phải đi qua `TextureHandle` (Reference Counting) hoặc `LRUTextureCache` để tự động thu hồi khi node bị unmount.
+### 9. Triết lý Declarative Post-Design
+* Không nhúng inspector overlay nặng vào client game; ưu tiên thiết kế compile-time bằng Kotlin DSL và Reactive Schema (HJSON/JSON) Hot-Reload.
+
+### 10. Thứ tự tham số Composable & UIModifier Chaining
+* Thứ tự chuẩn: (1) Dữ liệu/State $\rightarrow$ (2) Callbacks $\rightarrow$ (3) `modifier: UIModifier = UIModifier` $\rightarrow$ (4) Visual Options $\rightarrow$ (5) Content Slot.
+* Mọi component áp dụng style mặc định phải kết thúc bằng `.then(modifier)`.
+
+### 11. Chuẩn hóa Inline Lambda Đơn giản
+* Các callback, listener hoặc lambda 1 dòng đơn giản (ví dụ: `AsyncDispatcher.onMainThread { onResult(null, e) }`) phải được viết gọn gàng trên cùng 1 dòng inline.
 
 ---
 
-## 4. Quy ước KDoc & Tài liệu
+## 💾 IV. Lưu trữ, I/O & Thư viện
 
-1. **KDoc trong mã nguồn Kotlin (`*.kt`):**
-   * **Bắt buộc 100% Tiếng Anh chuẩn.**
-   * Tham chiếu tài liệu bằng text: `See: docs/architecture/architecture_en.md` (không dùng thẻ `@see` với đường dẫn file để tránh cảnh báo IDE).
-2. **Tài liệu trong `docs/`:**
-   * Luôn duy trì **2 bản song ngữ song song**: `*_vi.md` và `*_en.md`.
-   * Mọi đường dẫn liên kết giữa các tài liệu phải là **đường dẫn tương đối (`./` hoặc `../`)**.
+### 12. Ghi đĩa Nguyên tử (Atomic Write) & Chống Khoá File Windows
+* Debounce ghi đĩa 300ms với `Storage.atomicWrite` sử dụng file tạm thời nano-timestamp (`.nanoTime().tmp`) và khóa đồng bộ `synchronized(lock)` để chống xung đột khóa file NTFS trên Windows.
+
+### 13. Tra cứu Mã nguồn Thư viện Cục bộ (`.lib-source`)
+* Luôn đọc mã nguồn trực tiếp trong `.lib-source/` (`mindustry/`, `arc/`, `compose-runtime/`, `MindustryToolMod/`) khi nghiên cứu API hoặc cơ chế OpenGL. Tự động clone vào `.lib-source/<lib-name>` nếu thiếu thư viện mới.
 
 ---
 
-## 5. Phân tầng Package (Architecture Layering)
+## 📖 V. Quy chuẩn Tài liệu & KDoc
 
-* `org.mdt.core.*`: Hạ tầng độc lập (Async, Network, Storage, Cache, Image, I18n).
-* `org.mdt.ui.core`: Virtual Node DOM tree (`UINode`, `CanvasNode`, Events, Math).
-* `org.mdt.ui.layout`: Thuật toán dàn trang 2-pass Godot (`GodotLayout`, SizeFlags, Anchors).
-* `org.mdt.ui.render`: GPU Rendering Pipeline (`EngineRenderer`, `BoxRenderer`, `TextRenderer`, Shaders, BoxBlur).
-* `org.mdt.ui.widgets`: Các Node giao diện cơ sở (`BoxNode`, `TextNode`, `ImageNode`, `Containers`).
-* `org.mdt.ui.compose`: Tầng DSL Compose Multiplatform (`Components`, `Widgets`, `UIModifier`, Scopes).
+### 14. Tài liệu Song ngữ Song hành
+* Duy trì song song 2 bản `*_vi.md` và `*_en.md` trong `docs/`. Toàn bộ liên kết liên-tài-liệu bắt buộc dùng đường dẫn tương đối (`./` hoặc `../`).
+
+### 15. KDoc Trong Mã Nguồn Kotlin
+* 100% Tiếng Anh chuẩn. Dẫn chiếu tài liệu bằng `See: docs/path/file_en.md` (không dùng `@see` với đường dẫn file).

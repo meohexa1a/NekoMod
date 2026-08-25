@@ -1,61 +1,58 @@
 # GPU Rendering & Shader Pipeline
 
-This document details NekoMod's rendering architecture, the Signed Distance Field (SDF) box shader, and the **Shared Screen Capture + Parameterized Per-Box Blur** pipeline.
+This document details NekoMod's graphics rendering pipeline, Signed Distance Field (SDF) box shader architecture, and OpenGL invariants across the Mindustry / Arc ecosystem.
 
 ---
 
 ## 1. Orthographic Render Pass
 
-UI rendering executes via Mindustry's draw hook:
+All UI rendering operations execute within the dedicated event hook:
 ```kotlin
 Events.run(Trigger.uiDrawEnd) {
     renderer.render(rootCanvas)
 }
 ```
-* **Projection Matrix:** Configured using `Draw.proj(0, 0, screenW, screenH)` to align 1:1 with screen pixel coordinates.
-* **Top-Layer Compositing:** The UI is rendered after Mindustry finishes drawing the game world and Scene2D stages, ensuring pristine, topmost display layers.
+* **Projection:** Configured via `Draw.proj(0f, 0f, screenW, screenH)` to draw in direct 1:1 pixel coordinate space.
+* **Top-Layer Compositing:** UI renders after Mindustry finishes all game layers and Scene2D, ensuring sharp, unoccluded presentation.
+* **FBO Projection Matrix Preservation:** When switching render targets to intermediate FrameBuffers, the active projection matrix is saved into `scratchMat` and restored immediately after pass completion to prevent canvas projection distortion.
 
 ---
 
-## 2. Signed Distance Field (SDF) Box Shader (`box.frag`)
+## 2. SDF Box Shader Pipeline (`box.frag` & `box.vert`)
 
-Rather than relying on rasterized 9-patch bitmap textures (which suffer from scaling artifacts and pixelation), `BoxRenderer` computes geometry mathematically on the GPU using **Signed Distance Fields (SDF)**:
+Rather than relying on 9-patch bitmap textures which degrade under dynamic scaling, `BoxRenderer` utilizes **Signed Distance Fields (SDF)** evaluated directly in the fragment shader:
 
-1. **Distance computation from pixel to rounded box:**
+```
+┌──────────────────────────────────────────────────────────┐
+│ BOX SHADER FRAGMENT COMPOSITING PIPELINE                 │
+│ 1. Base Fill (Solid Color / Fill Texture)                │
+│ 2. Backdrop Blur Sampling (Blended background texture)   │
+│ 3. Outer Glow (Expanded gaussian aura)                   │
+│ 4. Inner Shadow (Inner inset depth)                      │
+│ 5. Border Stroke (Continuous / Dashed outline)           │
+│ 6. Color Filter & Grain Noise                            │
+│ 7. Opacity Multiplication & Single Alpha Discard         │
+└──────────────────────────────────────────────────────────┘
+```
+
+1. **Signed Distance Computation:**
    $$d = \|\max(|p - \text{center}| - \text{halfSize} + r, 0)\| - r$$
-2. **Sub-pixel Anti-Aliasing:**
-   $$\text{alpha} = \text{smoothstep}(1.0, 0.0, d)$$
-3. **Independent Corner Radii:**
-   Supports 4 independent corner radii (`topLeftRadius`, `topRightRadius`, `bottomRightRadius`, `bottomLeftRadius`) and arbitrary `borderWidth` with zero CPU overhead.
+2. **Smooth Anti-Aliasing:**
+   $$\text{fillAlpha} = \text{clamp}(1.0 - \text{smoothstep}(-\text{edge}, \text{edge}, d), 0.0, 1.0)$$
+3. **No Early Alpha Discard:**
+   The shader never discards fragments early when `fillAlpha == 0`, because outer features like `Border` and `Outer Glow` exist outside the core box bounds ($d > 0$). The `if (color.a < 0.001) discard;` check executes strictly once at the end of the shader after all visual layers have been blended.
 
 ---
 
-## 3. Optimized Backdrop Blur Architecture (Shared Capture + Parameterized Blur)
+## 3. Arc Shader Compiler Invariants
 
-```
-┌───────────────────────────────────────────────────────────┐
-│ 1. SCREEN CAPTURE (ONCE PER FRAME)                        │
-│    EngineRenderer grabs screen once into Shared FBO       │
-└─────────────────────────────┬─────────────────────────────┘
-                              │
-            ┌─────────────────┴─────────────────┐
-            ▼                                   ▼
-┌───────────────────────┐           ┌───────────────────────┐
-│ Card A (Subtle Blur)  │           │ Modal Dialog (Opaque) │
-│ • blurRadius = 4f     │           │ • blurRadius = 16f    │
-│ • weight = 0.6        │           │ • weight = 0.95       │
-│ • Tint = Pastel Blue  │           │ • Tint = Smoked Black │
-└───────────────────────┘           └───────────────────────┘
-```
+* **Arc Shader Headers:** Arc's shader compiler (`arc.graphics.gl.Shader`) automatically injects `#ifdef GL_ES` and `precision mediump float;` qualifiers into fragment shaders before compiling.
+* **Mandatory Rule:** Never declare `#ifdef GL_ES` or `#version` manually in raw shader files (`box.frag`, `blur.frag`, `box.vert`, `blur.vert`) to prevent duplicate definition crashes.
 
-1. **Single Screen Capture per Frame ($O(1)$):**
-   * At the beginning of the frame, `EngineRenderer` checks if any visible node has `blur = true`. If so, it captures the screen **exactly once** into a shared downscaled FBO (`screenCaptureFbo`).
-   * Eliminates GPU pipeline stalls caused by redundant screen grabs.
-2. **Reusable Scratch Ping-Pong FBOs:**
-   * Individual `BoxNode` instances do not allocate or hold private FBOs.
-   * Nodes borrow the renderer's `scratchFboA` $\leftrightarrow$ `scratchFboB` to execute ping-pong convolution passes and immediately return them.
-3. **Full Per-Box Customization:**
-   * `blurRadius`: Kernel spread (e.g. `2f` for subtle tooltips, `16f` for opaque modals).
-   * `blurIterations`: Number of ping-pong passes (1 to 4).
-   * `backdropTint`: Color overlay (e.g. white, sky blue, dark tint).
-   * `backdropWeight`: Opacity blending curve.
+---
+
+## 4. Typography & BMFont Rendering Standards
+
+* **Bitmap Font Invariant:** Mindustry fonts (`Fonts.def`, `Fonts.tech`, `Fonts.large`) are pre-rasterized bitmap atlases.
+* **Integer Scale Standard:** Always render at natural `scale = 1.0f` (or integer increments $2.0\times$). Avoid fractional float scales (`0.8f`, `0.85f`, `0.9f`, `1.1f`) which cause sub-pixel glyph distortion and blurring.
+* **Visual Hierarchy:** Create contrast through color luminance (`Color.white` for primary titles, `Color.valueOf("9399b2")` for secondary subtitles) and specialized font families (`Fonts.large` for headings, `Fonts.tech` for telemetry/stats).

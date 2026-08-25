@@ -1,6 +1,6 @@
 # GPU Rendering & Shader Pipeline
 
-Tài liệu này giải thích chi tiết tầng dựng hình đồ họa (Rendering Pipeline) của NekoMod, kỹ thuật vẽ hình chữ nhật bo góc bằng shader SDF (Signed Distance Field) và giải thuật làm mờ hậu cảnh **Shared Screen Capture + Parameterized Per-Box Blur**.
+Tài liệu này giải thích chi tiết tầng dựng hình đồ họa (Rendering Pipeline) của NekoMod, kiến trúc shader SDF (Signed Distance Field) và các quy chuẩn OpenGL trong hệ sinh thái Mindustry / Arc.
 
 ---
 
@@ -12,50 +12,47 @@ Events.run(Trigger.uiDrawEnd) {
     renderer.render(rootCanvas)
 }
 ```
-* **Góc chiếu (Projection):** Sử dụng `Draw.proj(0, 0, screenW, screenH)` để vẽ trực tiếp theo tọa độ điểm ảnh (pixel space) 1:1 với màn hình.
+* **Góc chiếu (Projection):** Sử dụng `Draw.proj(0f, 0f, screenW, screenH)` để vẽ trực tiếp theo tọa độ điểm ảnh (pixel space) 1:1 với màn hình.
 * **Top-Layer Compositing:** UI được vẽ sau khi Mindustry hoàn thành toàn bộ frame của game và Scene2D, đảm bảo giao diện luôn hiển thị sắc nét trên cùng.
+* **Bảo toàn Ma trận Chiếu FBO:** Khi chuyển đổi Render Target sang FrameBuffer tạm (FBO pass), ma trận chiếu được lưu lại qua `scratchMat` và khôi phục ngay sau khi kết thúc pass để không làm sai lệch không gian vẽ của game.
 
 ---
 
-## 2. Shader Bo góc SDF (`box.frag`)
+## 2. Kiến trúc Shader Bo góc SDF (`box.frag` & `box.vert`)
 
-Thay vì sử dụng các hình ảnh texture cắt 9 phần (9-patch bitmaps) vốn dễ bị vỡ hạt khi phóng to, `BoxRenderer` sử dụng **Toán học Khoằng cách có Dấu (Signed Distance Field - SDF)** trực tiếp trong Fragment Shader:
+Thay vì sử dụng các hình ảnh texture cắt 9 phần (9-patch bitmaps) vốn dễ bị vỡ hạt khi phóng to, `BoxRenderer` sử dụng **Toán học Khoảng cách có Dấu (Signed Distance Field - SDF)** trực tiếp trong Fragment Shader:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│ BOX SHADER FRAGMENT COMPOSITING PIPELINE                 │
+│ 1. Base Fill (Màu đơn sắc / Fill Texture)                 │
+│ 2. Backdrop Blur Sampling (Hòa trộn texture làm mờ)      │
+│ 3. Outer Glow (Bóng phát quang mở rộng)                  │
+│ 4. Inner Shadow (Bóng đổ lòng trong)                     │
+│ 5. Border Stroke (Viền liền nét / Viền đứt đoạn Dash)    │
+│ 6. Color Filter & Grain Noise                            │
+│ 7. Opacity Multiplication & Final Alpha Discard          │
+└──────────────────────────────────────────────────────────┘
+```
 
 1. **Tính khoảng cách từ pixel tới hình chữ nhật bo góc:**
    $$d = \|\max(|p - \text{center}| - \text{halfSize} + r, 0)\| - r$$
-2. **Khử răng cưa (Anti-Aliasing):**
-   $$\text{alpha} = \text{smoothstep}(1.0, 0.0, d)$$
-3. **Viền và Bo góc riêng biệt:**
-   Shader hỗ trợ 4 bán kính góc độc lập (`topLeftRadius`, `topRightRadius`, `bottomRightRadius`, `bottomLeftRadius`) và độ dày viền `borderWidth` mà không làm giảm tốc độ khung hình.
+2. **Khử răng cưa mịn màng (Anti-Aliasing):**
+   $$\text{fillAlpha} = \text{clamp}(1.0 - \text{smoothstep}(-\text{edge}, \text{edge}, d), 0.0, 1.0)$$
+3. **Quy tắc Tránh Early Discard:**
+   Shader không bao giờ thực hiện lệnh `discard` sớm khi `fillAlpha == 0`, vì các hiệu ứng viền ngoài (`Border`) và bóng phát quang (`Glow`) nằm ngoài biên giới hình chữ nhật gốc ($d > 0$). Việc kiểm tra `if (color.a < 0.001) discard;` chỉ được thực thi duy nhất một lần ở cuối shader sau khi toàn bộ các lớp đã được hòa trộn.
 
 ---
 
-## 3. Kiến trúc Làm mờ Hậu cảnh Tối ưu (Shared Screen Capture + Parameterized Blur)
+## 3. Quy tắc Biên dịch Arc Shader Compiler
 
-```
-┌───────────────────────────────────────────────────────────┐
-│ 1. SCREEN CAPTURE (1 LẦN DUY NHẤT ĐẦU FRAME)              │
-│    EngineRenderer chụp màn hình game vào Shared FBO       │
-└─────────────────────────────┬─────────────────────────────┘
-                              │
-            ┌─────────────────┴─────────────────┐
-            ▼                                   ▼
-┌───────────────────────┐           ┌───────────────────────┐
-│ Card A (Blur Nhẹ 4px) │           │ Modal Dialog (Mờ Đục) │
-│ • blurRadius = 4f     │           │ • blurRadius = 16f    │
-│ • weight = 0.6        │           │ • weight = 0.95       │
-│ • Tint = Xanh pastel  │           │ • Tint = Đen khói     │
-└───────────────────────┘           └───────────────────────┘
-```
+* **Arc Shader Headers:** Arc Graphics engine (`arc.graphics.gl.Shader`) tự động tiêm phần khai báo `#ifdef GL_ES` và `precision mediump float;` ngầm vào mã nguồn fragment shader trước khi gửi sang OpenGL driver.
+* **Quy chuẩn bất biến:** Tuyệt đối **không khai báo** `#ifdef GL_ES` hoặc `#version` thủ công trong các file shader (`box.frag`, `blur.frag`, `box.vert`, `blur.vert`).
 
-1. **Chụp màn hình 1 lần duy nhất ($O(1)$):**
-   * Đầu mỗi frame vẽ UI, `EngineRenderer` kiểm tra xem trên màn hình có node nào bật `blur = true` hay không. Nếu có, nó chụp màn hình game **đúng 1 lần** vào `screenCaptureFbo` (downscaled 50%).
-   * Xóa bỏ hoàn toàn tình trạng nghẽn GPU khi có nhiều hộp thoại cùng làm mờ.
-2. **Cặp FrameBuffer tạm dùng chung (Scratch Ping-Pong FBO):**
-   * Các `BoxNode` không lưu trữ FBO riêng trong bộ nhớ.
-   * Khi vẽ, node mượn cặp `scratchFboA` $\leftrightarrow$ `scratchFboB` của `BoxBlur` để chạy Gaussian blur rồi hoàn trả ngay lập tức.
-3. **Tự do tùy biến tham số cho từng Box riêng biệt:**
-   * `blurRadius`: Độ nhòe rộng/hẹp của nhân Gaussian (ví dụ: `2f` cho tooltip, `16f` cho modal).
-   * `blurIterations`: Số lượt chạy ping-pong (1 đến 4 lần).
-   * `backdropTint`: Màu ám kính mờ (ví dụ: màu trắng trong mờ, ám xanh, đen khói).
-   * `backdropWeight`: Độ đục / trong suốt của lớp kính.
+---
+
+## 4. Chuẩn mực Typography & BMFont Rendering
+
+* **Bitmap Font Invariant:** Toàn bộ font chữ của Mindustry (`Fonts.def`, `Fonts.tech`, `Fonts.large`) là BMFont (ảnh chụp lưới pixel atlas).
+* **Quy chuẩn tỷ lệ nguyên:** Luôn render ở tỷ lệ tự nhiên **`scale = 1.0f`** (hoặc số nguyên $2.0\times$). Tránh scale số thập phân lẻ (`0.8f`, `0.85f`, `0.9f`, `1.1f`) gây vỡ hạt pixel và méo nét chữ.
+* **Phân cấp thị giác:** Thay vì thu nhỏ font scale, phân cấp bằng độ sáng màu sắc (`Color.white` cho tiêu đề, `Color.valueOf("9399b2")` cho phụ đề) và chọn font chuyên biệt (`Fonts.large` cho tiêu đề to, `Fonts.tech` cho số liệu).

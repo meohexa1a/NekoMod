@@ -17,7 +17,7 @@ Tài liệu này vạch ra kế hoạch phát triển theo từng giai đoạn (
 
 ---
 
-## 🚀 Giai đoạn 2: Bộ Widget Nâng cao (ĐANG TRIỂN KHAI 🔄)
+## 🚀 Giai đoạn 2: Bộ Widget Nâng cao (ĐÃ HOÀN THÀNH ✅)
 * [x] **`ScrollView` & Scissor Clipping:**
   * Cuộn trang mượt mà theo trục dọc/ngang với con lăn chuột và kéo chuột.
   * Cắt xén phần cứng OpenGL Scissor (`ScissorStack`) đa tầng.
@@ -29,14 +29,16 @@ Tài liệu này vạch ra kế hoạch phát triển theo từng giai đoạn (
 * [x] **`Image` & `ImageNode`:**
   * Hỗ trợ đa nguồn ảnh: URL Internet (OkHttp), Sprite Atlas Mindustry, và file cục bộ.
   * Tự động điều tiết băng thông VRAM với hàng đợi Frame Budget.
-* [ ] **`Slider` & `ProgressBar`:**
-  * Thanh kéo giá trị âm lượng, tỷ lệ, thanh máu / tiến độ xây dựng.
-* [ ] **`Dropdown` & `Tooltip`:**
-  * Menu thả xuống và hộp thoại gợi ý thông tin bám theo vị trí con trỏ chuột.
+* [x] **`Slider` (Capsule Pill Style) & `ProgressBar`:**
+  * Thanh trượt dạng viên nang tích hợp tiêu đề và phần trăm với kéo thả toàn màn hình (`onPointerDrag`).
+  * Thanh tiến độ bo góc mượt mà với nhiều bộ màu trạng thái.
+* [x] **`Tooltip` & `Toggle`:**
+  * Khung gợi ý tooltip tự động hiển thị khi rê chuột.
+  * Nút gạt công tắc dạng viên thuốc với nút trượt 3D và viền sáng phát quang.
 
 ---
 
-## 🏗️ Giai đoạn 3: Thay thế Giao diện Game Mindustry (Game UI Replacement)
+## 🏗️ Giai đoạn 3: Thay thế Giao diện Game Mindustry (Game UI Replacement - ĐANG TRIỂN KHAI 🔄)
 * [ ] **`ModalDialog`:**
   * Hộp thoại popup chặn tương tác màn hình phía sau, có nút đóng và hiệu ứng mờ nền.
 * [ ] **Floating World-to-Screen UI:**

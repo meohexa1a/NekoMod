@@ -1,53 +1,56 @@
 # Future Development Roadmap
 
-This document outlines the phased development plan for the UI Engine and extended ecosystem of NekoMod.
+This document outlines the phased roadmap for NekoMod's UI Engine architecture and future feature expansions.
 
 ---
 
-## 🎯 Phase 1: Foundation Standardization (COMPLETED ✅)
-* [x] Virtual DOM Hierarchy (`UINode`, `CanvasNode`, `LayoutNode`).
-* [x] Compose Multiplatform Runtime Integration (`CompositionManager`, `NodeApplier`).
-* [x] Standardized `LayoutNode + MeasurePolicy` Architecture (Zero-Overhead DOM).
-* [x] Godot 2-Pass Box Container Algorithm (`GodotLayout`).
-* [x] Unified Box Model (Unified Margins & Padding on `UINode`).
-* [x] Fluent `UIModifier` Chaining & `@UIDslMarker` Scopes.
-* [x] Core Widget Suite (`Button`, `Toggle`, `Card`, `Divider`, `Text`, `Row`, `Column`, `Grid`, `Spacer`).
-* [x] Hardware-Accelerated SDF Box & 2-Pass Gaussian Backdrop Blur (`BoxRenderer`, `BoxBlur`).
-* [x] Full Core Subsystems (`AsyncDispatcher`, `HttpEngine`, `Storage`, `KVStore`, `LRUTextureCache`, `ImageLoader`, `I18nEngine`).
+## 🎯 Phase 1: Engine Foundation & Core DOM (COMPLETED ✅)
+* [x] Standalone Virtual DOM tree (`UINode`, `CanvasNode`, `LayoutNode`).
+* [x] Compose Multiplatform Runtime integration (`CompositionManager`, `NodeApplier`).
+* [x] Unified `LayoutNode + MeasurePolicy` architecture (Zero-Overhead DOM).
+* [x] 2-Pass Godot Container Layout algorithm port (`GodotLayout`).
+* [x] Comprehensive Box Model (Unified Margin & Padding on `UINode`).
+* [x] Fluent `UIModifier` chain with `@UIDslMarker` scope protection.
+* [x] Fundamental Widget suite (`Button`, `Toggle`, `Card`, `Divider`, `Text`, `Row`, `Column`, `Grid`, `Spacer`).
+* [x] GPU SDF corner shaders and 2-pass Gaussian blur (`BoxRenderer`, `BoxBlur`).
+* [x] Core Subsystems (`AsyncDispatcher`, `HttpEngine`, `Storage`, `KVStore`, `LRUTextureCache`, `ImageLoader`, `I18nEngine`).
 
 ---
 
-## 🚀 Phase 2: Advanced Widget Toolkit (IN PROGRESS 🔄)
+## 🚀 Phase 2: Advanced Interactive Component Suite (COMPLETED ✅)
 * [x] **`ScrollView` & Scissor Clipping:**
-  * Smooth vertical & horizontal scrolling with mouse wheel and drag inertia.
-  * Multi-level nested hardware OpenGL scissor clipping (`ScissorStack`).
-  * Modern slim rounded scrollbar track & thumb rendering.
+  * Smooth vertical/horizontal scrolling with mouse wheel and drag gestures.
+  * Multi-level OpenGL hardware scissor clipping (`ScissorStack`).
+  * Sleek modern scrollbars.
 * [x] **`TextField` / Text Input:**
-  * Decoupled headless state machine (`TextEditState`).
-  * Caret blink animation, selection highlighting, and OS clipboard (`Ctrl+C`, `Ctrl+V`, `Ctrl+X`, `Ctrl+A`).
-  * 100% compatible with Vietnamese Telex IME (Unikey, EVKey).
+  * Standalone editing state machine (`TextEditState`).
+  * Blinking cursor, selection range, clipboard operations (`Ctrl+C`, `Ctrl+V`, `Ctrl+X`, `Ctrl+A`).
+  * Full Vietnamese IME compatibility (Unikey, EVKey).
 * [x] **`Image` & `ImageNode`:**
-  * Multi-source loading: Remote HTTP/HTTPS (OkHttp), Mindustry Sprite Atlas, and local files.
-  * Burst VRAM upload throttling queue for steady 60-144 FPS.
-* [ ] **`Slider` & `ProgressBar`:**
-  * Slider for volume/values and progress/health bars with animated gradients.
-* [ ] **`Dropdown` & `Tooltip`:**
-  * Dropdown selector and mouse-anchored tooltip overlays.
+  * Multi-source resolution: Web URL (OkHttp), Mindustry Atlas, and local files.
+  * VRAM upload throttling with frame upload budgets.
+* [x] **`Slider` (Capsule Pill Style) & `ProgressBar`:**
+  * Modern Capsule Pill Slider with integrated title/percentage and global `onPointerDrag`.
+  * Smooth rounded progress bar with multiple semantic color palettes.
+* [x] **`Tooltip` & `Toggle`:**
+  * Hover tooltip attachments.
+  * Sleek 3D inset thumb switch toggle with glowing active track.
 
 ---
 
-## 🏗️ Phase 3: Game UI Replacement
+## 🏗️ Phase 3: Game UI Replacement & World HUD (IN PROGRESS 🔄)
 * [ ] **`ModalDialog`:**
-  * Centered modal popup with frosted backdrop blur and dismiss callbacks.
+  * Backdrop-blurring modal dialogs blocking underlying pointer interactions.
 * [ ] **Floating World-to-Screen UI:**
-  * In-world block/unit configuration overlays projected from World Tile $(x, y)$ to Screen $(x, y)$ coordinates.
+  * World-attached floating inspector menus bound to in-game structures (Message Blocks, Processors, Core telemetry).
+  * Automatic World $(x, y)$ to Screen $(x, y)$ coordinate projection during camera zoom/pan.
 * [ ] **In-Game Custom HUD:**
-  * Custom resource monitor, minimap widgets, and command panels.
+  * Dynamic resource telemetry, custom minimap overlays, and unit command panels.
 
 ---
 
-## 🛠️ Phase 4: Schema Architecture & Hot-Reload (Data-Driven Declarative UI)
-* [ ] **Reactive Schema Parser (HJSON / JSON UI):**
-  * Live loading and hot-reloading declarative layouts from `.hjson` / `.json` without rebuilding.
+## 🛠️ Phase 4: Data-Driven Schema & Live Hot-Reload
+* [ ] **Schema Parser (HJSON / JSON UI):**
+  * Dynamic UI loading and hot-reloading from `.hjson` / `.json` without recompilation.
 * [ ] **2-Way Data-Binding Bridge:**
-  * Automatic state binding between JSON Schema definitions and `KVStore` properties.
+  * Direct reactive bindings between JSON schemas and `KVStore` states.

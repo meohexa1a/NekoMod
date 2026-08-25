@@ -5,7 +5,7 @@ Tài liệu này cung cấp danh mục chi tiết toàn bộ các tệp nguồn 
 ---
 
 ## 📊 Tổng quan Thống kê Dự án
-* **Tổng số tệp Kotlin (`.kt`):** 49 tệp
+* **Tổng số tệp Kotlin (`.kt`):** 47 tệp
 * **Mô hình tổ chức:** Feature Co-location — Virtual Node, Composable và State Machine của cùng một Widget nằm chung trong một thư mục chuyên biệt.
 * **Số lượng file trên mỗi thư mục:** Tối đa 2–4 file (Dễ đọc, dễ nhớ, dễ sửa đổi).
 
@@ -73,7 +73,6 @@ Tài liệu này cung cấp danh mục chi tiết toàn bộ các tệp nguồn 
 * [`FlexLayouts.kt`](../../src/main/kotlin/org/mdt/ui/components/layout/FlexLayouts.kt): Composable `Row()` và `Column()`.
 * [`Grid.kt`](../../src/main/kotlin/org/mdt/ui/components/layout/Grid.kt): Composable `Grid()`.
 * [`Spacer.kt`](../../src/main/kotlin/org/mdt/ui/components/layout/Spacer.kt): Composable `Spacer()`.
-* [`Containers.kt`](../../src/main/kotlin/org/mdt/ui/components/layout/Containers.kt): Node container tương thích ngược.
 
 ### 📝 4.2 Văn bản (`components.text.*`)
 * [`Text.kt`](../../src/main/kotlin/org/mdt/ui/components/text/Text.kt): Composable `Text()`.

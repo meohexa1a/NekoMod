@@ -1,67 +1,58 @@
 # Layout Engine & Coordinate System
 
-This document explains the technical implementation of `GodotLayout`, the OpenGL bottom-left orthographic coordinate system, and container slot allocation algorithms (`RowNode`, `ColumnNode`, `GridContainerNode`).
+This document details the inner workings of `GodotLayout`, the OpenGL bottom-left orthographic coordinate system in Mindustry/Arc, and slot allocation across containers via the `MeasurePolicy` architecture.
 
 ---
 
 ## 1. OpenGL Bottom-Left Coordinate System
 
-Mindustry and Arc follow standard OpenGL screen conventions:
-* **Origin $(0, 0)$:** Located at the **Bottom-Left** corner of the screen.
-* **$X$-Axis:** Increases from Left to Right ($0 \rightarrow \text{Width}$).
-* **$Y$-Axis:** Increases from Bottom to Top ($0 \rightarrow \text{Height}$).
+Mindustry and Arc operate in standard OpenGL coordinates:
+* **Origin $(0, 0)$:** Bottom-Left corner of the screen.
+* **$X$-Axis:** Increases Left to Right ($0 \rightarrow \text{Width}$).
+* **$Y$-Axis:** Increases Bottom to Top ($0 \rightarrow \text{Height}$).
 
-### Top-to-Bottom Stacking in `ColumnNode`:
-Because users expect vertical UI containers to stack from **Top to Bottom**:
-* Stacking begins at the top: `currentTopY = parentY + parentH - padT`.
-* The bottom of the first child slot: `slotY = currentTopY - slotH`.
-* Progressing downward: `currentTopY -= slotH + gap`.
+### Vertical Direction Conversion (`ColumnMeasurePolicy`):
+Because UI layouts naturally flow **Top to Bottom**:
+* Top slot anchor: `currentTopY = parentY + parentH - padT`.
+* First element bottom baseline: `slotY = currentTopY - slotH`.
+* Downward step after placement: `currentTopY -= slotH + gap`.
 
 ---
 
-## 2. Godot 2-Pass Container Algorithm
+## 2. 2-Pass Godot Container Layout Algorithm
 
-When a container (`RowNode` or `ColumnNode`) calculates `layout()`, it runs a 2-pass measurement and allocation algorithm:
+When a `LayoutNode` executes `layout()`, its active `MeasurePolicy` performs 2 sequential passes:
 
-### 🔹 Pass 1: Measurement Pass
-Iterates through all visible children (`child.visible == true`):
-1. Calculates minimum required bounds including outward margin:
-   * Width: `getChildMinWidth(child) = child.getPrefWidth() + child.marginL + child.marginR`
-   * Height: `getChildMinHeight(child) = child.getPrefHeight() + child.marginT + child.marginB`
-2. Accumulates total minimum space: $\text{totalMinMain} = \sum \text{childMinSize}$.
-3. Computes total stretch ratio for children with the `EXPAND` flag: $\text{totalStretchRatio} = \sum \text{stretchRatio}$.
+### 🔹 Pass 1: Minimum Measurement Pass
+The container iterates through all visible children (`child.visible == true`):
+1. Computes child minimum bounds:
+   * Horizontal: `getChildMinWidth(child) = child.getPrefWidth() + child.marginL + child.marginR`
+   * Vertical: `getChildMinHeight(child) = child.getPrefHeight() + child.marginT + child.marginB`
+2. Aggregates total minimum size: $\text{totalMinMain} = \sum \text{childMinSize}$.
+3. Sums stretch ratios of children with `EXPAND`: $\text{totalStretchRatio} = \sum \text{stretchRatio}$.
 
-### 🔹 Pass 2: Slot Allocation Pass
-1. **Calculates available free space:**
+### 🔹 Pass 2: Slot Allocation & Margin Placement Pass
+1. **Compute Available Free Space:**
    $$\text{freeSpace} = \max(0, \text{availableSpace} - \text{totalMinMain} - \text{totalGaps})$$
-2. **When expanding children exist:**
-   * Excess space is proportionally distributed:
+2. **If Children Have `EXPAND`:**
+   * Extra space is distributed proportionally by weight:
      $$\text{extraSlot} = \text{freeSpace} \times \left(\frac{\text{child.stretchRatio}}{\text{totalStretchRatio}}\right)$$
    * $\text{slotSize} = \text{childMinSize} + \text{extraSlot}$.
-3. **When no expanding children exist:**
-   * Applies [`Arrangement`](#3-arrangement-modes) distribution modes:
-     * **`Start`:** Packed at the beginning.
-     * **`Center`:** Centered together within available free space.
-     * **`End`:** Packed at the end.
-     * **`SpaceBetween`:** Evenly distributed with first and last children touching edges.
-     * **`SpaceAround`:** Evenly distributed with half-size space at edges.
-     * **`SpaceEvenly`:** Uniform spacing between all items and container edges.
+3. **If No Children Have `EXPAND`:**
+   * Aligns slots using [`Arrangement`](#3-arrangement-modes) (`Start`, `Center`, `End`, `SpaceBetween`, `SpaceAround`, `SpaceEvenly`).
 
 ---
 
-## 3. Size Flags & `fitChildInRect`
+## 3. Size Flags (`SizeFlags`) & `fitChildInRect`
 
-Each child possesses `sizeFlagsHorizontal` and `sizeFlagsVertical`.
+Each child node maintains `sizeFlagsHorizontal` and `sizeFlagsVertical`.
 When a slot $(rx, ry, rw, rh)$ is allocated to a child:
 
-1. **Margin Inset:**
+1. **Margin Inset Application:**
    * $\text{slotInnerX} = rx + \text{marginL}$
    * $\text{slotInnerY} = ry + \text{marginB}$
    * $\text{slotInnerW} = rw - \text{marginL} - \text{marginR}$
    * $\text{slotInnerH} = rh - \text{marginT} - \text{marginB}$
-
-2. **Placement & Sizing:**
-   * **`FILL`:** Stretches node to consume full $\text{slotInnerW} \times \text{slotInnerH}$.
-   * **`SHRINK_BEGIN`:** Preserves minimum size, placed at Left (horizontal) or Top (vertical).
-   * **`SHRINK_CENTER`:** Preserves minimum size, centered within the slot.
-   * **`SHRINK_END`:** Preserves minimum size, placed at Right (horizontal) or Bottom (vertical).
+2. **Shrink vs Fill Execution:**
+   * With `FILL`: Child expands to fill the entire `slotInnerW` / `slotInnerH`.
+   * With `SHRINK_CENTER`: Child retains its preferred size and is centered precisely within the slot.

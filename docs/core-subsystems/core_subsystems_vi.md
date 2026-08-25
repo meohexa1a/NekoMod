@@ -10,57 +10,37 @@ Tài liệu này mô tả chi tiết các hệ thống con cốt lõi (Core Subs
 * **Luồng chạy an toàn:** Toàn bộ I/O mạng được thực thi trên `Dispatchers.IO` của Kotlin Coroutines. Kết quả tải và decode ảnh không bao giờ làm đứng khung hình game (0 frame drop).
 * **Fluent DSL:**
   ```kotlin
-  val responseText = Net.get("https://api.example.com/data") {
-      header("Authorization", "Bearer $token")
-      param("type", "latest")
-  }.awaitString()
+  val responseBytes = Net.get("https://raw.githubusercontent.com/.../image.png").awaitBytes()
   ```
 
 ---
 
 ## 2. Quản lý Bộ nhớ VRAM & Cache Texture (`org.mdt.core.cache` & `image`)
 
-* **Vấn đề giải quyết:** Nạp texture tùy tiện vào GPU dễ làm tràn VRAM hoặc rò rỉ bộ nhớ khi tắt giao diện.
 * **Mô hình Đếm Tham chiếu (`TextureHandle`):**
   * Khi `ImageNode` hiển thị ảnh: `handle.retain()`.
   * Khi `ImageNode` bị hủy khỏi cây UI: `handle.release()`.
 * **Bộ đệm LRU (`LRUTextureCache`):**
   * Giới hạn trần VRAM (mặc định 64MB).
   * Khi vượt ngưỡng, tự động giải phóng (dispose) các texture ít dùng nhất trên Render Thread của Mindustry (`Core.app.post`).
+* **Hàng đợi Upload VRAM Throttling:** `ImageLoader` giới hạn tối đa nạp 4 GPU Texture mỗi frame trong `processUploadQueue()`, tránh nghẽn luồng render khi tải đồng loạt nhiều ảnh.
 
 ---
 
-## 3. Tải ảnh Bất đồng bộ (`AsyncImageLoader` & `ImageNode`)
+## 3. Lưu trữ Dữ liệu Nguyên tử (`KVStore` & `Storage` via Okio)
 
-Pipeline tải ảnh 4 bước khép kín:
-```
-1. URL Request ──► 2. Tải bytes (OkHttp) ──► 3. Decode Pixmap (Background) ──► 4. Upload Texture (GL Thread)
-```
-* **Composable DSL:**
-  ```kotlin
-  Image(
-      source = "https://raw.githubusercontent.com/.../icon.png",
-      modifier = Modifier.size(48f, 48f),
-      scaleMode = ScaleMode.FIT
-  )
-  ```
-
----
-
-## 4. Lưu trữ Dữ liệu Nguyên tử (`KVStore` via Okio)
-
+* **Vị trí lưu trữ:** Lưu tại thư mục dữ liệu của Mindustry: `%APPDATA%\Mindustry\nekomod\*.kv`.
 * **Bộ nhớ đệm kép:** Lưu trên RAM qua `ConcurrentHashMap` để đọc tức thì ($O(1)$) + Tự động lưu xuống đĩa bằng Okio.
-* **Ghi file nguyên tử (Atomic Write):** Ghi vào file `.tmp` trước khi thay thế file chính, đảm bảo file cấu hình không bao giờ bị hỏng dù game bị tắt đột ngột.
+* **Debounce 300ms & Nano-Staging File:** Trì hoãn ghi đĩa 300ms sau lần thao tác cuối cùng; ghi vào file tạm thời có nano-timestamp (`default.kv.nanoTime().tmp`) và đồng bộ qua `synchronized(lock)` trước khi `atomicMove` để chống lỗi khóa file NTFS trên Windows.
 * **Cách sử dụng:**
   ```kotlin
-  KVStore.default.putInt("user_score", 150)
-  val score = KVStore.default.getInt("user_score", 0)
+  KVStore.default.putInt("demo_counter", 10)
+  val count = KVStore.default.getInt("demo_counter", 0)
   ```
 
 ---
 
-## 5. Đa ngôn ngữ Hiện đại (`I18nEngine`)
+## 4. Hệ thống Đa ngôn ngữ Phân cấp (`I18nEngine`)
 
-* Hỗ trợ key phân cấp nhiều tầng: `i18n("app.title")`.
-* Hỗ trợ nội suy tham số động: `i18n("btn.count", "count" to 5)`.
-* Đổi ngôn ngữ tức thì trong game mà không cần khởi động lại.
+* **Nested Dot Notation:** Hỗ trợ khóa lồng nhau `i18n("app.title")`, `i18n("btn.count", "count" to 5)`.
+* **Đa ngôn ngữ mặc định:** Tự động phát hiện ngôn ngữ của game (`vi`, `en`) từ hệ thống hoặc cấu hình mod.
