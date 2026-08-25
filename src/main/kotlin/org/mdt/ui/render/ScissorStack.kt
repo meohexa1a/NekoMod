@@ -1,5 +1,6 @@
 package org.mdt.ui.render
 
+import arc.Core
 import arc.graphics.Gl
 import arc.graphics.g2d.Draw
 import org.mdt.ui.core.Rect
@@ -8,14 +9,36 @@ import java.util.ArrayDeque
 /**
  * ## ScissorStack
  *
- * Hardware-accelerated OpenGL viewport scissor clipping stack with automatic
- * bounding box intersection and state restoration.
+ * Hardware-accelerated OpenGL viewport scissor clipping stack with High-DPI physical
+ * viewport coordinate transformation and automatic bounding box intersection.
  *
  * See: docs/complex-challenges/complex_challenges_en.md
  */
 object ScissorStack {
 
     private val stack = ArrayDeque<Rect>()
+    private var canvasW: Float = 1f
+    private var canvasH: Float = 1f
+
+    fun setViewport(width: Float, height: Float) {
+        canvasW = if (width > 0f) width else 1f
+        canvasH = if (height > 0f) height else 1f
+    }
+
+    private fun applyScissor(rect: Rect) {
+        val physW = if (Core.graphics != null && Core.graphics.width > 0) Core.graphics.width.toFloat() else canvasW
+        val physH = if (Core.graphics != null && Core.graphics.height > 0) Core.graphics.height.toFloat() else canvasH
+
+        val scaleX = physW / canvasW
+        val scaleY = physH / canvasH
+
+        val sx = (rect.x * scaleX).toInt().coerceIn(0, physW.toInt())
+        val sy = (rect.y * scaleY).toInt().coerceIn(0, physH.toInt())
+        val sw = (rect.width * scaleX).toInt().coerceIn(0, physW.toInt() - sx)
+        val sh = (rect.height * scaleY).toInt().coerceIn(0, physH.toInt() - sy)
+
+        Gl.scissor(sx, sy, maxOf(0, sw), maxOf(0, sh))
+    }
 
     /**
      * Pushes a new clipping rectangle onto the stack, intersecting it with any active parent scissor.
@@ -42,7 +65,7 @@ object ScissorStack {
 
         stack.addFirst(effectiveRect)
 
-        if (effectiveRect.width <= 0f || effectiveRect.height <= 0f) {
+        if (effectiveRect.width <= 0.001f || effectiveRect.height <= 0.001f) {
             // Empty intersection: nothing is visible
             return false
         }
@@ -51,12 +74,7 @@ object ScissorStack {
             Gl.enable(Gl.scissorTest)
         }
 
-        Gl.scissor(
-            effectiveRect.x.toInt(),
-            effectiveRect.y.toInt(),
-            effectiveRect.width.toInt(),
-            effectiveRect.height.toInt()
-        )
+        applyScissor(effectiveRect)
         return true
     }
 
@@ -70,12 +88,7 @@ object ScissorStack {
 
         val current = stack.peekFirst()
         if (current != null) {
-            Gl.scissor(
-                current.x.toInt(),
-                current.y.toInt(),
-                current.width.toInt(),
-                current.height.toInt()
-            )
+            applyScissor(current)
         } else {
             Gl.disable(Gl.scissorTest)
         }

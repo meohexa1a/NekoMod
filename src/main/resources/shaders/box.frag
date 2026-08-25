@@ -50,7 +50,8 @@ float roundedRectSDF(vec2 p, vec2 size, vec4 radii) {
 }
 
 float gaussian(float x, float sigma) {
-    return exp(-(x * x) / (2.0 * sigma * sigma));
+    float safeSigma = max(sigma, 0.0001);
+    return exp(-(x * x) / (2.0 * safeSigma * safeSigma));
 }
 
 float boxShadow(vec2 p, vec2 size, vec4 radii, float spread, float blur) {
@@ -58,27 +59,28 @@ float boxShadow(vec2 p, vec2 size, vec4 radii, float spread, float blur) {
     vec2 expandedSize = size + sp * 2.0;
     vec4 expandedRadii = radii + vec4(spread * 0.5);
     float outer = roundedRectSDF(p, expandedSize, expandedRadii);
-    if (outer > blur) return 0.0;
-    return gaussian(outer, blur * 0.4);
+    float safeBlur = max(blur, 0.001);
+    if (outer > safeBlur) return 0.0;
+    return gaussian(outer, safeBlur * 0.4);
 }
 
 vec3 applyFilter(vec3 clr, vec4 filter) {
     float mode = filter.x;
     float amount = filter.y;
     if (amount <= 0.0) return clr;
-    if (mode == 1.0) {
+    if (abs(mode - 1.0) < 0.1) {
         float gray = dot(clr, vec3(0.299, 0.587, 0.114));
         return mix(clr, vec3(gray), amount);
-    } else if (mode == 2.0) {
+    } else if (abs(mode - 2.0) < 0.1) {
         vec3 sepia = vec3(
             dot(clr, vec3(0.393, 0.769, 0.189)),
             dot(clr, vec3(0.349, 0.686, 0.168)),
             dot(clr, vec3(0.272, 0.534, 0.131))
         );
         return mix(clr, sepia, amount);
-    } else if (mode == 3.0) {
+    } else if (abs(mode - 3.0) < 0.1) {
         return clr * (1.0 + amount);
-    } else if (mode == 4.0) {
+    } else if (abs(mode - 4.0) < 0.1) {
         return mix(clr, vec3(1.0) - clr, amount);
     }
     return clr;
@@ -91,45 +93,47 @@ float hash(vec2 p) {
 void main() {
     vec2 uv = v_texCoord0;
     vec2 p = uv * u_size;
-    float edge = u_edgeSoftness;
+    float edge = max(u_edgeSoftness, 0.5);
 
     float d = roundedRectSDF(p, u_size, u_cornerRadii);
-    float alpha = 1.0 - smoothstep(-edge, edge, d);
-    if (alpha < 0.001) discard;
+    float fillAlpha = clamp(1.0 - smoothstep(-edge, edge, d), 0.0, 1.0);
 
-    vec4 color = vec4(0.0, 0.0, 0.0, 0.0);
+    vec4 color = vec4(0.0);
 
-    if (u_fillMode == 0.0) {
-        color = vec4(u_fillColor.rgb, u_fillColor.a * alpha);
-    } else if (u_fillMode == 1.0) {
+    // 1. Fill base
+    if (abs(u_fillMode - 1.0) < 0.1) {
         vec2 texUv = uv * u_uvScale + u_uvOffset;
         vec4 texColor = texture2D(u_fillTexture, texUv);
-        color = vec4(texColor.rgb * u_fillColor.rgb, texColor.a * u_fillColor.a * alpha);
+        color = vec4(texColor.rgb * u_fillColor.rgb, texColor.a * u_fillColor.a * fillAlpha);
+    } else {
+        color = vec4(u_fillColor.rgb, u_fillColor.a * fillAlpha);
     }
 
-    color.a *= u_opacity;
-
-    if (u_backdropWeight > 0.0) {
+    // 2. Backdrop blur sampling (if available)
+    if (u_backdropWeight > 0.001) {
         vec2 backUv = u_backdropCoords.xy + uv * (u_backdropCoords.zw - u_backdropCoords.xy);
         vec4 backColor = texture2D(u_backdropTex, backUv);
-        float blend = u_backdropBlend;
-        color.rgb = mix(color.rgb, backColor.rgb, blend * u_backdropWeight);
-        color.a = max(color.a, max(backColor.a, u_backdropMinAlpha) * u_backdropWeight * blend);
+        float blend = clamp(u_backdropBlend * u_backdropWeight, 0.0, 1.0);
+        color.rgb = mix(color.rgb, backColor.rgb, blend);
+        color.a = max(color.a, u_backdropMinAlpha * fillAlpha);
     }
 
-    if (u_glowColor.a > 0.0) {
+    // 3. Glow
+    if (u_glowColor.a > 0.001) {
         float glow = boxShadow(p, u_size, u_cornerRadii, u_glowSpread, u_glowBlur);
         color.rgb += u_glowColor.rgb * glow * u_glowColor.a;
         color.a = max(color.a, glow * u_glowColor.a);
     }
 
-    if (u_innerShadowColor.a > 0.0) {
+    // 4. Inner Shadow
+    if (u_innerShadowColor.a > 0.001) {
         float inner = boxShadow(p, u_size, u_cornerRadii, -u_innerShadowSpread, u_innerShadowBlur);
         inner = 1.0 - inner;
-        color.rgb = mix(color.rgb, u_innerShadowColor.rgb, inner * u_innerShadowColor.a);
+        color.rgb = mix(color.rgb, u_innerShadowColor.rgb, inner * u_innerShadowColor.a * fillAlpha);
     }
 
-    if (u_borderWidth > 0.0) {
+    // 5. Border Stroke
+    if (u_borderWidth > 0.001) {
         float bw = u_borderWidth;
         vec2 innerSize = vec2(max(u_size.x - bw * 2.0, 0.0), max(u_size.y - bw * 2.0, 0.0));
         vec4 innerRadii = max(u_cornerRadii - vec4(bw), vec4(0.0));
@@ -140,27 +144,31 @@ void main() {
 
         if (borderAlpha > 0.001) {
             float draw = 1.0;
-            if (u_borderStyle > 0.0) {
+            if (u_borderStyle > 0.1) {
                 vec2 hs = u_size * 0.5;
                 float angle = atan(p.y - hs.y, p.x - hs.x);
-                float peri = 2.0 * (u_size.x + u_size.y);
+                float peri = max(2.0 * (u_size.x + u_size.y), 1.0);
                 float dist = angle / 6.2831853 * peri;
-                float seg = mod(dist, u_dashLength) / u_dashLength;
+                float safeDash = max(u_dashLength, 0.1);
+                float seg = mod(dist, safeDash) / safeDash;
                 draw = step(seg, u_dashRatio);
-                if (u_borderStyle > 1.0) draw = abs(draw - step(0.5, seg));
+                if (u_borderStyle > 1.1) draw = abs(draw - step(0.5, seg));
             }
-            color.rgb = mix(color.rgb, u_borderColor.rgb, borderAlpha * draw * u_opacity);
-            color.a = max(color.a, borderAlpha * draw * u_opacity);
+            color.rgb = mix(color.rgb, u_borderColor.rgb, borderAlpha * draw);
+            color.a = max(color.a, borderAlpha * draw * u_borderColor.a);
         }
     }
 
+    // 6. Color Filter & Noise
     color.rgb = applyFilter(color.rgb, u_colorFilter);
 
-    if (u_noiseAmount > 0.0) {
+    if (u_noiseAmount > 0.001) {
         float n = hash(p);
         color.rgb = mix(color.rgb, vec3(n), u_noiseAmount * 0.1);
     }
 
-    color.a *= v_color.a;
+    color.a *= u_opacity * v_color.a;
+    if (color.a < 0.001) discard;
+
     gl_FragColor = color;
 }

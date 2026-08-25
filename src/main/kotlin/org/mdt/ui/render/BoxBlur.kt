@@ -5,92 +5,125 @@ import arc.graphics.Texture
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.gl.FrameBuffer
+import arc.math.Mat
 import org.mdt.ui.components.layout.BoxVisuals
 
 /**
  * ## BoxBlur
  *
- * High-performance backdrop blur processor using a shared screen capture texture
- * and reusable scratch ping-pong FrameBuffers.
- * Supports per-box parameterized radius, iterations, and backdrop tints.
+ * High-performance backdrop blur coordinator using screen-sized downscaled
+ * ping-pong FrameBuffers.
+ * Performs a single 2-pass Gaussian blur over the captured screen texture per frame,
+ * allowing all backdrop glassmorphism boxes to sample at zero additional GPU allocation cost.
  *
  * See: docs/rendering-shaders/rendering_shaders_en.md
  */
 class BoxBlur {
     private var sharedCapture: Texture? = null
-    private var screenWidth: Float = 1f
-    private var screenHeight: Float = 1f
+    var screenWidth: Float = 1f
+        private set
+    var screenHeight: Float = 1f
+        private set
 
-    private var scratchFboA: FrameBuffer? = null
-    private var scratchFboB: FrameBuffer? = null
+    private var pingPongA: FrameBuffer? = null
+    private var pingPongB: FrameBuffer? = null
+    private var blurredTexture: Texture? = null
+    private var hasBlurredThisFrame = false
+    private val scratchMat = Mat()
 
     fun setSharedCapture(texture: Texture?, sw: Float, sh: Float) {
         this.sharedCapture = texture
         this.screenWidth = if (sw > 0f) sw else 1f
         this.screenHeight = if (sh > 0f) sh else 1f
+        this.hasBlurredThisFrame = false
     }
 
-    fun capture(visuals: BoxVisuals, screenX: Float, screenY: Float, w: Float, h: Float): Texture? {
+    /**
+     * Performs Gaussian blur on the shared screen capture and returns the blurred texture.
+     */
+    fun getBlurredTexture(visuals: BoxVisuals): Texture? {
         if (!visuals.blur || visuals.backgroundMode != BoxVisuals.BackgroundMode.BACKDROP) return null
         val capture = sharedCapture ?: return null
 
-        val fbW = maxOf((w * BACKDROP_SCALE).toInt(), MIN_FBO_SIZE)
-        val fbH = maxOf((h * BACKDROP_SCALE).toInt(), MIN_FBO_SIZE)
-
-        val existing = scratchFboA
-        if (existing != null && (existing.width != fbW || existing.height != fbH)) disposeScratch()
-        if (scratchFboA == null) {
-            scratchFboA = FrameBuffer(fbW, fbH).apply { texture.setFilter(Texture.TextureFilter.linear) }
-            scratchFboB = FrameBuffer(fbW, fbH).apply { texture.setFilter(Texture.TextureFilter.linear) }
+        if (hasBlurredThisFrame && blurredTexture != null) {
+            return blurredTexture
         }
 
-        val dstA = scratchFboA ?: return null
-        val dstB = scratchFboB ?: return null
+        val fbW = maxOf(64, (screenWidth * DOWNSCALE_FACTOR).toInt())
+        val fbH = maxOf(64, (screenHeight * DOWNSCALE_FACTOR).toInt())
 
-        // 1. Sample sub-region UV from shared screen capture into scratchFboA
-        val u0 = (screenX / screenWidth).coerceIn(0f, 1f)
-        val v0 = (screenY / screenHeight).coerceIn(0f, 1f)
-        val u1 = ((screenX + w) / screenWidth).coerceIn(0f, 1f)
-        val v1 = ((screenY + h) / screenHeight).coerceIn(0f, 1f)
+        val existing = pingPongA
+        if (existing != null && (existing.width != fbW || existing.height != fbH)) {
+            disposeScratch()
+        }
 
-        dstA.begin()
+        if (pingPongA == null) {
+            pingPongA = FrameBuffer(fbW, fbH).apply { texture.setFilter(Texture.TextureFilter.linear) }
+            pingPongB = FrameBuffer(fbW, fbH).apply { texture.setFilter(Texture.TextureFilter.linear) }
+        }
+
+        val dstA = pingPongA ?: return null
+        val dstB = pingPongB ?: return null
+
         Draw.flush()
+        scratchMat.set(Draw.proj())
+
+        // 1. Copy downscaled full screen capture into pingPongA with dedicated FBO projection
+        dstA.begin()
+        Draw.proj(0f, 0f, fbW.toFloat(), fbH.toFloat())
         Draw.color(visuals.backdropTint)
         Fill.quad(
             capture,
-            0f, 0f, Draw.getColor().toFloatBits(), u0, v0,
-            0f, fbH.toFloat(), Draw.getColor().toFloatBits(), u0, v1,
-            fbW.toFloat(), fbH.toFloat(), Draw.getColor().toFloatBits(), u1, v1,
-            fbW.toFloat(), 0f, Draw.getColor().toFloatBits(), u1, v0
+            0f, 0f, Draw.getColor().toFloatBits(), 0f, 0f,
+            0f, fbH.toFloat(), Draw.getColor().toFloatBits(), 0f, 1f,
+            fbW.toFloat(), fbH.toFloat(), Draw.getColor().toFloatBits(), 1f, 1f,
+            fbW.toFloat(), 0f, Draw.getColor().toFloatBits(), 1f, 0f
         )
         Draw.flush()
         dstA.end()
 
-        // 2. Perform parameterized ping-pong Gaussian blur passes
+        // 2. Perform 2-pass Gaussian blur ping-pong passes
         Shaders.ensure()
-        var radius = visuals.blurRadius
-        val iterations = visuals.blurIterations.coerceIn(1, 8)
+        var radius = visuals.blurRadius * DOWNSCALE_FACTOR
+        val iterations = visuals.blurIterations.coerceIn(1, 4)
+
         repeat(iterations) {
             blurPass(dstA, dstB, fbW, fbH, radius, 1f, 0f)
             blurPass(dstB, dstA, fbW, fbH, radius, 0f, 1f)
-            radius *= 1.4f
+            radius *= 1.25f
         }
 
+        // Restore camera/canvas projection matrix
+        Draw.proj(scratchMat)
         Draw.color(Color.white)
-        return dstA.texture
+        hasBlurredThisFrame = true
+        blurredTexture = dstA.texture
+        return blurredTexture
     }
 
     private fun blurPass(src: FrameBuffer, dst: FrameBuffer, fbW: Int, fbH: Int, radius: Float, dx: Float, dy: Float) {
         dst.begin()
-        Shaders.blurShader?.let { s ->
+        Draw.proj(0f, 0f, fbW.toFloat(), fbH.toFloat())
+        val s = Shaders.blurShader
+        if (s != null) {
+            val prevShader = Draw.getShader()
+            Draw.shader(s)
             s.bind()
-            s.setUniformf("u_texelSize", 1f / fbW, 1f / fbH)
+            s.setUniformf("u_texelSize", 1f / fbW.toFloat(), 1f / fbH.toFloat())
             s.setUniformf("u_radius", radius)
             s.setUniformf("u_dir", dx, dy)
+
+            Fill.quad(
+                src.texture,
+                0f, 0f, Draw.getColor().toFloatBits(), 0f, 0f,
+                0f, fbH.toFloat(), Draw.getColor().toFloatBits(), 0f, 1f,
+                fbW.toFloat(), fbH.toFloat(), Draw.getColor().toFloatBits(), 1f, 1f,
+                fbW.toFloat(), 0f, Draw.getColor().toFloatBits(), 1f, 0f
+            )
+            Draw.flush()
+            Draw.shader(prevShader)
         }
-        Draw.blit(src.texture, Shaders.blurShader)
         dst.end()
-        Draw.flush()
     }
 
     fun dispose() {
@@ -99,12 +132,15 @@ class BoxBlur {
     }
 
     private fun disposeScratch() {
-        scratchFboA?.dispose(); scratchFboA = null
-        scratchFboB?.dispose(); scratchFboB = null
+        pingPongA?.dispose()
+        pingPongA = null
+        pingPongB?.dispose()
+        pingPongB = null
+        blurredTexture = null
+        hasBlurredThisFrame = false
     }
 
     companion object {
-        private const val BACKDROP_SCALE = 0.35f
-        private const val MIN_FBO_SIZE = 4
+        private const val DOWNSCALE_FACTOR = 0.5f
     }
 }
