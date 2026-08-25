@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  */
 object ImageLoader {
 
-    private const val MAX_UPLOADS_PER_FRAME = 3
+    private const val MAX_UPLOADS_PER_FRAME = 4
 
     private class UploadTask(
         val cacheKey: String,
@@ -43,13 +43,14 @@ object ImageLoader {
     private fun ensureRenderHook() {
         if (!isHooked) {
             isHooked = true
-            Events.run(Trigger.update) {
+            // Run on both update and uiDrawEnd to ensure execution in menus and paused states
+            Events.run(Trigger.uiDrawEnd) {
                 processUploadQueue()
             }
         }
     }
 
-    private fun processUploadQueue() {
+    fun processUploadQueue() {
         var processed = 0
         while (processed < MAX_UPLOADS_PER_FRAME && !uploadQueue.isEmpty()) {
             val task = uploadQueue.poll() ?: break
@@ -60,8 +61,10 @@ object ImageLoader {
                 }
                 task.pixmap.dispose()
                 val handle = LRUTextureCache.shared.put(task.cacheKey, texture)
+                Log.info("[ImageLoader] Uploaded GPU texture for: ${task.cacheKey} (${texture.width}x${texture.height})")
                 task.onResult(handle, null)
             } catch (e: Throwable) {
+                Log.err("[ImageLoader] Failed to upload texture for ${task.cacheKey}", e)
                 task.pixmap.dispose()
                 task.onResult(null, e)
             }
@@ -93,7 +96,7 @@ object ImageLoader {
                 val pixmap = Pixmap(bytes, 0, bytes.size)
                 uploadQueue.add(UploadTask(url, pixmap, onResult))
             } catch (e: Throwable) {
-                Log.err("[ImageLoader] Failed to download image from $url", e)
+                Log.err("[ImageLoader] Failed to download image from $url: ${e.message}")
                 AsyncDispatcher.onMainThread {
                     onResult(null, e)
                 }

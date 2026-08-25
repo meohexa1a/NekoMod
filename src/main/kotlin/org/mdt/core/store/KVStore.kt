@@ -5,6 +5,7 @@ import kotlinx.coroutines.delay
 import okio.Path
 import org.mdt.core.async.AsyncDispatcher
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * ## KVStore
@@ -42,7 +43,7 @@ class KVStore(name: String = "config") {
     fun save() {
         saveJob?.cancel()
         saveJob = AsyncDispatcher.launch {
-            delay(300L)
+            delay(300L.milliseconds)
             flushToDisk()
         }
     }
