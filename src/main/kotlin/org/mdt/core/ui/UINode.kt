@@ -176,6 +176,9 @@ open class UINode {
     /** Invoked when hover state changes. */
     var onHover: ((Boolean) -> Unit)? = null
 
+    /** Custom mouse cursor displayed when pointer hovers over this node. */
+    var cursor: arc.Graphics.Cursor? = null
+
     /** Invoked on scroll wheel action. */
     var onScroll: ((ScrollEvent) -> Unit)? = null
 

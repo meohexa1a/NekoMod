@@ -51,19 +51,42 @@ class ConfigStore<T : Any>(
     }
 
     private fun loadFromDisk(): T {
-        if (!fileSystem.exists(path)) return default
+        if (!fileSystem.exists(path)) {
+            writeDefaultToDisk()
+            return default
+        }
         val content = try {
             fileSystem.read(path) { readUtf8() }
         } catch (e: IOException) {
             Log.warn("[ConfigStore] Failed to read $path: ${e.message}")
+            writeDefaultToDisk()
             return default
         }
 
         return try {
             json.decodeFromString(serializer, content)
         } catch (e: Throwable) {
-            Log.warn("[ConfigStore] Failed to parse $path, falling back to default: ${e.message}")
+            Log.warn("[ConfigStore] Corrupted config file detected at $path. Auto-healing with valid default schema: ${e.message}")
+            writeDefaultToDisk()
             default
+        }
+    }
+
+    private fun writeDefaultToDisk() {
+        try {
+            val content = json.encodeToString(serializer, default)
+            val parentDir = path.parent
+            if (parentDir != null && !fileSystem.exists(parentDir)) {
+                fileSystem.createDirectories(parentDir)
+            }
+            val stagingFile = (path.toString() + ".tmp." + System.nanoTime()).toPath()
+            fileSystem.write(stagingFile, mustCreate = false) {
+                writeUtf8(content)
+                flush()
+            }
+            fileSystem.atomicMove(stagingFile, path)
+        } catch (e: Throwable) {
+            Log.warn("[ConfigStore] Failed to write default config to $path: ${e.message}")
         }
     }
 

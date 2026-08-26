@@ -52,7 +52,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
                 current.onPointerDown != null || current.onPointerUp != null ||
                 current.onPointerDrag != null || current.onHover != null ||
                 current.onPointerEnter != null || current.onPointerExit != null ||
-                current.onScroll != null || current.isFocusable
+                current.onScroll != null || current.cursor != null || current.isFocusable
             ) {
                 return current
             }
@@ -168,6 +168,19 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
                 it.onPointerEnter?.invoke()
             }
             hoveredNode = actionable
+
+            // Update System Mouse Cursor
+            if (actionable != null) {
+                if (actionable.cursor != null) {
+                    arc.Core.graphics?.cursor(actionable.cursor)
+                } else if (actionable.onClick != null) {
+                    arc.Core.graphics?.cursor(arc.Graphics.Cursor.SystemCursor.hand)
+                } else {
+                    arc.Core.graphics?.restoreCursor()
+                }
+            } else {
+                arc.Core.graphics?.restoreCursor()
+            }
         }
 
         return hitNode != null && hitNode !== canvas

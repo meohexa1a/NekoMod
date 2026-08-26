@@ -50,11 +50,7 @@ object BoxMeasurePolicy : MeasurePolicy {
         for (child in node.children) {
             if (!child.visible) continue
 
-            val anchor = child.anchorData
-            val hasExplicitAnchor = anchor.anchorLeft != 0f || anchor.anchorRight != 0f || anchor.anchorTop != 0f || anchor.anchorBottom != 0f ||
-                    anchor.offsetLeft != 0f || anchor.offsetRight != 0f || anchor.offsetTop != 0f || anchor.offsetBottom != 0f
-
-            if (hasExplicitAnchor) {
+            if (child.anchorData.isEnabled) {
                 GodotLayout.layoutSingleAnchor(child, innerX, innerY, availableWidth, availableHeight)
             } else {
                 // Standard unanchored box child: fit inside box with alignment and size flags

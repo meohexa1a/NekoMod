@@ -55,10 +55,14 @@ enum class LayoutPreset {
  * ## AnchorData
  *
  * Dual-coordinate anchor and margin offset model for absolute and responsive layout positioning.
+ * Features an explicit [isEnabled] state to eliminate heuristic 0f checks.
  *
  * See: docs/layout-engine/layout_engine_en.md
  */
 class AnchorData {
+
+    /** Whether explicit anchor positioning is active for this node. */
+    var isEnabled: Boolean = false
 
     // --- ANCHOR RATIOS (0.0f .. 1.0f) ---
 
@@ -77,6 +81,7 @@ class AnchorData {
     // --- PRESETS & CONFIGURATION ---
 
     fun setPreset(preset: LayoutPreset) {
+        isEnabled = true
         when (preset) {
             LayoutPreset.TOP_LEFT -> setAnchors(0f, 0f, 0f, 0f)
             LayoutPreset.TOP_RIGHT -> setAnchors(1f, 0f, 1f, 0f)
@@ -98,6 +103,7 @@ class AnchorData {
     }
 
     fun setAnchors(left: Float, top: Float, right: Float, bottom: Float) {
+        isEnabled = true
         anchorLeft = left
         anchorTop = top
         anchorRight = right
@@ -105,13 +111,27 @@ class AnchorData {
     }
 
     fun setOffsets(left: Float, top: Float, right: Float, bottom: Float) {
+        isEnabled = true
         offsetLeft = left
         offsetTop = top
         offsetRight = right
         offsetBottom = bottom
     }
 
+    fun reset() {
+        isEnabled = false
+        anchorLeft = 0f
+        anchorTop = 0f
+        anchorRight = 0f
+        anchorBottom = 0f
+        offsetLeft = 0f
+        offsetTop = 0f
+        offsetRight = 0f
+        offsetBottom = 0f
+    }
+
     fun copyFrom(other: AnchorData) {
+        isEnabled = other.isEnabled
         anchorLeft = other.anchorLeft
         anchorTop = other.anchorTop
         anchorRight = other.anchorRight

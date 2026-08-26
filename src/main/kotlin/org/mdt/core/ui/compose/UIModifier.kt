@@ -130,9 +130,9 @@ data class AnchorPresetModifier(val preset: LayoutPreset) : UIModifier.Element {
     override fun applyTo(node: UINode) = node.anchorData.setPreset(preset)
 }
 
-data class AnchorSpanModifier(val left: Float, val bottom: Float, val right: Float, val top: Float) : UIModifier.Element {
+data class AnchorSpanModifier(val left: Float, val top: Float, val right: Float, val bottom: Float) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        node.anchorData.setAnchors(left, bottom, right, top)
+        node.anchorData.setAnchors(left, top, right, bottom)
         node.anchorData.setOffsets(0f, 0f, 0f, 0f)
     }
 }
@@ -277,6 +277,12 @@ data class PointerDragModifier(val onDrag: (PointerEvent) -> Unit) : UIModifier.
 data class TouchableModifier(val touchable: Boolean) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         node.touchable = touchable
+    }
+}
+
+data class CursorModifier(val cursor: arc.Graphics.Cursor) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        node.cursor = cursor
     }
 }
 
@@ -474,5 +480,9 @@ fun UIModifier.style(block: BoxVisuals.() -> Unit): UIModifier = then(StyleModif
 /** Inline typography style block allowing direct configuration of [TextVisuals] properties. */
 fun UIModifier.textStyle(block: TextVisuals.() -> Unit): UIModifier = then(TextStyleModifier(block))
 
+/** Sets custom system mouse cursor on hover. */
+fun UIModifier.cursor(cursor: arc.Graphics.Cursor): UIModifier = then(CursorModifier(cursor))
+
 /** Appends a custom lambda mutation onto the modifier chain. */
 fun UIModifier.custom(block: (UINode) -> Unit): UIModifier = then(CustomModifier(block))
+

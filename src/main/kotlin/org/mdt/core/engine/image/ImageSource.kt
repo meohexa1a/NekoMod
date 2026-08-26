@@ -69,6 +69,14 @@ sealed class ImageSource {
                 source.startsWith("atlas:") -> Atlas(source.removePrefix("atlas:"))
                 source.startsWith("asset:") -> Asset(source.removePrefix("asset:"))
                 source.startsWith("file:") -> LocalFile(source.removePrefix("file:").toPath())
+                source.startsWith("lucide:") -> Url("https://img.icons8.com/ios-glyphs/64/ffffff/${source.removePrefix("lucide:")}.png")
+                source.startsWith("icons8:") -> Url("https://img.icons8.com/material-rounded/64/ffffff/${source.removePrefix("icons8:")}.png")
+                source.startsWith("ph:") -> Url("https://img.icons8.com/material-outlined/64/ffffff/${source.removePrefix("ph:")}.png")
+                source.startsWith("tabler:") -> Url("https://img.icons8.com/ios-filled/64/ffffff/${source.removePrefix("tabler:")}.png")
+                source.startsWith("iconify:") -> {
+                    val iconName = source.removePrefix("iconify:")
+                    Url("https://img.icons8.com/material-rounded/64/ffffff/$iconName.png")
+                }
                 else -> Atlas(source)
             }
             else -> Atlas("ohno")
