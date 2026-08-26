@@ -37,7 +37,7 @@ enum class CardVariant {
  *
  * @param modifier Chainable [UIModifier].
  * @param variant Visual style variant ([CardVariant.GLASS], [CardVariant.ELEVATED], etc.).
- * @param radius Corner radius in pixels (defaults to [Theme.shapes.large]).
+ * @param radius Corner radius in pixels (defaults to [Theme.shapes.lg]).
  * @param padding Inward content padding in pixels (defaults to 16f).
  * @param content Declarative child UI tree.
  */
@@ -45,7 +45,7 @@ enum class CardVariant {
 fun Card(
     modifier: UIModifier = UIModifier,
     variant: CardVariant = CardVariant.GLASS,
-    radius: Float = Theme.shapes.large,
+    radius: Float = Theme.shapes.lg,
     padding: Float = 16f,
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -55,18 +55,18 @@ fun Card(
         CardVariant.GLASS -> Modifier.glassMaterial(
             preset = GlassMaterialPreset.REGULAR,
             radius = radius,
-            tint = colors.surfaceGrouped,
-            border = colors.glassBorderRegular
+            tint = colors.surfaceSecondary,
+            border = colors.borderRegular
         )
         CardVariant.ELEVATED -> Modifier
             .radius(radius)
             .background(colors.surfaceElevated)
-            .border(1f, colors.glassBorderSubtle)
+            .border(1f, colors.borderHairline)
             .shadow(colors.shadowKey, offsetX = 0f, offsetY = -4f, blur = 16f, spread = 2f)
         CardVariant.OUTLINED -> Modifier
             .radius(radius)
             .background(colors.surfacePrimary)
-            .border(1f, colors.glassBorderRegular)
+            .border(1f, colors.borderRegular)
         CardVariant.SOLID -> Modifier
             .radius(radius)
             .background(colors.surfacePrimary)

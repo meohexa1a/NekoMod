@@ -49,7 +49,7 @@ fun ModalDialog(
         // 2. Centered Frosted Glass Popover Card
         Card(
             variant = CardVariant.GLASS,
-            radius = shapes.xLarge,
+            radius = shapes.xl,
             modifier = Modifier
                 .width(360f)
                 .align(Alignment.Center)

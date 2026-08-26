@@ -66,24 +66,24 @@ fun Badge(
 
 private fun computeBadgeBackground(variant: BadgeVariant, colors: ColorTokens): Color = when (variant) {
     BadgeVariant.DEFAULT -> colors.glassThin
-    BadgeVariant.PRIMARY -> colors.systemBlue.cpy().apply { a = 0.20f }
-    BadgeVariant.SUCCESS -> colors.systemGreen.cpy().apply { a = 0.20f }
-    BadgeVariant.WARNING -> colors.systemOrange.cpy().apply { a = 0.20f }
-    BadgeVariant.ERROR -> colors.systemRed.cpy().apply { a = 0.20f }
+    BadgeVariant.PRIMARY -> colors.blue.cpy().apply { a = 0.20f }
+    BadgeVariant.SUCCESS -> colors.green.cpy().apply { a = 0.20f }
+    BadgeVariant.WARNING -> colors.orange.cpy().apply { a = 0.20f }
+    BadgeVariant.ERROR -> colors.red.cpy().apply { a = 0.20f }
 }
 
 private fun computeBadgeText(variant: BadgeVariant, colors: ColorTokens): Color = when (variant) {
     BadgeVariant.DEFAULT -> colors.textSecondary
-    BadgeVariant.PRIMARY -> colors.systemBlue
-    BadgeVariant.SUCCESS -> colors.systemGreen
-    BadgeVariant.WARNING -> colors.systemOrange
-    BadgeVariant.ERROR -> colors.systemRed
+    BadgeVariant.PRIMARY -> colors.blue
+    BadgeVariant.SUCCESS -> colors.green
+    BadgeVariant.WARNING -> colors.orange
+    BadgeVariant.ERROR -> colors.red
 }
 
 private fun computeBadgeBorder(variant: BadgeVariant, colors: ColorTokens): Color = when (variant) {
-    BadgeVariant.DEFAULT -> colors.glassBorderSubtle
-    BadgeVariant.PRIMARY -> colors.systemBlue.cpy().apply { a = 0.40f }
-    BadgeVariant.SUCCESS -> colors.systemGreen.cpy().apply { a = 0.40f }
-    BadgeVariant.WARNING -> colors.systemOrange.cpy().apply { a = 0.40f }
-    BadgeVariant.ERROR -> colors.systemRed.cpy().apply { a = 0.40f }
+    BadgeVariant.DEFAULT -> colors.borderHairline
+    BadgeVariant.PRIMARY -> colors.blue.cpy().apply { a = 0.40f }
+    BadgeVariant.SUCCESS -> colors.green.cpy().apply { a = 0.40f }
+    BadgeVariant.WARNING -> colors.orange.cpy().apply { a = 0.40f }
+    BadgeVariant.ERROR -> colors.red.cpy().apply { a = 0.40f }
 }

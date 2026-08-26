@@ -29,7 +29,7 @@ import org.mdt.ui.theme.Theme
  * @param valueText Optional formatted value text rendered on the right (defaults to "X%").
  * @param valueRange Value range interval ([ClosedFloatingPointRange]).
  * @param step Optional snap step increment (0.0f = continuous).
- * @param activeColor Active progress fill color (defaults to [Theme.colors.systemBlue]).
+ * @param activeColor Active progress fill color (defaults to [Theme.colors.blue]).
  * @param trackColor Inactive track background color.
  */
 @Composable
@@ -41,7 +41,7 @@ fun Slider(
     valueText: String? = null,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     step: Float = 0f,
-    activeColor: Color = Theme.colors.systemBlue,
+    activeColor: Color = Theme.colors.blue,
     trackColor: Color = Theme.colors.surfaceTertiary
 ) {
     val colors = Theme.colors

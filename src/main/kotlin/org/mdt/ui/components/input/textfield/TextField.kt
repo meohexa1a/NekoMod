@@ -48,10 +48,10 @@ fun TextField(
         background = Theme.colors.surfacePrimary,
         text = Theme.colors.textPrimary,
         placeholder = Theme.colors.textTertiary,
-        border = Theme.colors.glassBorderSubtle,
-        focusBorder = Theme.colors.systemBlue,
-        cursor = Theme.colors.systemBlue,
-        selection = Theme.colors.systemBlue.cpy().apply { a = 0.35f }
+        border = Theme.colors.borderHairline,
+        focusBorder = Theme.colors.blue,
+        cursor = Theme.colors.blue,
+        selection = Theme.colors.blue.cpy().apply { a = 0.35f }
     )
 ) {
     ComposeNode<TextFieldNode, NodeApplier>(

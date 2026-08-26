@@ -16,7 +16,7 @@ import org.mdt.ui.theme.Theme
  * @param progress Progress ratio (clamped to 0.0f..1.0f).
  * @param modifier Chainable [UIModifier] for the outer track container.
  * @param barHeight Thickness of the progress bar in pixels (defaults to 6f).
- * @param activeColor Fill progress color (defaults to [Theme.colors.systemBlue]).
+ * @param activeColor Fill progress color (defaults to [Theme.colors.blue]).
  * @param trackColor Background track color (defaults to [Theme.colors.surfaceTertiary]).
  */
 @Composable
@@ -24,7 +24,7 @@ fun ProgressBar(
     progress: Float,
     modifier: UIModifier = UIModifier,
     barHeight: Float = 6f,
-    activeColor: Color = Theme.colors.systemBlue,
+    activeColor: Color = Theme.colors.blue,
     trackColor: Color = Theme.colors.surfaceTertiary
 ) {
     val clamped = progress.coerceIn(0.0f, 1.0f)

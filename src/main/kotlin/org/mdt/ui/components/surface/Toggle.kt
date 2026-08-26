@@ -34,14 +34,14 @@ data class ToggleColors(
  * @param checked Current binary state of the toggle.
  * @param onToggle Callback triggered on click with the new toggled state.
  * @param modifier Chainable [UIModifier] to customize layout/events for the track container.
- * @param activeColor Custom active track color (defaults to [Theme.colors.systemGreen]).
+ * @param activeColor Custom active track color (defaults to [Theme.colors.green]).
  */
 @Composable
 fun Toggle(
     checked: Boolean,
     onToggle: (Boolean) -> Unit,
     modifier: UIModifier = UIModifier,
-    activeColor: Color = Theme.colors.systemGreen
+    activeColor: Color = Theme.colors.green
 ) {
     val colors = Theme.colors
 
@@ -51,7 +51,7 @@ fun Toggle(
     )
 
     val currentTrackColor = colors.surfaceTertiary.cpy().lerp(activeColor, progress)
-    val currentBorderColor = colors.glassBorderSubtle.cpy().lerp(activeColor.cpy().mul(1.15f), progress)
+    val currentBorderColor = colors.borderHairline.cpy().lerp(activeColor.cpy().mul(1.15f), progress)
 
     val trackWidth = 44f
     val trackHeight = 24f

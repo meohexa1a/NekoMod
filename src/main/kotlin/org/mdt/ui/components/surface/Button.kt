@@ -115,7 +115,7 @@ fun Button(
 
     val textColor = when (variant) {
         ButtonVariant.FILLED, ButtonVariant.DESTRUCTIVE -> colors.textOnAccent
-        ButtonVariant.TINTED -> colors.systemBlue
+        ButtonVariant.TINTED -> colors.blue
         ButtonVariant.GLASS, ButtonVariant.OUTLINED, ButtonVariant.PLAIN -> colors.textPrimary
     }
 
@@ -171,7 +171,7 @@ private fun computeButtonBackground(
     colors: ColorTokens
 ): Color = when (variant) {
     ButtonVariant.FILLED -> {
-        val base = colors.systemBlue
+        val base = colors.blue
         when {
             !enabled -> colors.glassThin
             isPressed -> base.cpy().mul(0.80f)
@@ -180,7 +180,7 @@ private fun computeButtonBackground(
         }
     }
     ButtonVariant.TINTED -> {
-        val base = colors.systemBlue
+        val base = colors.blue
         when {
             !enabled -> colors.glassUltraThin
             isPressed -> base.cpy().apply { a = 0.35f }
@@ -201,7 +201,7 @@ private fun computeButtonBackground(
         else -> Color.clear
     }
     ButtonVariant.DESTRUCTIVE -> {
-        val base = colors.systemRed
+        val base = colors.red
         when {
             !enabled -> colors.glassThin
             isPressed -> base.cpy().mul(0.80f)
@@ -212,14 +212,14 @@ private fun computeButtonBackground(
 }
 
 private fun computeButtonBorder(variant: ButtonVariant, isHovered: Boolean, colors: ColorTokens): Color = when (variant) {
-    ButtonVariant.GLASS -> if (isHovered) colors.glassBorderSubtle else Color.clear
-    ButtonVariant.OUTLINED -> if (isHovered) colors.glassBorderActive else colors.glassBorderSubtle
+    ButtonVariant.GLASS -> if (isHovered) colors.borderHairline else Color.clear
+    ButtonVariant.OUTLINED -> if (isHovered) colors.borderActive else colors.borderHairline
     else -> Color.clear
 }
 
 private fun computeButtonShadow(variant: ButtonVariant, isHovered: Boolean, colors: ColorTokens): Color = when (variant) {
     ButtonVariant.FILLED -> if (isHovered) colors.glowAccent else Color.clear
     ButtonVariant.GLASS -> if (isHovered) colors.shadowAmbient else Color.clear
-    ButtonVariant.DESTRUCTIVE -> if (isHovered) colors.systemRed.cpy().apply { a = 0.4f } else Color.clear
+    ButtonVariant.DESTRUCTIVE -> if (isHovered) colors.red.cpy().apply { a = 0.4f } else Color.clear
     else -> Color.clear
 }

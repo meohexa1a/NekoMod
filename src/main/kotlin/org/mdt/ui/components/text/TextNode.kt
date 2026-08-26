@@ -62,12 +62,13 @@ open class TextNode(
         if (isScaled) f.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
 
         val targetW = if (bounds.width > 0f) bounds.width - padL - padR else (if (width > 0f) width - padL - padR else 0f)
-        if (textVisuals.wrap && targetW > 0f) {
+        val textH = if (textVisuals.wrap && targetW > 0f) {
             layoutHelper.setText(f, text, textVisuals.color, targetW, textVisuals.align, true)
+            layoutHelper.height
         } else {
             layoutHelper.setText(f, text)
+            maxOf(f.lineHeight, layoutHelper.height)
         }
-        val textH = layoutHelper.height
 
         if (isScaled) f.data.setScale(oldSX, oldSY)
         return (if (minHeight >= 0f) maxOf(textH, minHeight) else textH) + padT + padB

@@ -43,8 +43,8 @@ fun IconButton(
     }
 
     val border = when {
-        isHovered -> colors.glassBorderActive
-        else -> colors.glassBorderSubtle
+        isHovered -> colors.borderActive
+        else -> colors.borderHairline
     }
 
     Box(

@@ -52,9 +52,9 @@ fun GroupedList(
                 .fillMaxWidth()
                 .glassMaterial(
                     preset = GlassMaterialPreset.THIN,
-                    radius = shapes.large,
-                    tint = colors.surfaceGrouped,
-                    border = colors.glassBorderSubtle
+                    radius = shapes.lg,
+                    tint = colors.surfaceSecondary,
+                    border = colors.borderHairline
                 )
                 .pad(vertical = 4f)
         ) {

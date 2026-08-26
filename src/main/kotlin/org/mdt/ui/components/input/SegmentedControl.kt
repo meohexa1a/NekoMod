@@ -37,9 +37,9 @@ fun SegmentedControl(
     // Outer inset capsule track
     Box(
         modifier = Modifier
-            .radius(shapes.medium)
+            .radius(shapes.md)
             .background(colors.surfacePrimary)
-            .border(width = 1f, color = colors.glassBorderSubtle)
+            .border(width = 1f, color = colors.borderHairline)
             .pad(2f)
             .then(modifier)
     ) {
@@ -53,16 +53,16 @@ fun SegmentedControl(
                 val segmentModifier = if (isSelected) {
                     Modifier
                         .weight(1f)
-                        .radius(shapes.medium - 1f)
+                        .radius(shapes.md - 1f)
                         .background(colors.glassThick)
-                        .border(width = 1f, color = colors.glassBorderRegular)
+                        .border(width = 1f, color = colors.borderRegular)
                         .shadow(color = colors.shadowAmbient, blur = 4f, spread = 1f)
                         .pad(horizontal = 12f, vertical = 6f)
                         .clickable { onSelect(index) }
                 } else {
                     Modifier
                         .weight(1f)
-                        .radius(shapes.medium - 1f)
+                        .radius(shapes.md - 1f)
                         .pad(horizontal = 12f, vertical = 6f)
                         .clickable { onSelect(index) }
                 }

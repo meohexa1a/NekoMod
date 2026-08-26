@@ -36,7 +36,7 @@ fun ListItem(
     title: String,
     subtitle: String? = null,
     icon: Any? = null,
-    iconTint: Color = Theme.colors.systemBlue,
+    iconTint: Color = Theme.colors.blue,
     showDivider: Boolean = true,
     onClick: (() -> Unit)? = null,
     modifier: UIModifier = UIModifier,
@@ -66,7 +66,7 @@ fun ListItem(
                     Box(
                         modifier = Modifier
                             .size(28f)
-                            .radius(Theme.shapes.medium)
+                            .radius(Theme.shapes.md)
                             .background(iconTint.cpy().apply { a = 0.20f })
                     ) {
                         Image(
