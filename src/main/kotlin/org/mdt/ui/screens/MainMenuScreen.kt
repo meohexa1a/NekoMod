@@ -14,6 +14,8 @@ import mindustry.Vars
 import mindustry.core.Version
 import mindustry.gen.Sounds
 import mindustry.graphics.MenuRenderer
+import org.mdt.core.settings.Settings
+import org.mdt.core.settings.rememberSettings
 import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.layout.Arrangement
 import org.mdt.core.ui.layout.LayoutPreset
@@ -33,9 +35,10 @@ import org.mdt.ui.components.text.Text
  */
 @Composable
 fun MainMenuScreen() {
-    var sfxVolume by remember { mutableStateOf(Core.settings?.getInt("sfxvol", 100)?.toFloat()?.div(100f) ?: 1.0f) }
-    var musicVolume by remember { mutableStateOf(Core.settings?.getInt("musicvol", 100)?.toFloat()?.div(100f) ?: 1.0f) }
-    var ambientToggled by remember { mutableStateOf(true) }
+    val settings by rememberSettings()
+    val sfxVolume = settings.audio.sfxVolume
+    val musicVolume = settings.audio.musicVolume
+    val ambientToggled = settings.audio.ambientEnabled
 
     val menuRenderer = remember { MenuRenderer() }
     DisposableEffect(Unit) {
@@ -294,20 +297,14 @@ fun MainMenuScreen() {
 
                 Slider(
                     value = sfxVolume,
-                    onValueChange = {
-                        sfxVolume = it
-                        Core.settings?.put("sfxvol", (it * 100f).toInt())
-                    },
+                    onValueChange = { v -> Settings.updateAudio { it.copy(sfxVolume = v) } },
                     label = "SFX Volume",
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Slider(
                     value = musicVolume,
-                    onValueChange = {
-                        musicVolume = it
-                        Core.settings?.put("musicvol", (it * 100f).toInt())
-                    },
+                    onValueChange = { v -> Settings.updateAudio { it.copy(musicVolume = v) } },
                     label = "Music Volume",
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -320,7 +317,7 @@ fun MainMenuScreen() {
                     )
                     Toggle(
                         checked = ambientToggled,
-                        onToggle = { ambientToggled = it }
+                        onToggle = { t -> Settings.updateAudio { it.copy(ambientEnabled = t) } }
                     )
                 }
             }
