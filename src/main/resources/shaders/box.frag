@@ -32,6 +32,9 @@ uniform float u_backdropMinAlpha;
 uniform vec4 u_colorFilter;
 uniform float u_noiseAmount;
 
+uniform float u_progress;
+uniform vec4 u_progressColor;
+
 varying vec4 v_color;
 varying vec2 v_texCoord0;
 
@@ -39,7 +42,15 @@ float roundedRectSDF(vec2 p, vec2 size, vec4 radii) {
     vec2 halfSize = size * 0.5;
     vec2 cp = p - halfSize;
     vec4 r = max(radii, 0.0);
-    r = min(r, vec4(min(size.x, size.y) * 0.5));
+
+    // W3C CSS border-radius standard: Proportional downscaling when adjacent radii exceed edge length
+    float topFactor    = size.x / max(r.x + r.y, 0.0001);
+    float bottomFactor = size.x / max(r.w + r.z, 0.0001);
+    float leftFactor   = size.y / max(r.x + r.w, 0.0001);
+    float rightFactor  = size.y / max(r.y + r.z, 0.0001);
+
+    float f = min(1.0, min(min(topFactor, bottomFactor), min(leftFactor, rightFactor)));
+    r *= f;
 
     float cr = (cp.x > 0.0)
         ? ((cp.y > 0.0) ? r.y : r.z)
@@ -106,7 +117,13 @@ void main() {
         vec4 texColor = texture2D(u_fillTexture, texUv);
         color = vec4(texColor.rgb * u_fillColor.rgb, texColor.a * u_fillColor.a * fillAlpha);
     } else {
-        color = vec4(u_fillColor.rgb, u_fillColor.a * fillAlpha);
+        vec4 baseFill = u_fillColor;
+        if (u_progressColor.a > 0.001 && u_progress > 0.0001) {
+            float pEdge = edge / max(u_size.x, 1.0);
+            float pFactor = clamp((u_progress - uv.x) / max(pEdge, 0.001), 0.0, 1.0);
+            baseFill = mix(u_fillColor, u_progressColor, pFactor);
+        }
+        color = vec4(baseFill.rgb, baseFill.a * fillAlpha);
     }
 
     // 2. Backdrop blur sampling (if available)
