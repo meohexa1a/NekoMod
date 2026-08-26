@@ -4,10 +4,10 @@ package org.mdt.ui.components.layout
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
-import org.mdt.ui.compose.BoxScope
-import org.mdt.ui.compose.NodeApplier
-import org.mdt.ui.compose.UIModifier
-import org.mdt.ui.layout.policy.BoxMeasurePolicy
+import org.mdt.core.ui.compose.BoxScope
+import org.mdt.core.ui.compose.NodeApplier
+import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.layout.policy.BoxMeasurePolicy
 
 /**
  * ## Box

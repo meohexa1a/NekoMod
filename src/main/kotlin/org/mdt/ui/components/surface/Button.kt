@@ -13,15 +13,13 @@ import arc.util.Align
 import mindustry.ui.Fonts
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.text.Text
-import org.mdt.ui.compose.UIModifier
-import org.mdt.ui.compose.background
-import org.mdt.ui.compose.border
-import org.mdt.ui.compose.clickable
-import org.mdt.ui.compose.cornerRadius
-import org.mdt.ui.compose.hoverable
-import org.mdt.ui.compose.pad
-import org.mdt.ui.compose.shadow
+import org.mdt.core.ui.compose.*
 
+/**
+ * ## ButtonColors
+ *
+ * Visual color palette state for [Button].
+ */
 data class ButtonColors(
     val background: Color,
     val text: Color,
@@ -67,22 +65,16 @@ data class ButtonColors(
 }
 
 /**
- * ## Button
+ * ## Button (Slot-based)
  *
- * Interactive clickable button with stateful hover & active color transitions.
+ * Core declarative clickable button component supporting arbitrary custom composable content.
  */
 @Composable
 fun Button(
-    text: String,
     onClick: () -> Unit,
     modifier: UIModifier = UIModifier,
     colors: ButtonColors = ButtonColors.Default,
-    radius: Float = 8f,
-    font: Font = Fonts.def,
-    fontScale: Float = 1.0f,
-    paddingV: Float = 10f,
-    paddingH: Float = 16f,
-    align: Int = Align.left
+    content: @Composable () -> Unit
 ) {
     var isHovered by remember { mutableStateOf(false) }
     var isPressed by remember { mutableStateOf(false) }
@@ -99,11 +91,11 @@ fun Button(
 
     Box(
         modifier = UIModifier
-            .cornerRadius(radius)
+            .radius(8f)
             .background(bgColor)
             .border(1f, currentBorder)
             .shadow(if (isHovered) Color.black.a(0.35f) else Color.clear, blur = 8f, spread = 1f)
-            .pad(left = paddingH, right = paddingH, top = paddingV, bottom = paddingV)
+            .pad(horizontal = 16f, vertical = 10f)
             .clickable(
                 onClick = onClick,
                 onPressStateChanged = { isPressed = it }
@@ -111,12 +103,44 @@ fun Button(
             .hoverable { isHovered = it }
             .then(modifier)
     ) {
+        content()
+    }
+}
+
+/**
+ * ## Button (Text overload)
+ *
+ * Convenient declarative text button.
+ */
+@Composable
+fun Button(
+    text: String,
+    onClick: () -> Unit,
+    modifier: UIModifier = UIModifier,
+    colors: ButtonColors = ButtonColors.Default,
+    radius: Float = 8f,
+    font: Font = Fonts.def,
+    fontScale: Float = 1.0f,
+    paddingV: Float = 10f,
+    paddingH: Float = 16f,
+    align: Int = Align.left,
+    textModifier: UIModifier = UIModifier
+) {
+    Button(
+        onClick = onClick,
+        colors = colors,
+        modifier = UIModifier
+            .radius(radius)
+            .pad(horizontal = paddingH, vertical = paddingV)
+            .then(modifier)
+    ) {
         Text(
             text = text,
             color = colors.text,
             font = font,
             scale = fontScale,
-            align = align
+            align = align,
+            modifier = textModifier
         )
     }
 }

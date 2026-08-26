@@ -5,14 +5,14 @@ package org.mdt.ui.components.surface
 import androidx.compose.runtime.Composable
 import arc.graphics.Color
 import org.mdt.ui.components.layout.Box
-import org.mdt.ui.compose.BoxScope
-import org.mdt.ui.compose.UIModifier
-import org.mdt.ui.compose.backdrop
-import org.mdt.ui.compose.background
-import org.mdt.ui.compose.border
-import org.mdt.ui.compose.cornerRadius
-import org.mdt.ui.compose.pad
-import org.mdt.ui.compose.shadow
+import org.mdt.core.ui.compose.BoxScope
+import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.compose.backdrop
+import org.mdt.core.ui.compose.background
+import org.mdt.core.ui.compose.border
+import org.mdt.core.ui.compose.cornerRadius
+import org.mdt.core.ui.compose.pad
+import org.mdt.core.ui.compose.shadow
 
 /**
  * ## Card

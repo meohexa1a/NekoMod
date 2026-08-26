@@ -8,8 +8,8 @@ import arc.graphics.Color
 import arc.graphics.g2d.Font
 import arc.util.Align
 import mindustry.ui.Fonts
-import org.mdt.ui.compose.NodeApplier
-import org.mdt.ui.compose.UIModifier
+import org.mdt.core.ui.compose.NodeApplier
+import org.mdt.core.ui.compose.UIModifier
 
 /**
  * ## Text

@@ -3,10 +3,9 @@
 package org.mdt.ui.components.display.progress
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ComposeNode
 import arc.graphics.Color
-import org.mdt.ui.compose.NodeApplier
-import org.mdt.ui.compose.UIModifier
+import org.mdt.ui.components.layout.Box
+import org.mdt.core.ui.compose.*
 
 /**
  * ## ProgressColors
@@ -29,41 +28,43 @@ data class ProgressColors(
 /**
  * ## ProgressBar
  *
- * Declarative progress indicator displaying completion percentage between `0.0f` and `1.0f`.
+ * Pure declarative progress bar component composed of primitive [Box] nodes.
+ * Automatically leverages GPU SDF rounded corners and supports targeted [fillModifier].
  *
  * @param progress Progress ratio (clamped to 0.0f..1.0f).
- * @param modifier Chainable [UIModifier].
+ * @param modifier Chainable [UIModifier] for the outer track container.
  * @param barHeight Thickness of the progress bar in pixels.
  * @param colors Color styling palette ([ProgressColors]).
+ * @param fillModifier Optional modifier applied directly to the active progress fill bar.
  */
 @Composable
 fun ProgressBar(
     progress: Float,
     modifier: UIModifier = UIModifier,
     barHeight: Float = 6f,
-    colors: ProgressColors = ProgressColors.Default
+    colors: ProgressColors = ProgressColors.Default,
+    fillModifier: UIModifier = UIModifier
 ) {
-    ComposeNode<ProgressBarNode, NodeApplier>(
-        factory = {
-            val node = ProgressBarNode()
-            node.progress = progress
-            node.barHeight = barHeight
-            node.trackColor.set(colors.track)
-            node.fillColor.set(colors.fill)
-            modifier.applyTo(node)
-            node
-        },
-        update = {
-            set(progress) { this.progress = it }
-            set(barHeight) { this.barHeight = it; invalidateLayout() }
-            set(colors) {
-                this.trackColor.set(it.track)
-                this.fillColor.set(it.fill)
-            }
-            set(modifier) {
-                it.applyTo(this)
-                invalidateLayout()
-            }
+    val clamped = progress.coerceIn(0.0f, 1.0f)
+    val r = barHeight * 0.5f
+
+    Box(
+        modifier = UIModifier
+            .height(barHeight)
+            .minWidth(60f)
+            .background(colors.track)
+            .radius(r)
+            .clip(true)
+            .then(modifier)
+    ) {
+        if (clamped > 0.001f) {
+            Box(
+                modifier = UIModifier
+                    .anchorFillWidth(clamped)
+                    .background(colors.fill)
+                    .radius(r)
+                    .then(fillModifier)
+            )
         }
-    )
+    }
 }

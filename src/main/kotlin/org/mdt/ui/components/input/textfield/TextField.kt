@@ -5,8 +5,8 @@ package org.mdt.ui.components.input.textfield
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import arc.graphics.Color
-import org.mdt.ui.compose.NodeApplier
-import org.mdt.ui.compose.UIModifier
+import org.mdt.core.ui.compose.NodeApplier
+import org.mdt.core.ui.compose.UIModifier
 
 /**
  * ## TextFieldColors

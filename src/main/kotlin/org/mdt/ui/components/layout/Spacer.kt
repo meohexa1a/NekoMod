@@ -4,10 +4,10 @@ package org.mdt.ui.components.layout
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
-import org.mdt.ui.compose.NodeApplier
-import org.mdt.ui.compose.UIModifier
-import org.mdt.ui.compose.height
-import org.mdt.ui.compose.width
+import org.mdt.core.ui.compose.NodeApplier
+import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.compose.height
+import org.mdt.core.ui.compose.width
 
 /**
  * ## Spacer

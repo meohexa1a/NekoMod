@@ -7,9 +7,9 @@ import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.GlyphLayout
 import mindustry.ui.Fonts
+import org.mdt.core.ui.UINode
 import org.mdt.ui.components.layout.BoxVisuals
-import org.mdt.ui.compose.CustomModifier
-import org.mdt.ui.compose.UIModifier
+import org.mdt.core.ui.compose.UIModifier
 import org.mdt.ui.render.BoxRenderer
 import org.mdt.ui.render.EngineRenderer
 
@@ -82,7 +82,7 @@ object TooltipManager {
         val posY = rawY.coerceIn(8f, maxOf(8f, screenH - boxH - 8f))
 
         // Draw top-layer SDF rounded box with glowing border and shadow
-        BoxRenderer.draw(posX, posY, boxW, boxH, tooltipVisuals, renderer.blurProcessor)
+        BoxRenderer.draw(posX, posY, boxW, boxH, tooltipVisuals)
 
         // Draw text at pixel-perfect scale 1.0f
         f.color = Color.valueOf("cad3f5")
@@ -92,19 +92,26 @@ object TooltipManager {
 }
 
 /**
+ * Typed modifier element for attaching a top-layer tooltip.
+ */
+data class TooltipModifier(val text: String) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        val prevEnter = node.onPointerEnter
+        val prevExit = node.onPointerExit
+
+        node.onPointerEnter = {
+            prevEnter?.invoke()
+            TooltipManager.show(node, text)
+        }
+
+        node.onPointerExit = {
+            prevExit?.invoke()
+            TooltipManager.hide(node)
+        }
+    }
+}
+
+/**
  * Attaches a top-layer floating tooltip to this UI component.
  */
-fun UIModifier.tooltip(text: String): UIModifier = then(CustomModifier { target ->
-    val prevEnter = target.onPointerEnter
-    val prevExit = target.onPointerExit
-
-    target.onPointerEnter = {
-        prevEnter?.invoke()
-        TooltipManager.show(target, text)
-    }
-
-    target.onPointerExit = {
-        prevExit?.invoke()
-        TooltipManager.hide(target)
-    }
-})
+fun UIModifier.tooltip(text: String): UIModifier = then(TooltipModifier(text))

@@ -2,20 +2,25 @@
 
 package org.mdt.ui.components.display.image
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ComposeNode
+import androidx.compose.runtime.*
 import arc.graphics.Color
 import arc.graphics.g2d.TextureRegion
+import org.mdt.core.cache.TextureHandle
+import org.mdt.core.image.ImageLoader
 import org.mdt.core.image.ImageSource
 import org.mdt.core.net.RequestBuilder
-import org.mdt.ui.compose.NodeApplier
-import org.mdt.ui.compose.UIModifier
+import org.mdt.ui.components.layout.Box
+import org.mdt.ui.components.layout.ScaleMode
+import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.compose.texture
 
 /**
  * ## Image
  *
- * Declarative image composable supporting remote URLs (with auth headers / request template),
- * sprite atlas regions, and local files.
+ * Pure declarative image composable using the unified GPU SDF [Box] primitive.
+ * Supports remote URLs (with auth headers / request templates), sprite atlas regions,
+ * local files, and direct [TextureRegion] instances with full SDF rounded corners,
+ * borders, shadows, and glow.
  *
  * @param source Image origin ([ImageSource] or String URL/Atlas name).
  * @param modifier Chainable [UIModifier].
@@ -29,24 +34,25 @@ fun Image(
     scaleMode: ScaleMode = ScaleMode.FIT,
     tint: Color = Color.white
 ) {
-    ComposeNode<ImageNode, NodeApplier>(
-        factory = {
-            val node = ImageNode()
-            node.source = source
-            node.scaleMode = scaleMode
-            node.tintColor.set(tint)
-            modifier.applyTo(node)
-            node
-        },
-        update = {
-            set(source) { this.source = it }
-            set(scaleMode) { this.scaleMode = it; invalidateLayout() }
-            set(tint) { this.tintColor.set(it) }
-            set(modifier) {
-                it.applyTo(this)
-                invalidateLayout()
-            }
+    var region by remember(source) { mutableStateOf(ImageLoader.fallbackRegion()) }
+
+    DisposableEffect(source) {
+        var currentHandle: TextureHandle? = null
+        ImageLoader.load(source) { reg, handle, _ ->
+            region = reg
+            currentHandle?.release()
+            currentHandle = handle
         }
+        onDispose {
+            currentHandle?.release()
+            currentHandle = null
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .texture(region, scaleMode, tint)
+            .then(modifier)
     )
 }
 
@@ -69,7 +75,7 @@ fun Image(
 }
 
 /**
- * Convenience overload accepting a remote URL with an HTTP request builder template (headers, auth, query params).
+ * Convenience overload accepting a remote URL with an HTTP request builder template.
  */
 @Composable
 fun Image(
@@ -97,23 +103,9 @@ fun Image(
     scaleMode: ScaleMode = ScaleMode.FIT,
     tint: Color = Color.white
 ) {
-    ComposeNode<ImageNode, NodeApplier>(
-        factory = {
-            val node = ImageNode()
-            node.setRegion(region)
-            node.scaleMode = scaleMode
-            node.tintColor.set(tint)
-            modifier.applyTo(node)
-            node
-        },
-        update = {
-            set(region) { this.setRegion(it) }
-            set(scaleMode) { this.scaleMode = it; invalidateLayout() }
-            set(tint) { this.tintColor.set(it) }
-            set(modifier) {
-                it.applyTo(this)
-                invalidateLayout()
-            }
-        }
+    Box(
+        modifier = modifier
+            .texture(region, scaleMode, tint)
+            .then(modifier)
     )
 }

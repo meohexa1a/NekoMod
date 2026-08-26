@@ -3,19 +3,19 @@ package org.mdt.ui.components.scroll
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
-import arc.math.Mathf
-import org.mdt.ui.components.layout.LayoutNode
 import org.mdt.core.ui.PointerEvent
 import org.mdt.core.ui.ScrollEvent
+import org.mdt.core.ui.UINode
+import org.mdt.ui.components.layout.LayoutNode
 import org.mdt.ui.render.EngineRenderer
 
 /**
  * ## ScrollContainerNode
  *
- * Virtual DOM container managing a scrollable viewport with inertia,
- * mouse drag, mouse wheel scrolling, and hardware Scissor clipping.
+ * Virtual DOM container managing a scrollable viewport with mouse wheel scrolling,
+ * touch drag inertia, hardware scissor clipping, and smart hit testing.
  *
- * See: docs/complex-challenges/complex_challenges_en.md
+ * See: docs/core-subsystems/core_subsystems_en.md
  */
 open class ScrollContainerNode : LayoutNode() {
 
@@ -33,7 +33,6 @@ open class ScrollContainerNode : LayoutNode() {
     var scrollbarColor: Color = Color(Color.valueOf("5b6078").a(0.6f))
     var scrollbarThickness: Float = 4f
 
-    private var isDragging = false
     private var lastDragX = 0f
     private var lastDragY = 0f
 
@@ -43,36 +42,64 @@ open class ScrollContainerNode : LayoutNode() {
         onScroll = { event: ScrollEvent ->
             var consumed = false
             if (enableVertical && maxScrollY > 0f) {
-                scrollY = (scrollY - event.amountY * 24f).coerceIn(0f, maxScrollY)
+                // Invert wheel: scrolling down increases scrollY (moves content upwards)
+                scrollY = (scrollY + event.amountY * 36f).coerceIn(0f, maxScrollY)
                 consumed = true
             }
             if (enableHorizontal && maxScrollX > 0f) {
-                scrollX = (scrollX + event.amountX * 24f).coerceIn(0f, maxScrollX)
+                scrollX = (scrollX + event.amountX * 36f).coerceIn(0f, maxScrollX)
                 consumed = true
             }
             if (consumed) {
+                event.isConsumed = true
                 invalidateLayout()
             }
-            consumed
         }
 
         onPointerDown = { event: PointerEvent ->
-            isDragging = true
             lastDragX = event.x
             lastDragY = event.y
         }
 
-        onPointerUp = {
-            isDragging = false
+        onPointerDrag = { event: PointerEvent ->
+            var consumed = false
+            if (enableVertical && maxScrollY > 0f) {
+                val dy = event.y - lastDragY
+                scrollY = (scrollY - dy).coerceIn(0f, maxScrollY)
+                lastDragY = event.y
+                consumed = true
+            }
+            if (enableHorizontal && maxScrollX > 0f) {
+                val dx = event.x - lastDragX
+                scrollX = (scrollX - dx).coerceIn(0f, maxScrollX)
+                lastDragX = event.x
+                consumed = true
+            }
+            if (consumed) {
+                event.isConsumed = true
+                invalidateLayout()
+            }
         }
+    }
+
+    override fun hitTest(px: Float, py: Float): UINode? {
+        if (!visible || !touchable) return null
+        // Scissor viewport boundary check: ignore touches outside scroll container bounds
+        if (!bounds.contains(px, py)) return null
+
+        for (i in children.indices.reversed()) {
+            val child = children[i]
+            val hit = child.hitTest(px, py)
+            if (hit != null) return hit
+        }
+
+        return this
     }
 
     override fun layout() {
         val w = if (bounds.width > 0f) bounds.width else getPrefWidth()
         val h = if (bounds.height > 0f) bounds.height else getPrefHeight()
-        if (bounds.width != w || bounds.height != h) {
-            setSize(w, h)
-        }
+        if (bounds.width != w || bounds.height != h) setSize(w, h)
 
         val availW = maxOf(0f, bounds.width - padL - padR)
         val availH = maxOf(0f, bounds.height - padT - padB)
@@ -125,7 +152,7 @@ open class ScrollContainerNode : LayoutNode() {
         }
 
         if (enableHorizontal && maxScrollX > 0f) {
-            val contentW = availW + maxScrollX
+            val contentW = maxOf(0.001f, availW + maxScrollX)
             val thumbW = maxOf(16f, (availW / contentW) * availW)
             val scrollRatio = if (maxScrollX > 0f) scrollX / maxScrollX else 0f
             val thumbX = innerX + scrollRatio * (availW - thumbW)

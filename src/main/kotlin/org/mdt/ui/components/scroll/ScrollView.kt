@@ -4,10 +4,10 @@ package org.mdt.ui.components.scroll
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
-import org.mdt.ui.compose.NodeApplier
-import org.mdt.ui.compose.UIModifier
-import org.mdt.ui.layout.policy.ColumnMeasurePolicy
-import org.mdt.ui.layout.policy.MeasurePolicy
+import org.mdt.core.ui.compose.NodeApplier
+import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.layout.policy.ColumnMeasurePolicy
+import org.mdt.core.ui.layout.policy.MeasurePolicy
 
 /**
  * ## ScrollView

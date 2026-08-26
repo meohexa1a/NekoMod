@@ -1,8 +1,8 @@
 package org.mdt.ui.components.layout
 
 import org.mdt.core.ui.UINode
-import org.mdt.ui.layout.policy.BoxMeasurePolicy
-import org.mdt.ui.layout.policy.MeasurePolicy
+import org.mdt.core.ui.layout.policy.BoxMeasurePolicy
+import org.mdt.core.ui.layout.policy.MeasurePolicy
 import org.mdt.ui.render.BoxRenderer
 import org.mdt.ui.render.EngineRenderer
 
@@ -35,14 +35,7 @@ open class LayoutNode : UINode() {
     /**
      * Lazily creates and returns the [BoxVisuals] styling configuration for this node.
      */
-    fun ensureVisuals(): BoxVisuals {
-        var current = visuals
-        if (current == null) {
-            current = BoxVisuals()
-            visuals = current
-        }
-        return current
-    }
+    fun ensureVisuals(): BoxVisuals = visuals ?: BoxVisuals().also { visuals = it }
 
     override fun getPrefWidth(): Float {
         if (width >= 0f) return width
@@ -61,9 +54,7 @@ open class LayoutNode : UINode() {
     override fun layout() {
         val w = if (bounds.width > 0f) bounds.width else getPrefWidth()
         val h = if (bounds.height > 0f) bounds.height else getPrefHeight()
-        if (bounds.width != w || bounds.height != h) {
-            setSize(w, h)
-        }
+        if (bounds.width != w || bounds.height != h) setSize(w, h)
 
         val availW = maxOf(0f, bounds.width - padL - padR)
         val availH = maxOf(0f, bounds.height - padT - padB)
@@ -74,16 +65,14 @@ open class LayoutNode : UINode() {
 
         isLayoutDirty = false
         for (child in children) {
-            if (child.visible) {
-                child.layout()
-            }
+            if (child.visible) child.layout()
         }
     }
 
     override fun drawSelf(renderer: EngineRenderer) {
         val vis = visuals
         if (vis != null && vis.isVisible()) {
-            BoxRenderer.draw(bounds.x, bounds.y, bounds.width, bounds.height, vis, renderer.blurProcessor)
+            BoxRenderer.draw(bounds.x, bounds.y, bounds.width, bounds.height, vis)
         }
     }
 }

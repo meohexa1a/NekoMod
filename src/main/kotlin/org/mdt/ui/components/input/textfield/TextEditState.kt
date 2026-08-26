@@ -210,17 +210,13 @@ class TextEditState(
 
     fun copy() {
         val sel = getSelectedText()
-        if (sel.isNotEmpty() && Core.app != null) {
-            Core.app.clipboardText = sel
-        }
+        if (sel.isNotEmpty() && Core.app != null) Core.app.clipboardText = sel
     }
 
     fun cut() {
         val sel = getSelectedText()
         if (sel.isNotEmpty()) {
-            if (Core.app != null) {
-                Core.app.clipboardText = sel
-            }
+            if (Core.app != null) Core.app.clipboardText = sel
             deleteSelection()
         }
     }
@@ -228,9 +224,7 @@ class TextEditState(
     fun paste() {
         if (Core.app != null) {
             val clip = Core.app.clipboardText
-            if (!clip.isNullOrEmpty()) {
-                insert(clip)
-            }
+            if (!clip.isNullOrEmpty()) insert(clip)
         }
     }
 
@@ -251,38 +245,14 @@ class TextEditState(
         return when (key) {
             KeyCode.backspace -> backspace()
             KeyCode.del -> delete()
-            KeyCode.left -> {
-                moveLeft(isShift)
-                true
-            }
-            KeyCode.right -> {
-                moveRight(isShift)
-                true
-            }
-            KeyCode.home -> {
-                moveToStart(isShift)
-                true
-            }
-            KeyCode.end -> {
-                moveToEnd(isShift)
-                true
-            }
-            KeyCode.a -> if (isCtrl) {
-                selectAll()
-                true
-            } else false
-            KeyCode.c -> if (isCtrl) {
-                copy()
-                true
-            } else false
-            KeyCode.v -> if (isCtrl) {
-                paste()
-                true
-            } else false
-            KeyCode.x -> if (isCtrl) {
-                cut()
-                true
-            } else false
+            KeyCode.left -> { moveLeft(isShift); true }
+            KeyCode.right -> { moveRight(isShift); true }
+            KeyCode.home -> { moveToStart(isShift); true }
+            KeyCode.end -> { moveToEnd(isShift); true }
+            KeyCode.a -> if (isCtrl) { selectAll(); true } else false
+            KeyCode.c -> if (isCtrl) { copy(); true } else false
+            KeyCode.v -> if (isCtrl) { paste(); true } else false
+            KeyCode.x -> if (isCtrl) { cut(); true } else false
             else -> false
         }
     }

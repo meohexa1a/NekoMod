@@ -5,10 +5,10 @@ package org.mdt.ui.components.surface
 import androidx.compose.runtime.Composable
 import arc.graphics.Color
 import org.mdt.ui.components.layout.Box
-import org.mdt.ui.compose.UIModifier
-import org.mdt.ui.compose.background
-import org.mdt.ui.compose.fillMaxWidth
-import org.mdt.ui.compose.height
+import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.compose.background
+import org.mdt.core.ui.compose.fillMaxWidth
+import org.mdt.core.ui.compose.height
 
 /**
  * ## Divider

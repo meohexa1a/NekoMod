@@ -4,14 +4,14 @@ package org.mdt.ui.components.layout
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
-import org.mdt.ui.compose.ColumnScope
-import org.mdt.ui.compose.NodeApplier
-import org.mdt.ui.compose.RowScope
-import org.mdt.ui.compose.UIModifier
-import org.mdt.ui.layout.Alignment
-import org.mdt.ui.layout.Arrangement
-import org.mdt.ui.layout.policy.ColumnMeasurePolicy
-import org.mdt.ui.layout.policy.RowMeasurePolicy
+import org.mdt.core.ui.compose.ColumnScope
+import org.mdt.core.ui.compose.NodeApplier
+import org.mdt.core.ui.compose.RowScope
+import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.layout.Alignment
+import org.mdt.core.ui.layout.Arrangement
+import org.mdt.core.ui.layout.policy.ColumnMeasurePolicy
+import org.mdt.core.ui.layout.policy.RowMeasurePolicy
 
 /**
  * ## Row
