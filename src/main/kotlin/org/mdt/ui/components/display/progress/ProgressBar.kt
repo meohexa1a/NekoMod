@@ -4,55 +4,38 @@ package org.mdt.ui.components.display.progress
 
 import androidx.compose.runtime.Composable
 import arc.graphics.Color
-import org.mdt.ui.components.layout.Box
 import org.mdt.core.ui.compose.*
-
-/**
- * ## ProgressColors
- *
- * Color palette state for [ProgressBar].
- */
-data class ProgressColors(
-    val track: Color = Color.valueOf("181926"),
-    val fill: Color = Color.valueOf("2563eb")
-) {
-    companion object {
-        val Default = ProgressColors()
-        val Primary = ProgressColors(track = Color.valueOf("181926"), fill = Color.valueOf("2563eb"))
-        val Success = ProgressColors(track = Color.valueOf("181926"), fill = Color.valueOf("059669"))
-        val Danger = ProgressColors(track = Color.valueOf("181926"), fill = Color.valueOf("dc2626"))
-        val Warning = ProgressColors(track = Color.valueOf("181926"), fill = Color.valueOf("d97706"))
-    }
-}
+import org.mdt.ui.components.layout.Box
+import org.mdt.ui.theme.Theme
 
 /**
  * ## ProgressBar
  *
- * Pure declarative progress bar component composed of primitive [Box] nodes.
- * Automatically leverages GPU SDF rounded corners and supports targeted [fillModifier].
+ * Apple iOS-style capsule progress bar rendered via hardware SDF shaders.
  *
  * @param progress Progress ratio (clamped to 0.0f..1.0f).
  * @param modifier Chainable [UIModifier] for the outer track container.
- * @param barHeight Thickness of the progress bar in pixels.
- * @param colors Color styling palette ([ProgressColors]).
- * @param fillModifier Optional modifier applied directly to the active progress fill bar.
+ * @param barHeight Thickness of the progress bar in pixels (defaults to 6f).
+ * @param activeColor Fill progress color (defaults to [Theme.colors.systemBlue]).
+ * @param trackColor Background track color (defaults to [Theme.colors.surfaceTertiary]).
  */
 @Composable
 fun ProgressBar(
     progress: Float,
     modifier: UIModifier = UIModifier,
     barHeight: Float = 6f,
-    colors: ProgressColors = ProgressColors.Default
+    activeColor: Color = Theme.colors.systemBlue,
+    trackColor: Color = Theme.colors.surfaceTertiary
 ) {
     val clamped = progress.coerceIn(0.0f, 1.0f)
 
     Box(
-        modifier = UIModifier
+        modifier = Modifier
             .height(barHeight)
             .minWidth(60f)
-            .background(colors.track)
-            .progress(clamped, colors.fill)
-            .cornerRadius(9999f)
+            .radius(Theme.shapes.pill)
+            .background(trackColor)
+            .progress(clamped, activeColor)
             .then(modifier)
     )
 }

@@ -8,16 +8,20 @@ import arc.graphics.g2d.Draw
 import arc.graphics.g2d.GlyphLayout
 import mindustry.ui.Fonts
 import org.mdt.core.ui.UINode
-import org.mdt.ui.components.layout.BoxVisuals
 import org.mdt.core.ui.compose.UIModifier
 import org.mdt.core.ui.render.BoxRenderer
 import org.mdt.core.ui.render.EngineRenderer
+import org.mdt.ui.components.layout.BoxVisuals
 
 /**
  * ## TooltipManager
  *
- * Top-layer overlay manager rendering floating tooltips with SDF rounded corners,
- * glowing borders, and 1.0x BMFont clarity above all other UI elements.
+ * Top-layer overlay manager rendering floating Apple iOS-style Frosted Glass tooltips
+ * with SDF rounded corners, specular highlight borders, and 1.0x BMFont clarity.
+ *
+ * Complies with Rule 8 (Top-layer overlay pass rendering).
+ *
+ * See: docs/ui-engine/ui_engine_en.md
  */
 object TooltipManager {
     var activeText: String? = null
@@ -25,11 +29,11 @@ object TooltipManager {
     private var lastTarget: Any? = null
 
     val tooltipVisuals = BoxVisuals().apply {
-        fillColor.set(Color.valueOf("10111a").a(0.96f))
-        borderColor.set(Color.valueOf("3b82f6").a(0.7f))
+        fillColor.set(Color(0.08f, 0.09f, 0.13f, 0.92f))
+        borderColor.set(Color(1f, 1f, 1f, 0.25f))
         borderWidth = 1f
         setRadius(8f)
-        shadowColor.set(Color.black.a(0.5f))
+        shadowColor.set(Color(0f, 0f, 0f, 0.45f))
         shadowBlur = 12f
         shadowSpread = 2f
     }
@@ -65,8 +69,8 @@ object TooltipManager {
         val screenW = if (Core.graphics != null) Core.graphics.width.toFloat() else 1920f
         val screenH = if (Core.graphics != null) Core.graphics.height.toFloat() else 1080f
 
-        val f = Fonts.def
-        layoutHelper.setText(f, text)
+        val font = Fonts.def
+        layoutHelper.setText(font, text)
         val textW = layoutHelper.width
         val textH = layoutHelper.height
 
@@ -85,8 +89,8 @@ object TooltipManager {
         BoxRenderer.draw(posX, posY, boxW, boxH, tooltipVisuals)
 
         // Draw text at pixel-perfect scale 1.0f
-        f.color = Color.valueOf("cad3f5")
-        f.draw(text, posX + padH, posY + padV + f.data.capHeight)
+        font.color = Color.white
+        font.draw(text, posX + padH, posY + padV + font.data.capHeight)
         Draw.color(Color.white)
     }
 }

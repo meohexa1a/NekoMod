@@ -6,58 +6,21 @@ import androidx.compose.runtime.Composable
 import arc.graphics.Color
 import arc.math.Mathf
 import mindustry.ui.Fonts
+import org.mdt.core.ui.UINode
+import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.input.PointerEvent
+import org.mdt.core.ui.layout.Alignment
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.layout.Spacer
 import org.mdt.ui.components.text.Text
-import org.mdt.core.ui.compose.*
-import org.mdt.core.ui.input.PointerEvent
-import org.mdt.core.ui.layout.Alignment
-
-/**
- * ## SliderColors
- *
- * Color styling palette for Capsule [Slider].
- */
-data class SliderColors(
-    val track: Color = Color.valueOf("181926"),
-    val activeTrack: Color = Color.valueOf("2563eb"),
-    val border: Color = Color.valueOf("363a4f"),
-    val labelText: Color = Color.white,
-    val valueText: Color = Color.valueOf("cad3f5")
-) {
-    companion object {
-        val Default = SliderColors()
-        val Primary = SliderColors(
-            track = Color.valueOf("181926"),
-            activeTrack = Color.valueOf("2563eb"),
-            border = Color.valueOf("363a4f"),
-            labelText = Color.white,
-            valueText = Color.valueOf("cad3f5")
-        )
-        val Success = SliderColors(
-            track = Color.valueOf("181926"),
-            activeTrack = Color.valueOf("059669"),
-            border = Color.valueOf("363a4f"),
-            labelText = Color.white,
-            valueText = Color.valueOf("a7f3d0")
-        )
-        val Danger = SliderColors(
-            track = Color.valueOf("181926"),
-            activeTrack = Color.valueOf("dc2626"),
-            border = Color.valueOf("363a4f"),
-            labelText = Color.white,
-            valueText = Color.valueOf("fecaca")
-        )
-    }
-}
+import org.mdt.ui.theme.Theme
 
 /**
  * ## Slider
  *
- * Modern interactive Capsule Pill Slider (iOS Control Center & Material 3 inspired).
- * Pure declarative component composed from primitive [Box], [Row], and [Text] nodes,
- * supporting targeted sub-node modifiers ([trackModifier], [labelModifier], [valueModifier]).
+ * Modern interactive Apple iOS Control Center-style Capsule Pill Slider.
+ * Built with pure declarative layout primitives and SDF capsule rendering.
  *
  * @param value Current slider value.
  * @param onValueChange Callback invoked continuously as slider is dragged.
@@ -66,10 +29,8 @@ data class SliderColors(
  * @param valueText Optional formatted value text rendered on the right (defaults to "X%").
  * @param valueRange Value range interval ([ClosedFloatingPointRange]).
  * @param step Optional snap step increment (0.0f = continuous).
- * @param colors Color styling palette ([SliderColors]).
- * @param trackModifier Targeted modifier for the active progress track.
- * @param labelModifier Targeted modifier for the left label text.
- * @param valueModifier Targeted modifier for the right value text.
+ * @param activeColor Active progress fill color (defaults to [Theme.colors.systemBlue]).
+ * @param trackColor Inactive track background color.
  */
 @Composable
 fun Slider(
@@ -80,11 +41,12 @@ fun Slider(
     valueText: String? = null,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     step: Float = 0f,
-    colors: SliderColors = SliderColors.Default,
-    trackModifier: UIModifier = UIModifier,
-    labelModifier: UIModifier = UIModifier,
-    valueModifier: UIModifier = UIModifier
+    activeColor: Color = Theme.colors.systemBlue,
+    trackColor: Color = Theme.colors.surfaceTertiary
 ) {
+    val colors = Theme.colors
+    val shapes = Theme.shapes
+
     val clamped = value.coerceIn(valueRange.start, valueRange.endInclusive)
     val span = valueRange.endInclusive - valueRange.start
     val fraction = if (span > 0.0001f) ((clamped - valueRange.start) / span).coerceIn(0f, 1f) else 0f
@@ -93,19 +55,18 @@ fun Slider(
     val dragModifier = SliderDragModifier(valueRange, span, step, onValueChange)
 
     Box(
-        modifier = UIModifier
-            .height(36f)
-            .minWidth(120f)
-            .background(colors.track)
-            .progress(fraction, colors.activeTrack)
-            .border(1f, colors.border)
-            .cornerRadius(9999f)
+        modifier = Modifier
+            .height(34f)
+            .minWidth(140f)
+            .radius(shapes.pill)
+            .background(trackColor)
+            .progress(fraction, activeColor)
+            .shadow(colors.shadowAmbient, blur = 4f, spread = 0.5f)
             .then(dragModifier)
             .then(modifier)
     ) {
-        // Inner label and value readout row
         Row(
-            modifier = UIModifier
+            modifier = Modifier
                 .fillMaxSize()
                 .pad(horizontal = 14f),
             alignment = Alignment.CenterStart
@@ -113,17 +74,15 @@ fun Slider(
             if (label != null) {
                 Text(
                     text = label,
-                    color = colors.labelText,
-                    font = Fonts.def,
-                    modifier = labelModifier
+                    color = colors.textPrimary,
+                    font = Fonts.def
                 )
             }
-            Spacer(UIModifier.weight(1f))
+            Spacer(Modifier.weight(1f))
             Text(
                 text = displayValue,
-                color = colors.valueText,
-                font = Fonts.def,
-                modifier = valueModifier
+                color = colors.textSecondary,
+                font = Fonts.def
             )
         }
     }
@@ -138,7 +97,7 @@ data class SliderDragModifier(
     val step: Float,
     val onValueChange: (Float) -> Unit
 ) : UIModifier.Element {
-    override fun applyTo(node: org.mdt.core.ui.UINode) {
+    override fun applyTo(node: UINode) {
         val update = { event: PointerEvent ->
             val w = node.bounds.width - node.padL - node.padR
             if (w > 0f) {
@@ -157,4 +116,3 @@ data class SliderDragModifier(
         node.onPointerDrag = update
     }
 }
-

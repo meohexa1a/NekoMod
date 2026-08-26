@@ -7,38 +7,35 @@ import androidx.compose.runtime.ComposeNode
 import arc.graphics.Color
 import org.mdt.core.ui.compose.NodeApplier
 import org.mdt.core.ui.compose.UIModifier
+import org.mdt.ui.theme.Theme
 
 /**
  * ## TextFieldColors
  *
- * Visual color palette state for [TextField].
+ * Visual color palette state for Apple iOS-style [TextField].
  */
 data class TextFieldColors(
-    val background: Color = Color.valueOf("181926"),
-    val text: Color = Color.valueOf("cad3f5"),
-    val placeholder: Color = Color.valueOf("5b6078"),
-    val border: Color = Color.valueOf("363a4f"),
-    val focusBorder: Color = Color.valueOf("2563eb"),
-    val cursor: Color = Color.valueOf("85c1dc"),
-    val selection: Color = Color.valueOf("363a4f").a(0.8f)
-) {
-    companion object {
-        val Default = TextFieldColors()
-    }
-}
+    val background: Color,
+    val text: Color,
+    val placeholder: Color,
+    val border: Color,
+    val focusBorder: Color,
+    val cursor: Color,
+    val selection: Color
+)
 
 /**
  * ## TextField
  *
- * Declarative single-line text input field supporting real-time editing,
- * cursor positioning, selection, and OS clipboard integration.
+ * Apple iOS-style inset Frosted Glass text field with cursor animation,
+ * selection bounding box, placeholder label, and active focus glow.
  *
  * @param value Current string value.
  * @param onValueChange Callback invoked when the user types or modifies text.
  * @param modifier Chainable [UIModifier].
  * @param placeholder Hint text displayed when [value] is empty.
  * @param enabled Whether this text input accepts focus and typing.
- * @param colors Styling palette ([TextFieldColors]).
+ * @param colors Optional custom styling palette (defaults to [Theme] tokens).
  */
 @Composable
 fun TextField(
@@ -47,7 +44,15 @@ fun TextField(
     modifier: UIModifier = UIModifier,
     placeholder: String = "",
     enabled: Boolean = true,
-    colors: TextFieldColors = TextFieldColors.Default
+    colors: TextFieldColors = TextFieldColors(
+        background = Theme.colors.surfacePrimary,
+        text = Theme.colors.textPrimary,
+        placeholder = Theme.colors.textTertiary,
+        border = Theme.colors.glassBorderSubtle,
+        focusBorder = Theme.colors.systemBlue,
+        cursor = Theme.colors.systemBlue,
+        selection = Theme.colors.systemBlue.cpy().apply { a = 0.35f }
+    )
 ) {
     ComposeNode<TextFieldNode, NodeApplier>(
         factory = {

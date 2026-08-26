@@ -4,25 +4,27 @@ package org.mdt.ui.components.surface
 
 import androidx.compose.runtime.Composable
 import arc.graphics.Color
+import org.mdt.core.ui.compose.*
 import org.mdt.ui.components.layout.Box
-import org.mdt.core.ui.compose.UIModifier
-import org.mdt.core.ui.compose.background
-import org.mdt.core.ui.compose.fillMaxWidth
-import org.mdt.core.ui.compose.height
+import org.mdt.ui.theme.Theme
 
 /**
  * ## Divider
  *
- * Thin horizontal visual divider line.
+ * Subtle hairline glass separator line.
+ *
+ * @param modifier Chainable [UIModifier].
+ * @param color Line color (defaults to [Theme.colors.divider]).
+ * @param thickness Line thickness in pixels (defaults to 1f).
  */
 @Composable
 fun Divider(
     modifier: UIModifier = UIModifier,
-    color: Color = Color.valueOf("363a4f"),
+    color: Color = Theme.colors.divider,
     thickness: Float = 1f
 ) {
     Box(
-        modifier = UIModifier
+        modifier = Modifier
             .fillMaxWidth()
             .height(thickness)
             .background(color)

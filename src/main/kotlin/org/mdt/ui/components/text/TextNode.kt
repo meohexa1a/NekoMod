@@ -90,13 +90,12 @@ open class TextNode(
 
         f.color = textVisuals.color
 
+        val capH = f.data.capHeight
         if (textVisuals.wrap && innerW > 0f) {
             layoutHelper.setText(f, text, textVisuals.color, innerW, textVisuals.align, true)
-            val capH = f.data.capHeight
             val drawY = innerY + (innerH + layoutHelper.height) * 0.5f
             f.draw(text, innerX, drawY, innerW, textVisuals.align, true)
         } else {
-            val capH = f.data.capHeight
             val drawY = innerY + (innerH + capH) * 0.5f
             f.draw(text, innerX, drawY)
         }

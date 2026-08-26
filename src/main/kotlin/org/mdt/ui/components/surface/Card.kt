@@ -4,44 +4,76 @@ package org.mdt.ui.components.surface
 
 import androidx.compose.runtime.Composable
 import arc.graphics.Color
+import org.mdt.core.ui.compose.*
 import org.mdt.ui.components.layout.Box
-import org.mdt.core.ui.compose.BoxScope
-import org.mdt.core.ui.compose.UIModifier
-import org.mdt.core.ui.compose.backdrop
-import org.mdt.core.ui.compose.background
-import org.mdt.core.ui.compose.border
-import org.mdt.core.ui.compose.cornerRadius
-import org.mdt.core.ui.compose.pad
-import org.mdt.core.ui.compose.shadow
+import org.mdt.ui.theme.GlassMaterialPreset
+import org.mdt.ui.theme.Theme
+import org.mdt.ui.theme.glassMaterial
+
+/**
+ * ## CardVariant
+ *
+ * Surface styling variants for cards and containers.
+ */
+enum class CardVariant {
+    /** Apple Frosted Glass with 2-pass Gaussian backdrop blur, specular border, and ambient shadow. */
+    GLASS,
+
+    /** Opaque elevated surface with prominent drop shadow. */
+    ELEVATED,
+
+    /** Translucent surface with subtle hairline border and zero blur. */
+    OUTLINED,
+
+    /** Flat solid colored card. */
+    SOLID
+}
 
 /**
  * ## Card
  *
- * Glassmorphic surface container with rounded corners, subtle shadow, and frosted backdrop blur.
+ * Apple iOS-style surface container featuring multi-pass Frosted Glass blur,
+ * specular highlight borders, and soft diffuse drop shadows.
+ *
+ * @param modifier Chainable [UIModifier].
+ * @param variant Visual style variant ([CardVariant.GLASS], [CardVariant.ELEVATED], etc.).
+ * @param radius Corner radius in pixels (defaults to [Theme.shapes.large]).
+ * @param padding Inward content padding in pixels (defaults to 16f).
+ * @param content Declarative child UI tree.
  */
 @Composable
 fun Card(
     modifier: UIModifier = UIModifier,
-    backgroundColor: Color = Color.valueOf("1e2030").a(0.85f),
-    borderColor: Color = Color.valueOf("363a4f").a(0.8f),
-    radius: Float = 12f,
+    variant: CardVariant = CardVariant.GLASS,
+    radius: Float = Theme.shapes.large,
     padding: Float = 16f,
-    enableBackdrop: Boolean = true,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val base = UIModifier
-        .cornerRadius(radius)
-        .background(backgroundColor)
-        .border(1f, borderColor)
-        .shadow(Color.black.a(0.4f), offsetX = 0f, offsetY = -4f, blur = 16f, spread = 2f)
-        .pad(padding)
+    val colors = Theme.colors
 
-    val styledModifier = if (enableBackdrop) {
-        base.backdrop(blur = true, blurRadius = 12f)
-    } else base
+    val baseModifier = when (variant) {
+        CardVariant.GLASS -> Modifier.glassMaterial(
+            preset = GlassMaterialPreset.REGULAR,
+            radius = radius,
+            tint = colors.surfaceGrouped,
+            border = colors.glassBorderRegular
+        )
+        CardVariant.ELEVATED -> Modifier
+            .radius(radius)
+            .background(colors.surfaceElevated)
+            .border(1f, colors.glassBorderSubtle)
+            .shadow(colors.shadowKey, offsetX = 0f, offsetY = -4f, blur = 16f, spread = 2f)
+        CardVariant.OUTLINED -> Modifier
+            .radius(radius)
+            .background(colors.surfacePrimary)
+            .border(1f, colors.glassBorderRegular)
+        CardVariant.SOLID -> Modifier
+            .radius(radius)
+            .background(colors.surfacePrimary)
+    }
 
     Box(
-        modifier = styledModifier.then(modifier),
+        modifier = baseModifier.pad(padding).then(modifier),
         content = content
     )
 }
