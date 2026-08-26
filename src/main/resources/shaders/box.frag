@@ -8,6 +8,7 @@ uniform vec4 u_fillColor;
 uniform sampler2D u_fillTexture;
 uniform vec2 u_uvScale;
 uniform vec2 u_uvOffset;
+uniform vec4 u_uvBounds; // minX, minY, maxX, maxY
 
 uniform float u_borderWidth;
 uniform vec4 u_borderColor;
@@ -115,7 +116,13 @@ void main() {
     if (abs(u_fillMode - 1.0) < 0.1) {
         vec2 texUv = uv * u_uvScale + u_uvOffset;
         vec4 texColor = texture2D(u_fillTexture, texUv);
-        color = vec4(texColor.rgb * u_fillColor.rgb, texColor.a * u_fillColor.a * fillAlpha);
+
+        // Precise Sub-pixel Atlas Boundary Clamping (Zero Edge Bleed)
+        float insideU = step(u_uvBounds.x - 0.0001, texUv.x) * step(texUv.x, u_uvBounds.z + 0.0001);
+        float insideV = step(u_uvBounds.y - 0.0001, texUv.y) * step(texUv.y, u_uvBounds.w + 0.0001);
+        float atlasAlpha = insideU * insideV;
+
+        color = vec4(texColor.rgb * u_fillColor.rgb, texColor.a * u_fillColor.a * fillAlpha * atlasAlpha);
     } else {
         vec4 baseFill = u_fillColor;
         if (u_progressColor.a > 0.001 && u_progress > 0.0001) {
@@ -131,14 +138,14 @@ void main() {
         vec2 backUv = u_backdropCoords.xy + uv * (u_backdropCoords.zw - u_backdropCoords.xy);
         vec4 backColor = texture2D(u_backdropTex, backUv);
 
-        // Vibrancy saturation & brightness lift
+        // Vibrancy saturation & subtle contrast lift
         vec3 rgb = backColor.rgb;
         float luma = dot(rgb, vec3(0.299, 0.587, 0.114));
-        rgb = mix(vec3(luma), rgb, 1.30);
-        rgb = pow(max(rgb, vec3(0.0)), vec3(0.90));
+        rgb = mix(vec3(luma), rgb, 1.25);
+        rgb = pow(max(rgb, vec3(0.0)), vec3(0.92));
 
-        // Subtle specular glass light gradient (soft highlight at top)
-        float topSheen = max(0.0, 1.0 - uv.y) * 0.06;
+        // Natural Top-down environmental specular glass sheen
+        float topSheen = max(0.0, 1.0 - uv.y) * 0.05;
         rgb += vec3(topSheen);
 
         // Blend with tinted glass overlay
@@ -161,7 +168,7 @@ void main() {
         color.rgb = mix(color.rgb, u_innerShadowColor.rgb, inner * u_innerShadowColor.a * fillAlpha);
     }
 
-    // 5. Border Stroke (Hairline Specular Glass Edge)
+    // 5. Border Stroke (Beveled Top-Left Specular Light Highlight)
     if (u_borderWidth > 0.001) {
         float bw = u_borderWidth;
         vec2 innerSize = vec2(max(u_size.x - bw * 2.0, 0.0), max(u_size.y - bw * 2.0, 0.0));
@@ -183,8 +190,13 @@ void main() {
                 draw = step(seg, u_dashRatio);
                 if (u_borderStyle > 1.1) draw = abs(draw - step(0.5, seg));
             }
-            color.rgb = mix(color.rgb, u_borderColor.rgb, borderAlpha * draw);
-            color.a = max(color.a, borderAlpha * draw * u_borderColor.a);
+
+            // Directional Light: Top-Left edge catches overhead ambient light, bottom edge stays subtle
+            float directionalFactor = clamp((1.0 - uv.y) * 0.7 + (1.0 - uv.x) * 0.3, 0.4, 1.4);
+            vec4 bColor = vec4(u_borderColor.rgb, u_borderColor.a * directionalFactor);
+
+            color.rgb = mix(color.rgb, bColor.rgb, borderAlpha * draw);
+            color.a = max(color.a, borderAlpha * draw * bColor.a);
         }
     }
 

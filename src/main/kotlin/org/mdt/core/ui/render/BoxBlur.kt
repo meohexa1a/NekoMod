@@ -14,12 +14,24 @@ import org.mdt.ui.components.layout.BoxVisuals
  * ## BoxBlur
  *
  * High-performance 2-pass Gaussian backdrop blur coordinator.
- * Lazily captures the framebuffer and performs downscaled ping-pong blur passes on-demand.
+ * Lazily captures the framebuffer and performs ping-pong blur passes on-demand.
  *
  * See: docs/rendering-shaders/rendering_shaders_en.md
  */
 object BoxBlur {
-    private const val DOWNSCALE_FACTOR = 0.5f
+
+    /**
+     * Blur resolution downscale factor (e.g. 1.0f for Full-Res, 0.5f for Half-Res, <= 0f to disable).
+     * Synchronized with persistent [AppSettings].
+     */
+    var downscaleFactor: Float = 1.0f
+        set(value) {
+            val clamped = value.coerceIn(0.0f, 1.0f)
+            if (field != clamped) {
+                field = clamped
+                disposeScratch()
+            }
+        }
 
     private var screenCaptureFbo: FrameBuffer? = null
     private var pingPongA: FrameBuffer? = null
@@ -34,7 +46,9 @@ object BoxBlur {
      * Guaranteed to execute at most ONCE per frame regardless of how many backdrop boxes are rendered.
      */
     fun getBlurredTexture(visuals: BoxVisuals): Texture? {
-        if (!visuals.blur || visuals.backgroundMode != BoxVisuals.BackgroundMode.BACKDROP) return null
+        if (!visuals.backdrop.enabled || visuals.background.mode != org.mdt.ui.components.layout.BackgroundFill.Mode.BACKDROP || downscaleFactor <= 0.001f) {
+            return null
+        }
 
         val currentFrame = if (Core.graphics != null) Core.graphics.frameId else System.nanoTime()
         if (lastFrameId == currentFrame && blurredTexture != null) {
@@ -46,8 +60,9 @@ object BoxBlur {
 
         val capture = captureScreen(screenW, screenH) ?: return null
 
-        val fbW = maxOf(64, (screenW * DOWNSCALE_FACTOR).toInt())
-        val fbH = maxOf(64, (screenH * DOWNSCALE_FACTOR).toInt())
+        val scale = downscaleFactor.coerceIn(0.1f, 1.0f)
+        val fbW = maxOf(64, (screenW * scale).toInt())
+        val fbH = maxOf(64, (screenH * scale).toInt())
 
         val existing = pingPongA
         if (existing != null && (existing.width != fbW || existing.height != fbH)) {
@@ -65,7 +80,7 @@ object BoxBlur {
         Draw.flush()
         scratchMat.set(Draw.proj())
 
-        // 1. Copy downscaled full screen capture into pingPongA with dedicated FBO projection (pure white color)
+        // 1. Copy captured screen into pingPongA with dedicated FBO projection (pure white color)
         dstA.begin()
         Draw.proj(0f, 0f, fbW.toFloat(), fbH.toFloat())
         Draw.color(Color.white)
@@ -81,13 +96,13 @@ object BoxBlur {
 
         // 2. Perform 2-pass Gaussian blur ping-pong passes
         Shaders.ensure()
-        var radius = visuals.blurRadius * DOWNSCALE_FACTOR
-        val iterations = visuals.blurIterations.coerceIn(1, 4)
+        var radius = visuals.backdrop.blurRadius * scale
+        val iterations = visuals.backdrop.iterations.coerceIn(1, 4)
 
         repeat(iterations) {
             blurPass(dstA, dstB, fbW, fbH, radius, 1f, 0f)
             blurPass(dstB, dstA, fbW, fbH, radius, 0f, 1f)
-            radius *= 1.35f
+            radius *= 1.15f
         }
 
         // Restore camera/canvas projection matrix

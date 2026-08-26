@@ -6,13 +6,16 @@ uniform vec2 u_dir;
 varying vec2 v_texCoord0;
 
 void main() {
-    vec2 step = u_texelSize * u_dir * max(u_radius, 0.0);
+    // Clamped continuous sampling step to avoid Nyquist undersampling gaps / grid artifacts
+    float safeRadius = clamp(u_radius, 0.4, 1.2);
+    vec2 step = u_texelSize * u_dir * safeRadius;
 
-    vec4 color = texture2D(u_texture, v_texCoord0) * 0.2270270270;
-    color += texture2D(u_texture, v_texCoord0 + step * 1.3846153846) * 0.3162162162;
-    color += texture2D(u_texture, v_texCoord0 - step * 1.3846153846) * 0.3162162162;
-    color += texture2D(u_texture, v_texCoord0 + step * 3.2307692308) * 0.0702702703;
-    color += texture2D(u_texture, v_texCoord0 - step * 3.2307692308) * 0.0702702703;
+    // Mathematically correct center-peaked 9-tap Gaussian bilinear convolution (Zero Ghosting)
+    vec4 color = texture2D(u_texture, v_texCoord0) * 0.382928;
+    color += texture2D(u_texture, v_texCoord0 + step * 1.411764) * 0.241536;
+    color += texture2D(u_texture, v_texCoord0 - step * 1.411764) * 0.241536;
+    color += texture2D(u_texture, v_texCoord0 + step * 3.294117) * 0.067000;
+    color += texture2D(u_texture, v_texCoord0 - step * 3.294117) * 0.067000;
 
     gl_FragColor = color;
 }

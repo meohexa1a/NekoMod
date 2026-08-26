@@ -60,7 +60,7 @@ object BoxRenderer {
         Core.atlas.white().texture.bind()
         Draw.flush()
 
-        val glowMargin = if (hasGlow(visuals)) (visuals.glowSpread + visuals.glowBlur) else 0f
+        val glowMargin = if (hasGlow(visuals)) (visuals.glow.spread + visuals.glow.blur) else 0f
         val margin = 1f + glowMargin
         val qx = x - margin
         val qy = y - margin
@@ -92,34 +92,36 @@ object BoxRenderer {
         s.setUniformf("u_opacity", v.opacity)
         s.setUniformf(
             "u_cornerRadii",
-            v.topLeftRadius, v.topRightRadius,
-            v.bottomRightRadius, v.bottomLeftRadius
+            v.radii.topStart, v.radii.topEnd,
+            v.radii.bottomEnd, v.radii.bottomStart
         )
         s.setUniformf("u_edgeSoftness", 1f)
-        s.setUniformf("u_fillMode", v.backgroundMode.fillMode.toFloat())
-        s.setUniformf("u_fillColor", v.fillColor.r, v.fillColor.g, v.fillColor.b, v.fillColor.a)
-        s.setUniformf("u_progress", v.progress)
-        s.setUniformf("u_progressColor", v.progressColor.r, v.progressColor.g, v.progressColor.b, v.progressColor.a)
+        s.setUniformf("u_fillMode", v.background.mode.fillMode.toFloat())
+        s.setUniformf("u_fillColor", v.background.color.r, v.background.color.g, v.background.color.b, v.background.color.a)
+        s.setUniformf("u_progress", v.progress.fraction)
+        s.setUniformf("u_progressColor", v.progress.color.r, v.progress.color.g, v.progress.color.b, v.progress.color.a)
     }
 
     private fun applyFill(s: Shader, v: BoxVisuals, w: Float, h: Float) {
-        if (v.backgroundMode != BoxVisuals.BackgroundMode.TEXTURE) return
-        val tex = v.fillRegion?.texture ?: v.fillTexture ?: return
-        v.computeUVs(w, h)
-        s.setUniformf("u_uvScale", v.uvScaleX, v.uvScaleY)
-        s.setUniformf("u_uvOffset", v.uvOffsetX, v.uvOffsetY)
+        if (v.background.mode != org.mdt.ui.components.layout.BackgroundFill.Mode.TEXTURE) return
+        val tex = v.background.region?.texture ?: v.background.texture ?: return
+        v.background.computeUVs(w, h)
+        s.setUniformf("u_uvScale", v.background.uvScaleX, v.background.uvScaleY)
+        s.setUniformf("u_uvOffset", v.background.uvOffsetX, v.background.uvOffsetY)
+        s.setUniformf("u_uvBounds", v.background.uvMinX, v.background.uvMinY, v.background.uvMaxX, v.background.uvMaxY)
         Gl.activeTexture(Gl.texture0 + Shaders.TEX_UNIT_FILL)
         tex.bind()
     }
 
     private fun applyBorder(s: Shader, v: BoxVisuals, w: Float, h: Float) {
-        if (v.borderWidth > 0.001f) {
-            s.setUniformf("u_borderWidth", minOf(v.borderWidth, minOf(w, h) * 0.5f))
-            s.setUniformf("u_borderColor", v.borderColor.r, v.borderColor.g, v.borderColor.b, v.borderColor.a)
-            s.setUniformf("u_borderStyle", v.borderStyle.value.toFloat())
-            if (v.borderStyle != BoxVisuals.BorderStyle.SOLID) {
-                s.setUniformf("u_dashLength", maxOf(v.dashLength, 0.1f))
-                s.setUniformf("u_dashRatio", v.dashRatio)
+        val border = v.border
+        if (border.isVisible) {
+            s.setUniformf("u_borderWidth", minOf(border.width, minOf(w, h) * 0.5f))
+            s.setUniformf("u_borderColor", border.color.r, border.color.g, border.color.b, border.color.a)
+            s.setUniformf("u_borderStyle", border.style.value.toFloat())
+            if (border.style != org.mdt.ui.components.layout.Border.Style.SOLID) {
+                s.setUniformf("u_dashLength", maxOf(border.dashLength, 0.1f))
+                s.setUniformf("u_dashRatio", border.dashRatio)
             }
         } else {
             s.setUniformf("u_borderWidth", 0f)
@@ -127,26 +129,27 @@ object BoxRenderer {
     }
 
     private fun applyInnerShadow(s: Shader, v: BoxVisuals) {
-        if (v.innerShadowColor.a > 0.001f && (v.innerShadowSpread > 0.001f || v.innerShadowBlur > 0.001f)) {
+        val inner = v.innerShadow
+        if (inner.isVisible) {
             s.setUniformf(
                 "u_innerShadowColor",
-                v.innerShadowColor.r, v.innerShadowColor.g, v.innerShadowColor.b, v.innerShadowColor.a
+                inner.color.r, inner.color.g, inner.color.b, inner.color.a
             )
-            s.setUniformf("u_innerShadowSpread", v.innerShadowSpread)
-            s.setUniformf("u_innerShadowBlur", v.innerShadowBlur)
+            s.setUniformf("u_innerShadowSpread", inner.spread)
+            s.setUniformf("u_innerShadowBlur", inner.blur)
         } else {
             s.setUniformf("u_innerShadowColor", 0f, 0f, 0f, 0f)
         }
     }
 
-    private fun hasGlow(v: BoxVisuals): Boolean =
-        v.glowColor.a > 0.001f && (v.glowSpread > 0.001f || v.glowBlur > 0.001f)
+    private fun hasGlow(v: BoxVisuals): Boolean = v.glow.isVisible
 
     private fun applyGlow(s: Shader, v: BoxVisuals) {
-        if (hasGlow(v)) {
-            s.setUniformf("u_glowColor", v.glowColor.r, v.glowColor.g, v.glowColor.b, v.glowColor.a)
-            s.setUniformf("u_glowSpread", v.glowSpread)
-            s.setUniformf("u_glowBlur", v.glowBlur)
+        val glow = v.glow
+        if (glow.isVisible) {
+            s.setUniformf("u_glowColor", glow.color.r, glow.color.g, glow.color.b, glow.color.a)
+            s.setUniformf("u_glowSpread", glow.spread)
+            s.setUniformf("u_glowBlur", glow.blur)
         } else {
             s.setUniformf("u_glowColor", 0f, 0f, 0f, 0f)
         }
@@ -161,15 +164,16 @@ object BoxRenderer {
         screenWidth: Float,
         screenHeight: Float
     ) {
-        if (backdrop != null && v.backgroundMode == BoxVisuals.BackgroundMode.BACKDROP && screenWidth > 0f && screenHeight > 0f) {
-            s.setUniformf("u_backdropWeight", v.backdropWeight)
+        val filter = v.backdrop
+        if (backdrop != null && v.background.mode == org.mdt.ui.components.layout.BackgroundFill.Mode.BACKDROP && screenWidth > 0f && screenHeight > 0f) {
+            s.setUniformf("u_backdropWeight", filter.weight)
             val u0 = (x / screenWidth).coerceIn(0f, 1f)
             val v0 = (y / screenHeight).coerceIn(0f, 1f)
             val u1 = ((x + w) / screenWidth).coerceIn(0f, 1f)
             val v1 = ((y + h) / screenHeight).coerceIn(0f, 1f)
             s.setUniformf("u_backdropCoords", u0, v0, u1, v1)
-            s.setUniformf("u_backdropBlend", v.backdropBlend)
-            s.setUniformf("u_backdropMinAlpha", v.backdropMinAlpha)
+            s.setUniformf("u_backdropBlend", filter.blend)
+            s.setUniformf("u_backdropMinAlpha", filter.minAlpha)
             Gl.activeTexture(Gl.texture0 + Shaders.TEX_UNIT_BACKDROP)
             backdrop.bind()
         } else {
@@ -178,11 +182,12 @@ object BoxRenderer {
     }
 
     private fun applyFilter(s: Shader, v: BoxVisuals) {
-        if (v.filterMode != BoxVisuals.FilterMode.NONE && v.filterAmount > 0.001f) {
-            s.setUniformf("u_colorFilter", v.filterMode.value.toFloat(), v.filterAmount, 0f, 0f)
+        val filter = v.filter
+        if (filter.isVisible) {
+            s.setUniformf("u_colorFilter", filter.mode.value.toFloat(), filter.amount, 0f, 0f)
         } else {
             s.setUniformf("u_colorFilter", 0f, 0f, 0f, 0f)
         }
-        s.setUniformf("u_noiseAmount", v.noiseAmount)
+        s.setUniformf("u_noiseAmount", filter.noiseAmount)
     }
 }
