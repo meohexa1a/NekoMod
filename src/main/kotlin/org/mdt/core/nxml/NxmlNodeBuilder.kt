@@ -17,7 +17,8 @@ import org.mdt.ui.components.text.TextNode
  * ## NxmlNodeBuilder
  *
  * Recursive compiler and evaluator translating [org.dom4j.Element] DOM trees into live [UINode] scene graphs.
- * Handles primitive layout containers, typography nodes, images, scroll views, and custom templates.
+ * Handles Apple-style Glassmorphism backdrop blur, primitive layout containers, typography nodes, images,
+ * and custom templates.
  *
  * See: docs/nxml-schema/nxml_specification_en.md
  */
@@ -178,16 +179,26 @@ object NxmlNodeBuilder {
         val cardNode = LayoutNode()
         val visuals = cardNode.ensureVisuals()
 
-        // Apple frosted glass styling
+        // Apple frosted glass styling defaults
         visuals.background.mode = BackgroundFill.Mode.BACKDROP
-        visuals.background.color.set(Color.valueOf("1e1e1e"))
+        visuals.backdrop.enabled = true
         visuals.backdrop.blurRadius = element.getFloatAttr("blur", 20f)
-        visuals.backdrop.weight = 0.85f
-        visuals.radii.set(element.getFloatAttr("radius", 14f))
-        visuals.border.width = 1f
-        visuals.border.color.set(Color.valueOf("333333"))
+        visuals.backdrop.weight = element.getFloatAttr("weight", 0.90f)
+        visuals.backdrop.iterations = 2
 
-        applyCommonAttributes(cardNode, element, context)
+        val glassTint = element.getColorAttr("background", element.getColorAttr("tint", Color(0.10f, 0.11f, 0.15f, 0.65f)))
+        visuals.background.color.set(glassTint)
+        visuals.backdrop.tint.set(glassTint)
+
+        visuals.radii.set(element.getFloatAttr("radius", 16f))
+        visuals.border.width = element.getFloatAttr("borderwidth", 1f)
+        visuals.border.color.set(element.getColorAttr("bordercolor", Color(1f, 1f, 1f, 0.12f)))
+
+        visuals.shadow.color.set(Color(0f, 0f, 0f, 0.45f))
+        visuals.shadow.blur = 24f
+        visuals.shadow.offsetY = -3f
+
+        applyCommonAttributes(cardNode, element, context, isCard = true)
         buildChildren(cardNode, element, context)
         return cardNode
     }
@@ -196,9 +207,10 @@ object NxmlNodeBuilder {
         val buttonNode = LayoutNode()
         val visuals = buttonNode.ensureVisuals()
         visuals.radii.set(element.getFloatAttr("radius", 8f))
-        visuals.background.color.set(element.getColorAttr("background", Color.valueOf("0d99ff")))
-        visuals.border.color.set(Color.valueOf("333333"))
-        visuals.border.width = 1f
+        visuals.background.color.set(element.getColorAttr("background", Color.valueOf("0a84ff")))
+        visuals.background.mode = BackgroundFill.Mode.COLOR
+        visuals.border.color.set(element.getColorAttr("bordercolor", Color(1f, 1f, 1f, 0.12f)))
+        visuals.border.width = element.getFloatAttr("borderwidth", 0f)
 
         buttonNode.pad(14f, 8f, 14f, 8f)
         buttonNode.cursor = arc.Graphics.Cursor.SystemCursor.hand
@@ -218,7 +230,6 @@ object NxmlNodeBuilder {
     private fun buildCustomOrFallback(element: Element, context: NxmlContext): UINode {
         val template = context.findTemplate(element.name)
         if (template != null) {
-            // Expand template recursively
             val expandedNode = build(template, context)
             if (expandedNode is LayoutNode) {
                 applyCommonAttributes(expandedNode, element, context)
@@ -236,7 +247,7 @@ object NxmlNodeBuilder {
     // III. Common Attribute Applicator
     // =========================================================================
 
-    private fun applyCommonAttributes(node: LayoutNode, element: Element, context: NxmlContext) {
+    private fun applyCommonAttributes(node: LayoutNode, element: Element, context: NxmlContext, isCard: Boolean = false) {
         // Dimensions
         val width = element.getFloatAttr("width", -1f)
         if (width >= 0f) node.width = width
@@ -272,19 +283,45 @@ object NxmlNodeBuilder {
         val anchorPreset = element.getAnchorPresetAttr("anchor")
         if (anchorPreset != null) {
             node.anchorData.setPreset(anchorPreset)
-        } else if (element.getBooleanAttr("fill", false)) {
-            node.anchorData.setPreset(LayoutPreset.FULL_RECT)
         }
 
-        // Visuals (Background, Border, Radius, Glow)
+        if (element.getBooleanAttr("fill", false)) {
+            node.sizeFlagsHorizontal = node.sizeFlagsHorizontal or SizeFlags.EXPAND_FILL
+            node.sizeFlagsVertical = node.sizeFlagsVertical or SizeFlags.EXPAND_FILL
+        }
+
+        // Visuals (Background, Glass, Border, Radius, Glow)
+        val isGlass = !isCard && (element.getBooleanAttr("glass", false) || element.getFloatAttr("blur", 0f) > 0f)
         val hasBg = element.attribute("background") != null || element.attribute("bg") != null
         val bgColor = element.getColorAttr("background", element.getColorAttr("bg", Color.clear))
         val radius = element.getFloatAttr("radius", 0f)
         val borderWidth = element.getFloatAttr("borderwidth", 0f)
-        val borderColor = element.getColorAttr("bordercolor", Color.clear)
+        val borderColor = element.getColorAttr("bordercolor", Color(1f, 1f, 1f, 0.12f))
         val glowColor = element.getColorAttr("glow", Color.clear)
 
-        if (hasBg || radius > 0f || borderWidth > 0f || glowColor.a > 0f) {
+        if (isGlass) {
+            val visuals = node.ensureVisuals()
+            visuals.background.mode = BackgroundFill.Mode.BACKDROP
+            visuals.backdrop.enabled = true
+            visuals.backdrop.blurRadius = element.getFloatAttr("blur", 20f)
+            visuals.backdrop.weight = element.getFloatAttr("weight", 0.90f)
+            visuals.backdrop.iterations = 2
+            val tint = if (hasBg) bgColor else Color(0.10f, 0.11f, 0.15f, 0.65f)
+            visuals.background.color.set(tint)
+            visuals.backdrop.tint.set(tint)
+
+            if (radius > 0f) visuals.radii.set(radius)
+            if (borderWidth > 0f) {
+                visuals.border.width = borderWidth
+                visuals.border.color.set(borderColor)
+            } else {
+                visuals.border.width = 1f
+                visuals.border.color.set(borderColor)
+            }
+            visuals.shadow.color.set(Color(0f, 0f, 0f, 0.40f))
+            visuals.shadow.blur = 24f
+            visuals.shadow.offsetY = -3f
+        } else if (!isCard && (hasBg || radius > 0f || borderWidth > 0f || glowColor.a > 0f)) {
             val visuals = node.ensureVisuals()
             if (hasBg) {
                 visuals.background.color.set(bgColor)
