@@ -96,23 +96,29 @@ class TextEditState(
         return true
     }
 
-    fun insert(c: Char) {
-        if (c < ' ' && c != '\t') return
+    // =========================================================================
+    // I. Character & String Insertion
+    // =========================================================================
+
+    fun insert(character: Char) {
+        if (character < ' ' && character != '\t') return
+
         deleteSelection()
         val safeCursor = cursor.coerceIn(0, text.length)
-        val newText = text.substring(0, safeCursor) + c + text.substring(safeCursor)
+        val newText = text.substring(0, safeCursor) + character + text.substring(safeCursor)
         cursor = safeCursor + 1
         text = newText
         onTextChange?.invoke(text)
         resetBlink()
     }
 
-    fun insert(str: String) {
-        if (str.isEmpty()) return
+    fun insert(textToInsert: String) {
+        if (textToInsert.isEmpty()) return
+
         deleteSelection()
         val safeCursor = cursor.coerceIn(0, text.length)
-        val newText = text.substring(0, safeCursor) + str + text.substring(safeCursor)
-        cursor = safeCursor + str.length
+        val newText = text.substring(0, safeCursor) + textToInsert + text.substring(safeCursor)
+        cursor = safeCursor + textToInsert.length
         text = newText
         onTextChange?.invoke(text)
         resetBlink()
@@ -120,6 +126,7 @@ class TextEditState(
 
     fun backspace(): Boolean {
         if (deleteSelection()) return true
+
         if (cursor > 0 && text.isNotEmpty()) {
             val safeCursor = cursor.coerceIn(1, text.length)
             val newText = text.substring(0, safeCursor - 1) + text.substring(safeCursor)
@@ -134,6 +141,7 @@ class TextEditState(
 
     fun delete(): Boolean {
         if (deleteSelection()) return true
+
         if (cursor < text.length && text.isNotEmpty()) {
             val safeCursor = cursor.coerceIn(0, text.length - 1)
             val newText = text.substring(0, safeCursor) + text.substring(safeCursor + 1)
@@ -144,6 +152,10 @@ class TextEditState(
         }
         return false
     }
+
+    // =========================================================================
+    // II. Cursor Navigation & Selection Range
+    // =========================================================================
 
     fun moveLeft(extendSelection: Boolean = false) {
         if (extendSelection) {
@@ -198,40 +210,51 @@ class TextEditState(
     }
 
     fun moveCursor(index: Int, extendSelection: Boolean = false) {
-        val clamped = index.coerceIn(0, text.length)
+        val clampedIndex = index.coerceIn(0, text.length)
         if (extendSelection) {
             if (selectionStart == -1) selectionStart = cursor
         } else {
             selectionStart = -1
         }
-        cursor = clamped
+        cursor = clampedIndex
         resetBlink()
     }
 
+    // =========================================================================
+    // III. Clipboard Operations
+    // =========================================================================
+
     fun copy() {
-        val sel = getSelectedText()
-        if (sel.isNotEmpty() && Core.app != null) Core.app.clipboardText = sel
+        val selectedText = getSelectedText()
+        if (selectedText.isNotEmpty() && Core.app != null) {
+            Core.app.clipboardText = selectedText
+        }
     }
 
     fun cut() {
-        val sel = getSelectedText()
-        if (sel.isNotEmpty()) {
-            if (Core.app != null) Core.app.clipboardText = sel
+        val selectedText = getSelectedText()
+        if (selectedText.isNotEmpty()) {
+            if (Core.app != null) Core.app.clipboardText = selectedText
             deleteSelection()
         }
     }
 
     fun paste() {
         if (Core.app != null) {
-            val clip = Core.app.clipboardText
-            if (!clip.isNullOrEmpty()) insert(clip)
+            val clipboardText = Core.app.clipboardText
+            if (!clipboardText.isNullOrEmpty()) insert(clipboardText)
         }
     }
 
-    fun onKeyTyped(char: Char): Boolean {
+    // =========================================================================
+    // IV. Keyboard Event Processors
+    // =========================================================================
+
+    fun onKeyTyped(character: Char): Boolean {
         if (!isFocused) return false
-        if (char >= ' ' || char == '\t') {
-            insert(char)
+
+        if (character >= ' ' || character == '\t') {
+            insert(character)
             return true
         }
         return false
@@ -239,8 +262,9 @@ class TextEditState(
 
     fun onKeyDown(key: KeyCode): Boolean {
         if (!isFocused) return false
-        val isCtrl = Core.input.ctrl()
-        val isShift = Core.input.shift()
+
+        val isCtrl = Core.input != null && Core.input.ctrl()
+        val isShift = Core.input != null && Core.input.shift()
 
         return when (key) {
             KeyCode.backspace -> backspace()

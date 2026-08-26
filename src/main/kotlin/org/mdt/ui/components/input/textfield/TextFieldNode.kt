@@ -45,7 +45,7 @@ open class TextFieldNode : LayoutNode() {
         isFocusable = true
         pad(left = 12f, right = 12f, top = 6f, bottom = 6f)
         boxVisuals.radius(6f)
-        boxVisuals.fillColor.set(Color.valueOf("181926"))
+        boxVisuals.background.color.set(Color.valueOf("181926"))
         boxVisuals.border(1f, normalBorderColor)
         minHeight = 32f
 
@@ -75,43 +75,44 @@ open class TextFieldNode : LayoutNode() {
         val text = editState.text
         if (text.isEmpty()) return 0
 
-        val f = Fonts.def
-        val oldSX = f.scaleX
-        val oldSY = f.scaleY
-        f.data.setScale(fontScale, fontScale)
+        val font = Fonts.def
+        val oldScaleX = font.scaleX
+        val oldScaleY = font.scaleY
+        font.data.setScale(fontScale, fontScale)
 
         var bestIndex = 0
         var minDiff = Float.MAX_VALUE
 
         for (i in 0..text.length) {
-            val sub = text.substring(0, i)
-            layoutHelper.setText(f, sub)
-            val w = layoutHelper.width
-            val diff = kotlin.math.abs(localX - w)
+            val substring = text.substring(0, i)
+            layoutHelper.setText(font, substring)
+            val subWidth = layoutHelper.width
+            val diff = kotlin.math.abs(localX - subWidth)
             if (diff < minDiff) {
                 minDiff = diff
                 bestIndex = i
             }
         }
 
-        f.data.setScale(oldSX, oldSY)
+        font.data.setScale(oldScaleX, oldScaleY)
         return bestIndex
     }
 
     override fun getPrefWidth(): Float {
         if (width >= 0f) return width
-        val f = Fonts.def
-        val oldSX = f.scaleX
-        val oldSY = f.scaleY
-        f.data.setScale(fontScale, fontScale)
+
+        val font = Fonts.def
+        val oldScaleX = font.scaleX
+        val oldScaleY = font.scaleY
+        font.data.setScale(fontScale, fontScale)
 
         val displayText = editState.text.ifEmpty { placeholder }
-        layoutHelper.setText(f, displayText)
-        val textW = layoutHelper.width
+        layoutHelper.setText(font, displayText)
+        val textWidth = layoutHelper.width
 
-        f.data.setScale(oldSX, oldSY)
-        val baseW = if (minWidth >= 0f) maxOf(textW, minWidth) else maxOf(textW, 120f)
-        return baseW + padL + padR
+        font.data.setScale(oldScaleX, oldScaleY)
+        val baseWidth = if (minWidth >= 0f) maxOf(textWidth, minWidth) else maxOf(textWidth, 120f)
+        return baseWidth + padL + padR
     }
 
     override fun drawSelf(renderer: EngineRenderer) {
@@ -121,10 +122,10 @@ open class TextFieldNode : LayoutNode() {
 
         // Dynamic visual feedback on focus
         if (isFocused) {
-            boxVisuals.borderColor.set(focusBorderColor)
+            boxVisuals.border.color.set(focusBorderColor)
             boxVisuals.glow(focusGlowColor, spread = 3f, blur = 6f)
         } else {
-            boxVisuals.borderColor.set(normalBorderColor)
+            boxVisuals.border.color.set(normalBorderColor)
             boxVisuals.glow(Color.clear, spread = 0f, blur = 0f)
         }
 
@@ -133,18 +134,18 @@ open class TextFieldNode : LayoutNode() {
 
         val innerX = bounds.x + padL
         val innerY = bounds.y + padB
-        val innerW = bounds.width - padL - padR
-        val innerH = bounds.height - padT - padB
+        val innerWidth = bounds.width - padL - padR
+        val innerHeight = bounds.height - padT - padB
 
-        if (innerW <= 0f || innerH <= 0f) return
+        if (innerWidth <= 0f || innerHeight <= 0f) return
 
-        val f = Fonts.def
-        val oldSX = f.scaleX
-        val oldSY = f.scaleY
-        f.data.setScale(fontScale, fontScale)
+        val font = Fonts.def
+        val oldScaleX = font.scaleX
+        val oldScaleY = font.scaleY
+        font.data.setScale(fontScale, fontScale)
 
-        val capH = f.data.capHeight
-        val textY = innerY + (innerH + capH) * 0.5f
+        val capHeight = font.data.capHeight
+        val textY = innerY + (innerHeight + capHeight) * 0.5f
 
         val text = editState.text
 
@@ -154,44 +155,44 @@ open class TextFieldNode : LayoutNode() {
             val selStartSub = text.substring(0, range.first)
             val selEndSub = text.substring(0, range.second)
 
-            layoutHelper.setText(f, selStartSub)
-            val selX1 = innerX + layoutHelper.width
+            layoutHelper.setText(font, selStartSub)
+            val selectionStartX = innerX + layoutHelper.width
 
-            layoutHelper.setText(f, selEndSub)
-            val selX2 = innerX + layoutHelper.width
+            layoutHelper.setText(font, selEndSub)
+            val selectionEndX = innerX + layoutHelper.width
 
             Draw.color(selectionColor)
             Fill.rect(
-                (selX1 + selX2) * 0.5f,
-                innerY + innerH * 0.5f,
-                selX2 - selX1,
-                innerH
+                (selectionStartX + selectionEndX) * 0.5f,
+                innerY + innerHeight * 0.5f,
+                selectionEndX - selectionStartX,
+                innerHeight
             )
             Draw.color(Color.white)
         }
 
         // 3. Draw Text / Placeholder
         if (text.isEmpty()) {
-            f.color = placeholderColor
-            f.draw(placeholder, innerX, textY)
+            font.color = placeholderColor
+            font.draw(placeholder, innerX, textY)
         } else {
-            f.color = textColor
-            f.draw(text, innerX, textY)
+            font.color = textColor
+            font.draw(text, innerX, textY)
         }
 
         // 4. Draw Caret Cursor
         if (isFocused && editState.cursorVisible) {
             val cursorSub = text.substring(0, editState.cursor.coerceIn(0, text.length))
-            layoutHelper.setText(f, cursorSub)
+            layoutHelper.setText(font, cursorSub)
             val cursorX = innerX + layoutHelper.width
 
             Draw.color(cursorColor)
-            val cursorH = capH * 1.3f
-            Fill.rect(cursorX + 1f, textY - capH * 0.4f, 1.5f, cursorH)
+            val cursorHeight = capHeight * 1.3f
+            Fill.rect(cursorX + 1f, textY - capHeight * 0.4f, 1.5f, cursorHeight)
             Draw.color(Color.white)
         }
 
-        f.data.setScale(oldSX, oldSY)
+        font.data.setScale(oldScaleX, oldScaleY)
     }
 
     companion object {

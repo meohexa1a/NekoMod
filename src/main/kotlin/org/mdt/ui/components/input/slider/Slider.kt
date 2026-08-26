@@ -99,16 +99,18 @@ data class SliderDragModifier(
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         val update = { event: PointerEvent ->
-            val w = node.bounds.width - node.padL - node.padR
-            if (w > 0f) {
+            val trackWidth = node.bounds.width - node.padL - node.padR
+            if (trackWidth > 0f) {
                 val localX = event.x - (node.bounds.x + node.padL)
-                val frac = (localX / w).coerceIn(0f, 1f)
-                var rawVal = valueRange.start + frac * span
+                val fraction = (localX / trackWidth).coerceIn(0f, 1f)
+                var rawValue = valueRange.start + fraction * span
+
                 if (step > 0f) {
-                    rawVal = Mathf.round(rawVal / step) * step
+                    rawValue = Mathf.round(rawValue / step) * step
                 }
-                val finalVal = rawVal.coerceIn(valueRange.start, valueRange.endInclusive)
-                onValueChange(finalVal)
+
+                val finalValue = rawValue.coerceIn(valueRange.start, valueRange.endInclusive)
+                onValueChange(finalValue)
                 event.isConsumed = true
             }
         }

@@ -63,7 +63,7 @@ fun TextField(
             node.touchable = enabled
             node.isFocusable = enabled
 
-            node.boxVisuals.fillColor.set(colors.background)
+            node.boxVisuals.background.color.set(colors.background)
             node.textColor.set(colors.text)
             node.placeholderColor.set(colors.placeholder)
             node.normalBorderColor.set(colors.border)
@@ -88,7 +88,7 @@ fun TextField(
                 this.isFocusable = it
             }
             set(colors) {
-                this.boxVisuals.fillColor.set(it.background)
+                this.boxVisuals.background.color.set(it.background)
                 this.textColor.set(it.text)
                 this.placeholderColor.set(it.placeholder)
                 this.normalBorderColor.set(it.border)

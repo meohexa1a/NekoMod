@@ -1,5 +1,3 @@
-@file:Suppress("FunctionName", "unused")
-
 package org.mdt.ui.components.display.image
 
 import androidx.compose.runtime.*
@@ -12,7 +10,23 @@ import org.mdt.core.engine.image.ImageSource
 import org.mdt.core.ui.compose.UIModifier
 import org.mdt.core.ui.compose.texture
 import org.mdt.ui.components.layout.Box
-import org.mdt.ui.components.layout.ScaleMode
+
+/**
+ * ## ScaleMode
+ *
+ * Scaling behavior for texture regions inside UI containers and image widgets.
+ *
+ * - [FIT]: Scales the image proportionally so it fits completely within container bounds.
+ * - [CROP]: Scales the image proportionally to completely fill container bounds, cropping overflow.
+ * - [STRETCH]: Non-uniformly stretches the image to exactly match container dimensions.
+ * - [CENTER]: Displays the image at its natural 1:1 pixel size centered in the container.
+ */
+enum class ScaleMode {
+    FIT,
+    CROP,
+    STRETCH,
+    CENTER
+}
 
 /**
  * ## Image
@@ -39,8 +53,8 @@ fun Image(
 
     DisposableEffect(source) {
         var currentHandle: TextureHandle? = null
-        imageService.load(source) { reg, handle, _ ->
-            region = reg
+        imageService.load(source) { loadedRegion, handle, _ ->
+            region = loadedRegion
             currentHandle?.release()
             currentHandle = handle
         }
@@ -51,7 +65,7 @@ fun Image(
     }
 
     Box(
-        modifier = modifier
+        modifier = UIModifier
             .texture(region, scaleMode, tint)
             .then(modifier)
     )
@@ -105,7 +119,7 @@ fun Image(
     tint: Color = Color.white
 ) {
     Box(
-        modifier = modifier
+        modifier = UIModifier
             .texture(region, scaleMode, tint)
             .then(modifier)
     )

@@ -7,9 +7,15 @@ import arc.graphics.Color
 import arc.graphics.g2d.Font
 import arc.util.Align
 import mindustry.ui.Fonts
+import org.mdt.core.engine.image.ImageSource
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.layout.Alignment
+import org.mdt.core.ui.layout.Arrangement
+import org.mdt.ui.components.display.image.Image
 import org.mdt.ui.components.layout.Box
+import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.theme.ColorTokens
 import org.mdt.ui.theme.Theme
 
 /**
@@ -63,71 +69,15 @@ fun Button(
     var isHovered by remember { mutableStateOf(false) }
     var isPressed by remember { mutableStateOf(false) }
 
-    val (bg, border, shadowColor) = when (variant) {
-        ButtonVariant.FILLED -> {
-            val base = colors.systemBlue
-            val currentBg = when {
-                !enabled -> colors.glassThin
-                isPressed -> base.cpy().mul(0.80f)
-                isHovered -> base.cpy().mul(1.15f)
-                else -> base
-            }
-            Triple(currentBg, Color.clear, if (isHovered) colors.glowAccent else Color.clear)
-        }
-        ButtonVariant.TINTED -> {
-            val base = colors.systemBlue
-            val currentBg = when {
-                !enabled -> colors.glassUltraThin
-                isPressed -> base.cpy().apply { a = 0.35f }
-                isHovered -> base.cpy().apply { a = 0.25f }
-                else -> base.cpy().apply { a = 0.15f }
-            }
-            Triple(currentBg, Color.clear, Color.clear)
-        }
-        ButtonVariant.GLASS -> {
-            val currentBg = when {
-                !enabled -> colors.glassUltraThin
-                isPressed -> colors.glassActive
-                isHovered -> colors.glassThick
-                else -> colors.glassRegular
-            }
-            Triple(currentBg, if (isHovered) colors.glassBorderSubtle else Color.clear, if (isHovered) colors.shadowAmbient else Color.clear)
-        }
-        ButtonVariant.OUTLINED -> {
-            val currentBg = when {
-                !enabled -> Color.clear
-                isPressed -> colors.glassThin
-                isHovered -> colors.glassUltraThin
-                else -> Color.clear
-            }
-            Triple(currentBg, if (isHovered) colors.glassBorderActive else colors.glassBorderSubtle, Color.clear)
-        }
-        ButtonVariant.PLAIN -> {
-            val currentBg = when {
-                !enabled -> Color.clear
-                isPressed -> colors.glassThin
-                isHovered -> colors.glassUltraThin
-                else -> Color.clear
-            }
-            Triple(currentBg, Color.clear, Color.clear)
-        }
-        ButtonVariant.DESTRUCTIVE -> {
-            val base = colors.systemRed
-            val currentBg = when {
-                !enabled -> colors.glassThin
-                isPressed -> base.cpy().mul(0.80f)
-                isHovered -> base.cpy().mul(1.15f)
-                else -> base
-            }
-            Triple(currentBg, Color.clear, if (isHovered) colors.systemRed.cpy().apply { a = 0.4f } else Color.clear)
-        }
-    }
+    val backgroundColor = computeButtonBackground(variant, enabled, isPressed, isHovered, colors)
+    val borderColor = computeButtonBorder(variant, isHovered, colors)
+    val shadowColor = computeButtonShadow(variant, isHovered, colors)
 
     Box(
         modifier = Modifier
             .radius(radius)
-            .background(bg)
-            .border(1f, border)
+            .background(backgroundColor)
+            .border(1f, borderColor)
             .shadow(shadowColor, blur = 8f, spread = 1f)
             .pad(horizontal = 16f, vertical = 8f)
             .hoverable { if (enabled) isHovered = it }
@@ -177,13 +127,13 @@ fun Button(
         enabled = enabled
     ) {
         if (icon != null) {
-            org.mdt.ui.components.layout.Row(
-                arrangement = org.mdt.core.ui.layout.Arrangement.spacedBy(8f),
-                alignment = org.mdt.core.ui.layout.Alignment.Center,
-                modifier = Modifier.align(org.mdt.core.ui.layout.Alignment.Center)
+            Row(
+                arrangement = Arrangement.spacedBy(8f),
+                alignment = Alignment.Center,
+                modifier = Modifier.align(Alignment.Center)
             ) {
-                org.mdt.ui.components.display.image.Image(
-                    source = org.mdt.core.engine.image.ImageSource.from(icon),
+                Image(
+                    source = ImageSource.from(icon),
                     tint = iconTint ?: textColor,
                     modifier = Modifier.size(16f)
                 )
@@ -203,8 +153,73 @@ fun Button(
                 font = font,
                 scale = 1.0f,
                 align = textAlign,
-                modifier = Modifier.align(org.mdt.core.ui.layout.Alignment.Center).then(textModifier)
+                modifier = Modifier.align(Alignment.Center).then(textModifier)
             )
         }
     }
+}
+
+// =========================================================================
+// Pure Style Resolution Helpers (Zero-GC)
+// =========================================================================
+
+private fun computeButtonBackground(
+    variant: ButtonVariant,
+    enabled: Boolean,
+    isPressed: Boolean,
+    isHovered: Boolean,
+    colors: ColorTokens
+): Color = when (variant) {
+    ButtonVariant.FILLED -> {
+        val base = colors.systemBlue
+        when {
+            !enabled -> colors.glassThin
+            isPressed -> base.cpy().mul(0.80f)
+            isHovered -> base.cpy().mul(1.15f)
+            else -> base
+        }
+    }
+    ButtonVariant.TINTED -> {
+        val base = colors.systemBlue
+        when {
+            !enabled -> colors.glassUltraThin
+            isPressed -> base.cpy().apply { a = 0.35f }
+            isHovered -> base.cpy().apply { a = 0.25f }
+            else -> base.cpy().apply { a = 0.15f }
+        }
+    }
+    ButtonVariant.GLASS -> when {
+        !enabled -> colors.glassUltraThin
+        isPressed -> colors.glassActive
+        isHovered -> colors.glassThick
+        else -> colors.glassRegular
+    }
+    ButtonVariant.OUTLINED, ButtonVariant.PLAIN -> when {
+        !enabled -> Color.clear
+        isPressed -> colors.glassThin
+        isHovered -> colors.glassUltraThin
+        else -> Color.clear
+    }
+    ButtonVariant.DESTRUCTIVE -> {
+        val base = colors.systemRed
+        when {
+            !enabled -> colors.glassThin
+            isPressed -> base.cpy().mul(0.80f)
+            isHovered -> base.cpy().mul(1.15f)
+            else -> base
+        }
+    }
+}
+
+private fun computeButtonBorder(variant: ButtonVariant, isHovered: Boolean, colors: ColorTokens): Color = when (variant) {
+    ButtonVariant.GLASS -> if (isHovered) colors.glassBorderSubtle else Color.clear
+    ButtonVariant.OUTLINED -> if (isHovered) colors.glassBorderActive else colors.glassBorderSubtle
+    else -> Color.clear
+}
+
+private fun computeButtonShadow(variant: ButtonVariant, isHovered: Boolean, colors: ColorTokens): Color = when (variant) {
+    ButtonVariant.FILLED -> if (isHovered) colors.glowAccent else Color.clear
+    ButtonVariant.GLASS -> if (isHovered) colors.shadowAmbient else Color.clear
+    ButtonVariant.DESTRUCTIVE -> if (isHovered) colors.systemRed.cpy().apply { a = 0.4f } else Color.clear
+    else -> Color.clear
 }

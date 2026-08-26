@@ -3,6 +3,7 @@ package org.mdt.core.engine.settings
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.serializer
 import org.mdt.core.engine.EngineContext
+import org.mdt.core.ui.render.BoxBlur
 import org.mdt.core.ui.render.BoxRenderer
 
 /**
@@ -24,6 +25,7 @@ data class AppSettings(
 @Serializable
 data class GraphicsSettings(
     val blurEnabled: Boolean = true,
+    val blurScale: Float = 1.0f,
     val bloomEnabled: Boolean = true,
     val maxUploadsPerFrame: Int = 4
 )
@@ -64,10 +66,12 @@ open class AppSettingsService(
         get() = appStore.value.core.darkTheme
 
     init {
-        // Synchronize BoxRenderer blur status with settings registry
+        // Synchronize BoxRenderer and BoxBlur status with settings registry
         BoxRenderer.blurEnabled = current.graphics.blurEnabled
+        BoxBlur.downscaleFactor = current.graphics.blurScale
         appStore.addListener { updated ->
             BoxRenderer.blurEnabled = updated.graphics.blurEnabled
+            BoxBlur.downscaleFactor = updated.graphics.blurScale
         }
     }
 
