@@ -283,4 +283,13 @@ class BoxVisuals {
         this.backgroundMode = BackgroundMode.BACKDROP
         return this
     }
+
+    var progress: Float = 0f
+    var progressColor: Color = Color(Color.clear)
+
+    fun progress(fraction: Float, color: Color): BoxVisuals {
+        this.progress = fraction.coerceIn(0f, 1f)
+        this.progressColor.set(color)
+        return this
+    }
 }

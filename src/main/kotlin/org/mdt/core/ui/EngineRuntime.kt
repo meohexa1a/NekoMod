@@ -5,12 +5,11 @@ import arc.Events
 import arc.util.Log
 import mindustry.game.EventType.ResizeEvent
 import mindustry.game.EventType.Trigger
-import org.mdt.core.image.ImageLoader
+import org.mdt.core.engine.image.ImageLoader
 import org.mdt.core.ui.compose.CompositionManager
 import org.mdt.core.ui.compose.UIComposition
-import org.mdt.core.ui.CanvasNode
 import org.mdt.core.ui.input.EngineInputProcessor
-import org.mdt.ui.render.EngineRenderer
+import org.mdt.core.ui.render.EngineRenderer
 
 object EngineRuntime {
     val canvas = CanvasNode()

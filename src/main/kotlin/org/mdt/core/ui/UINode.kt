@@ -3,7 +3,7 @@ package org.mdt.core.ui
 import arc.math.geom.Vec2
 import org.mdt.core.ui.layout.AnchorData
 import org.mdt.core.ui.layout.SizeFlags
-import org.mdt.ui.render.EngineRenderer
+import org.mdt.core.ui.render.EngineRenderer
 
 /**
  * ## UINode (Virtual UI Node)
@@ -241,10 +241,10 @@ open class UINode {
         val shouldClip = clip && bounds.width > 0f && bounds.height > 0f
         var pushed = false
         if (shouldClip) {
-            pushed = org.mdt.ui.render.ScissorStack.push(bounds)
+            pushed = org.mdt.core.ui.render.ScissorStack.push(bounds)
             if (!pushed) {
                 // Completely clipped outside visible bounds
-                org.mdt.ui.render.ScissorStack.pop()
+                org.mdt.core.ui.render.ScissorStack.pop()
                 return
             }
         }
@@ -252,7 +252,7 @@ open class UINode {
         drawSelf(renderer)
         drawChildren(renderer)
 
-        if (pushed) org.mdt.ui.render.ScissorStack.pop()
+        if (pushed) org.mdt.core.ui.render.ScissorStack.pop()
     }
 
     /** Renders the visual representation of this node. */

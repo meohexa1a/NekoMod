@@ -4,7 +4,7 @@ import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.GlyphLayout
 import org.mdt.ui.components.layout.LayoutNode
-import org.mdt.ui.render.EngineRenderer
+import org.mdt.core.ui.render.EngineRenderer
 
 /**
  * ## TextNode

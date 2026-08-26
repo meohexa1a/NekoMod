@@ -2,7 +2,7 @@ package org.mdt.core.ui
 
 import org.mdt.ui.components.display.tooltip.TooltipManager
 import org.mdt.core.ui.layout.GodotLayout
-import org.mdt.ui.render.EngineRenderer
+import org.mdt.core.ui.render.EngineRenderer
 
 class CanvasNode : UINode() {
     var screenWidth: Float = 0f

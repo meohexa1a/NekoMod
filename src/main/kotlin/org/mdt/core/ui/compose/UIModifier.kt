@@ -139,6 +139,12 @@ data class BackgroundModifier(val color: Color) : UIModifier.Element {
     }
 }
 
+data class ProgressModifier(val fraction: Float, val color: Color) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        (node as? LayoutNode)?.ensureVisuals()?.progress(fraction, color)
+    }
+}
+
 data class RadiusModifier(val tl: Float, val tr: Float, val br: Float, val bl: Float) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         (node as? LayoutNode)?.ensureVisuals()?.radius(tl, tr, br, bl)
@@ -367,6 +373,9 @@ fun UIModifier.anchorFillWidth(fraction: Float): UIModifier =
 
 /** Sets solid background color. */
 fun UIModifier.background(color: Color): UIModifier = then(BackgroundModifier(color))
+
+/** Sets progress fill fraction and active fill color within the SDF capsule. */
+fun UIModifier.progress(fraction: Float, color: Color): UIModifier = then(ProgressModifier(fraction, color))
 
 /** Sets uniform corner radius on all 4 corners (pixels). */
 fun UIModifier.radius(all: Float): UIModifier = then(RadiusModifier(all, all, all, all))

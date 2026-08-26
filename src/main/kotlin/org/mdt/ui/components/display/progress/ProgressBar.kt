@@ -42,29 +42,17 @@ fun ProgressBar(
     progress: Float,
     modifier: UIModifier = UIModifier,
     barHeight: Float = 6f,
-    colors: ProgressColors = ProgressColors.Default,
-    fillModifier: UIModifier = UIModifier
+    colors: ProgressColors = ProgressColors.Default
 ) {
     val clamped = progress.coerceIn(0.0f, 1.0f)
-    val r = barHeight * 0.5f
 
     Box(
         modifier = UIModifier
             .height(barHeight)
             .minWidth(60f)
             .background(colors.track)
-            .radius(r)
-            .clip(true)
+            .progress(clamped, colors.fill)
+            .cornerRadius(9999f)
             .then(modifier)
-    ) {
-        if (clamped > 0.001f) {
-            Box(
-                modifier = UIModifier
-                    .anchorFillWidth(clamped)
-                    .background(colors.fill)
-                    .radius(r)
-                    .then(fillModifier)
-            )
-        }
-    }
+    )
 }

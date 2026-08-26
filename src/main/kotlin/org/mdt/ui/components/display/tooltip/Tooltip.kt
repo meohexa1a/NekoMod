@@ -10,8 +10,8 @@ import mindustry.ui.Fonts
 import org.mdt.core.ui.UINode
 import org.mdt.ui.components.layout.BoxVisuals
 import org.mdt.core.ui.compose.UIModifier
-import org.mdt.ui.render.BoxRenderer
-import org.mdt.ui.render.EngineRenderer
+import org.mdt.core.ui.render.BoxRenderer
+import org.mdt.core.ui.render.EngineRenderer
 
 /**
  * ## TooltipManager

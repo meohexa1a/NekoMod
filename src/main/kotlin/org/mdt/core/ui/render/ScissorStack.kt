@@ -1,4 +1,4 @@
-package org.mdt.ui.render
+package org.mdt.core.ui.render
 
 import arc.Core
 import arc.graphics.Gl

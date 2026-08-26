@@ -96,23 +96,12 @@ fun Slider(
             .height(36f)
             .minWidth(120f)
             .background(colors.track)
+            .progress(fraction, colors.activeTrack)
             .border(1f, colors.border)
-            .radius(18f)
-            .clip(true)
+            .cornerRadius(9999f)
             .then(dragModifier)
             .then(modifier)
     ) {
-        // Active filled capsule bar
-        if (fraction > 0.001f) {
-            Box(
-                modifier = UIModifier
-                    .anchorFillWidth(fraction)
-                    .background(colors.activeTrack)
-                    .radius(18f)
-                    .then(trackModifier)
-            )
-        }
-
         // Inner label and value readout row
         Row(
             modifier = UIModifier

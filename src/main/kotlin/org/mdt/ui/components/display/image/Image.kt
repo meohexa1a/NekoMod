@@ -6,9 +6,9 @@ import androidx.compose.runtime.*
 import arc.graphics.Color
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.common.TextureHandle
-import org.mdt.core.image.ImageLoader
-import org.mdt.core.image.ImageSource
-import org.mdt.core.net.RequestBuilder
+import org.mdt.core.engine.image.ImageLoader
+import org.mdt.core.engine.image.ImageSource
+import org.mdt.core.common.RequestBuilder
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.ScaleMode
 import org.mdt.core.ui.compose.UIModifier

@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package org.mdt.ui.render
+package org.mdt.core.ui.render
 
 import arc.graphics.g2d.Font
 import arc.graphics.g2d.GlyphLayout
