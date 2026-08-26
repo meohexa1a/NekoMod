@@ -1,7 +1,7 @@
 package org.mdt.core.settings
 
 import kotlinx.serialization.Serializable
-import org.mdt.core.store.ConfigStore
+import org.mdt.core.engine.storage.ConfigStore
 import org.mdt.ui.render.BoxRenderer
 
 /**

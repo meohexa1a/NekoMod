@@ -98,6 +98,8 @@ object BoxRenderer {
         s.setUniformf("u_edgeSoftness", 1f)
         s.setUniformf("u_fillMode", v.backgroundMode.fillMode.toFloat())
         s.setUniformf("u_fillColor", v.fillColor.r, v.fillColor.g, v.fillColor.b, v.fillColor.a)
+        s.setUniformf("u_progress", v.progress)
+        s.setUniformf("u_progressColor", v.progressColor.r, v.progressColor.g, v.progressColor.b, v.progressColor.a)
     }
 
     private fun applyFill(s: Shader, v: BoxVisuals, w: Float, h: Float) {

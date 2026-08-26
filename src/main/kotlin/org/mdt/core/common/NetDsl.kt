@@ -1,22 +1,47 @@
-@file:Suppress("unused")
-
 package org.mdt.core.net
 
-import okhttp3.FormBody
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okio.BufferedSource
 import java.io.IOException
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 /**
  * ## Net
  *
- * Fluent HTTP DSL for constructing and executing network requests asynchronously.
- * Fully compatible with runtime HJSON schemas and visual UI data binding.
+ * Fluent, high-performance HTTP networking engine backed by OkHttp connection pooling.
+ *
+ * See: docs/core-subsystems/core_subsystems_en.md
  */
 object Net {
+    val client: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .writeTimeout(20, TimeUnit.SECONDS)
+        .connectionPool(ConnectionPool(8, 5, TimeUnit.MINUTES))
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .build()
+
+    suspend fun execute(request: Request): Response = suspendCancellableCoroutine { continuation ->
+        val call = client.newCall(request)
+        continuation.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (continuation.isActive) continuation.resumeWithException(e)
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (continuation.isActive) continuation.resume(response)
+            }
+        })
+    }
+
     fun get(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("GET", url, block)
     fun post(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("POST", url, block)
     fun put(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("PUT", url, block)
@@ -90,7 +115,7 @@ class HttpRequest(
      */
     suspend fun awaitString(): String {
         val request = buildOkHttpRequest()
-        val response = HttpEngine.execute(request)
+        val response = Net.execute(request)
         if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
         return response.body?.string() ?: ""
     }
@@ -100,7 +125,7 @@ class HttpRequest(
      */
     suspend fun awaitBytes(): ByteArray {
         val request = buildOkHttpRequest()
-        val response = HttpEngine.execute(request)
+        val response = Net.execute(request)
         if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
         return response.body?.bytes() ?: ByteArray(0)
     }
@@ -110,7 +135,7 @@ class HttpRequest(
      */
     suspend fun awaitSource(): BufferedSource {
         val request = buildOkHttpRequest()
-        val response = HttpEngine.execute(request)
+        val response = Net.execute(request)
         if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
         return response.body?.source() ?: throw IOException("Empty response body")
     }

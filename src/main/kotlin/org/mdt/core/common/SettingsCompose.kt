@@ -1,7 +1,7 @@
 package org.mdt.core.settings
 
 import androidx.compose.runtime.*
-import org.mdt.core.store.ConfigStore
+import org.mdt.core.engine.storage.ConfigStore
 
 /**
  * ## collectAsState
