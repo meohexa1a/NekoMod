@@ -6,9 +6,11 @@ import kotlinx.coroutines.delay
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
+import okio.FileSystem
 import okio.Path
+import okio.Path.Companion.toPath
 import org.mdt.core.common.AsyncDispatcher
-import org.mdt.core.engine.storage.Storage
+import java.io.IOException
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -22,6 +24,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * 1. **Lock-Free State Mutation:** Utilizes [AtomicReference] CAS loops in [update] for high concurrency.
  * 2. **Debounced Disk Persistence:** Coalesces rapid sequential mutations into a single atomic write (300ms window).
  * 3. **JVM Shutdown Safety:** Automatically registers a shutdown hook to flush in-flight changes on exit.
+ * 4. **Windows NTFS Lock Immunity:** Staged nanosecond temporary file writes prevent NTFS file lock contention (Rule 16).
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
@@ -29,7 +32,8 @@ class ConfigStore<T : Any>(
     val path: Path,
     val default: T,
     private val serializer: KSerializer<T>,
-    private val json: Json = Storage.prettyJson
+    private val json: Json = defaultJson,
+    private val fileSystem: FileSystem = FileSystem.SYSTEM
 ) {
     private val stateRef = AtomicReference<T>(loadFromDisk())
     private var saveJob: Job? = null
@@ -47,7 +51,14 @@ class ConfigStore<T : Any>(
     }
 
     private fun loadFromDisk(): T {
-        val content = Storage.readString(path) ?: return default
+        if (!fileSystem.exists(path)) return default
+        val content = try {
+            fileSystem.read(path) { readUtf8() }
+        } catch (e: IOException) {
+            Log.warn("[ConfigStore] Failed to read $path: ${e.message}")
+            return default
+        }
+
         return try {
             json.decodeFromString(serializer, content)
         } catch (e: Throwable) {
@@ -88,12 +99,29 @@ class ConfigStore<T : Any>(
     }
 
     /**
-     * Flushes current configuration onto disk immediately.
+     * Flushes current configuration onto disk immediately using atomic staging.
      */
     fun flushToDisk() {
         try {
             val content = json.encodeToString(serializer, stateRef.get())
-            Storage.writeString(path, content)
+            val parentDir = path.parent
+            if (parentDir != null && !fileSystem.exists(parentDir)) {
+                fileSystem.createDirectories(parentDir)
+            }
+
+            val stagingFile = (path.toString() + ".tmp." + System.nanoTime()).toPath()
+            try {
+                fileSystem.write(stagingFile, mustCreate = false) {
+                    writeUtf8(content)
+                    flush()
+                }
+                fileSystem.atomicMove(stagingFile, path)
+            } catch (e: Throwable) {
+                try {
+                    fileSystem.delete(stagingFile, mustExist = false)
+                } catch (_: Throwable) {}
+                throw e
+            }
         } catch (e: Throwable) {
             Log.warn("[ConfigStore] Failed to flush $path: ${e.message}")
         }
@@ -119,13 +147,13 @@ class ConfigStore<T : Any>(
     }
 
     companion object {
-        /**
-         * Factory creating a typed [ConfigStore] resolved against [Storage.resolve].
-         */
-        inline fun <reified T : Any> create(
-            name: String,
-            default: T,
-            json: Json = Storage.prettyJson
-        ): ConfigStore<T> = ConfigStore(Storage.resolve("$name.json"), default, serializer<T>(), json)
+        /** Default JSON serializer for configuration stores. */
+        val defaultJson: Json = Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+            isLenient = true
+            coerceInputValues = true
+            prettyPrint = true
+        }
     }
 }

@@ -25,18 +25,9 @@ fun <T : Any> ConfigStore<T>.collectAsState(): State<T> {
 }
 
 /**
- * ## remember
- *
- * Seamless reactive bridge between a [SettingsService] and Compose [State].
- * Supports multi-instance context observation: `myContext.settings.remember()`.
+ * Observes an [AppSettingsService] as reactive Compose [State].
+ * Defaults to the active game context settings ([EngineContext.default.settings]).
  */
 @Composable
-fun <T : Any> SettingsService<T>.remember(): State<T> = store.collectAsState()
-
-/**
- * Convenience helper to observe an [AppSettingsService] directly as reactive Compose state.
- * Defaults to [EngineContext.default.settings].
- */
-@Composable
-fun rememberSettings(service: SettingsService<AppSettings> = EngineContext.default.settings): State<AppSettings> =
-    service.remember()
+fun rememberSettings(service: AppSettingsService = EngineContext.default.settings): State<AppSettings> =
+    service.appStore.collectAsState()
