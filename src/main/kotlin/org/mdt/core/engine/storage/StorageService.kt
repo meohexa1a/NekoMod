@@ -1,6 +1,5 @@
 package org.mdt.core.engine.storage
 
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -17,9 +16,14 @@ import java.io.IOException
  * Modular storage subsystem managing multiplatform directories, Okio [FileSystem],
  * atomic file persistence, and Kotlinx JSON serialization.
  *
+ * ### Architectural Features:
+ * 1. **Windows NTFS Lock Immunity (Rule 16):** Employs unique nano-timestamped temporary staging files
+ *    with atomic filesystem moves to prevent Windows file lock conflicts (`process cannot access the file`).
+ * 2. **Context-Bound Isolation:** Dynamically resolves data directories via [EngineContext.host].
+ * 3. **Structured Caching:** Provides dedicated, auto-created persistent cache directory resolution.
+ *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
-@OptIn(ExperimentalSerializationApi::class)
 open class StorageService(
     val context: EngineContext,
     val fileSystem: FileSystem = FileSystem.SYSTEM,
@@ -34,94 +38,131 @@ open class StorageService(
         coerceInputValues = true
     }
 
-    /** Pretty-printed JSON configuration serializer. */
+    /** Pretty-printed JSON configuration serializer for human-readable files. */
     val prettyJson: Json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
         isLenient = true
         coerceInputValues = true
         prettyPrint = true
-        prettyPrintIndent = "  "
     }
 
-    /** Root directory of the active context / mod project. */
+    /** Root directory of the active context / project. */
     val rootDir: Path by lazy {
         rootDirOverride ?: resolveDefaultModDir()
     }
 
     /** Dedicated persistent cache directory. */
     val cacheDir: Path by lazy {
-        val dir = cacheDirOverride ?: (rootDir / "cache")
-        if (!fileSystem.exists(dir)) {
+        val directory = cacheDirOverride ?: (rootDir / "cache")
+        if (!fileSystem.exists(directory)) {
             try {
-                fileSystem.createDirectories(dir)
+                fileSystem.createDirectories(directory)
             } catch (_: IOException) {}
         }
-        dir
+        directory
     }
 
-    private fun resolveDefaultModDir(): Path {
-        val name = context.name.ifEmpty { "default" }
-        val hostDir = context.host.resolveDefaultDataDir(name)
-        if (hostDir != null) {
-            if (!fileSystem.exists(hostDir)) {
-                try {
-                    fileSystem.createDirectories(hostDir)
-                } catch (_: IOException) {}
-            }
-            return hostDir
-        }
+    // =========================================================================
+    // I. Path Resolution
+    // =========================================================================
 
-        val userHome = System.getProperty("user.home") ?: "."
-        val fallback = userHome.toPath() / ".$name"
-        if (!fileSystem.exists(fallback)) {
-            try {
-                fileSystem.createDirectories(fallback)
-            } catch (_: IOException) {}
-        }
-        return fallback
-    }
-
-    /** Resolves a relative subpath against [rootDir]. */
+    /**
+     * Resolves a relative subpath against [rootDir].
+     *
+     * @param subpath Relative path string.
+     * @return Absolute [Path] inside the root directory.
+     */
     fun resolve(subpath: String): Path = rootDir / subpath
 
-    /** Resolves a relative subpath against [cacheDir], creating parent directories if missing. */
+    /**
+     * Resolves a relative subpath against [cacheDir], creating parent directories if missing.
+     *
+     * @param subpath Relative path string inside cache.
+     * @return Absolute [Path] inside the cache directory.
+     */
     fun resolveCache(subpath: String): Path {
-        val path = cacheDir / subpath
-        val parent = path.parent
-        if (parent != null && !fileSystem.exists(parent)) {
+        val targetPath = cacheDir / subpath
+        val parentDirectory = targetPath.parent
+        if (parentDirectory != null && !fileSystem.exists(parentDirectory)) {
             try {
-                fileSystem.createDirectories(parent)
+                fileSystem.createDirectories(parentDirectory)
             } catch (_: IOException) {}
         }
-        return path
+        return targetPath
     }
+
+    // =========================================================================
+    // II. Atomic Write Operations (Write API)
+    // =========================================================================
 
     /**
      * Executes an atomic write operation using unique nanosecond-staged files.
      * Complies with Rule 16 Windows NTFS file locking protection.
+     *
+     * @param target Destination file path.
+     * @param writeAction Block writing data into the temporary [BufferedSink].
      */
     fun atomicWrite(target: Path, writeAction: (BufferedSink) -> Unit) {
-        val parent = target.parent
-        if (parent != null && !fileSystem.exists(parent)) {
-            fileSystem.createDirectories(parent)
+        val parentDirectory = target.parent
+        if (parentDirectory != null && !fileSystem.exists(parentDirectory)) {
+            fileSystem.createDirectories(parentDirectory)
         }
-        val temp = (target.toString() + ".tmp." + System.nanoTime()).toPath()
+
+        val stagingTempFile = (target.toString() + ".tmp." + System.nanoTime()).toPath()
         try {
-            fileSystem.write(temp, mustCreate = false) {
+            fileSystem.write(stagingTempFile, mustCreate = false) {
                 writeAction(this)
                 flush()
             }
-            fileSystem.atomicMove(temp, target)
-        } catch (e: Throwable) {
+            fileSystem.atomicMove(stagingTempFile, target)
+        } catch (error: Throwable) {
             try {
-                fileSystem.delete(temp, mustExist = false)
+                fileSystem.delete(stagingTempFile, mustExist = false)
             } catch (_: Throwable) {}
-            throw e
+            throw error
         }
     }
 
-    /** Reads raw byte content from a file, or returns `null` if absent. */
+    /**
+     * Atomically writes byte array content to a file.
+     *
+     * @param path Destination file path.
+     * @param bytes Raw byte array to write.
+     */
+    fun writeBytes(path: Path, bytes: ByteArray) = atomicWrite(path) { sink -> sink.write(bytes) }
+
+    /**
+     * Atomically writes UTF-8 string content to a file.
+     *
+     * @param path Destination file path.
+     * @param content String content to write.
+     */
+    fun writeString(path: Path, content: String) = atomicWrite(path) { sink -> sink.writeUtf8(content) }
+
+    /**
+     * Serializes and atomically writes value [T] as JSON to a file.
+     *
+     * @param path Destination file path.
+     * @param value Serializable data object.
+     * @param pretty Whether to format with indentation.
+     */
+    inline fun <reified T> writeJson(path: Path, value: T, pretty: Boolean = false) {
+        val serializer = if (pretty) prettyJson else json
+        val serializedContent = serializer.encodeToString(value)
+        writeString(path, serializedContent)
+    }
+
+    // =========================================================================
+    // III. File Reading & Deserialization (Read API)
+    // =========================================================================
+
+    /**
+     * Reads raw byte content from a file, or returns `null` if absent or unreadable.
+     *
+     * @param path Target file path.
+     * @return Byte array, or `null` if the file does not exist.
+     */
     fun readBytes(path: Path): ByteArray? {
         if (!fileSystem.exists(path)) return null
         return try {
@@ -131,10 +172,12 @@ open class StorageService(
         }
     }
 
-    /** Atomically writes byte array content to a file. */
-    fun writeBytes(path: Path, bytes: ByteArray) = atomicWrite(path) { it.write(bytes) }
-
-    /** Reads UTF-8 string content from a file, or returns `null` if absent. */
+    /**
+     * Reads UTF-8 string content from a file, or returns `null` if absent or unreadable.
+     *
+     * @param path Target file path.
+     * @return Decoded string, or `null` if the file does not exist.
+     */
     fun readString(path: Path): String? {
         if (!fileSystem.exists(path)) return null
         return try {
@@ -144,10 +187,13 @@ open class StorageService(
         }
     }
 
-    /** Atomically writes UTF-8 string content to a file. */
-    fun writeString(path: Path, content: String) = atomicWrite(path) { it.writeUtf8(content) }
-
-    /** Reads and deserializes a JSON payload from a file into type [T]. */
+    /**
+     * Reads and deserializes a JSON payload from a file into type [T].
+     *
+     * @param path Target file path.
+     * @param serializer Custom [Json] serializer (defaults to [json]).
+     * @return Deserialized object, or `null` on failure.
+     */
     inline fun <reified T> readJson(path: Path, serializer: Json = json): T? {
         val content = readString(path) ?: return null
         return try {
@@ -157,10 +203,48 @@ open class StorageService(
         }
     }
 
-    /** Serializes and atomically writes value [T] as JSON to a file. */
-    inline fun <reified T> writeJson(path: Path, value: T, pretty: Boolean = false) {
-        val serializer = if (pretty) prettyJson else json
-        val content = serializer.encodeToString(value)
-        writeString(path, content)
+    // =========================================================================
+    // IV. File Metadata & State Queries
+    // =========================================================================
+
+    /**
+     * Checks whether a file or directory exists on the filesystem.
+     *
+     * @param path Target path to verify.
+     * @return `true` if the path exists.
+     */
+    fun exists(path: Path): Boolean = fileSystem.exists(path)
+
+    /**
+     * Deletes a file or directory from the filesystem.
+     *
+     * @param path Target path to delete.
+     * @param mustExist Whether to throw if the target is absent.
+     */
+    fun delete(path: Path, mustExist: Boolean = false) {
+        fileSystem.delete(path, mustExist = mustExist)
+    }
+
+    /**
+     * Returns the size of a file in bytes, or 0 if absent.
+     *
+     * @param path Target file path.
+     * @return File size in bytes.
+     */
+    fun size(path: Path): Long = fileSystem.metadataOrNull(path)?.size ?: 0L
+
+    // =========================================================================
+    // V. Internal Host Directory Resolution
+    // =========================================================================
+
+    private fun resolveDefaultModDir(): Path {
+        val appName = context.name.ifEmpty { "default" }
+        val hostDir = context.host.resolveDefaultDataDir(appName)
+        if (!fileSystem.exists(hostDir)) {
+            try {
+                fileSystem.createDirectories(hostDir)
+            } catch (_: IOException) {}
+        }
+        return hostDir
     }
 }

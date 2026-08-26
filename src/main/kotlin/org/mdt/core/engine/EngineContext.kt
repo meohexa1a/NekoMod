@@ -3,7 +3,7 @@ package org.mdt.core.engine
 import org.mdt.core.engine.i18n.I18nService
 import org.mdt.core.engine.image.ImageService
 import org.mdt.core.engine.settings.AppSettingsService
-import org.mdt.core.engine.settings.SettingsService
+import org.mdt.core.engine.settings.CoreSettingsService
 import org.mdt.core.engine.storage.StorageService
 
 /**
@@ -11,7 +11,7 @@ import org.mdt.core.engine.storage.StorageService
  *
  * Universal host environment and modular subsystem hub for NekoMod.
  * Provides abstract storage, image pipeline, localization registry, platform adapters,
- * and context-bound settings service.
+ * and persistent context-bound settings service.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
@@ -30,15 +30,15 @@ open class EngineContext(
     /** Lazy-initialized Localization subsystem. */
     open val i18n: I18nService by lazy { createI18nService() }
 
-    /** Lazy-initialized universal settings service. */
-    open val settings: SettingsService<*> by lazy { createSettingsService() }
+    /** Lazy-initialized strongly-typed core settings service. */
+    open val settings: CoreSettingsService by lazy { createSettingsService() }
 
     // Service Factories (overridable for Standalone/Editor custom environments)
     protected open fun createPlatformHost(): PlatformHost = MindustryPlatformHost()
     protected open fun createStorageService(): StorageService = StorageService(this)
     protected open fun createImageService(): ImageService = ImageService(this)
     protected open fun createI18nService(): I18nService = I18nService(this)
-    protected open fun createSettingsService(): SettingsService<*> = AppSettingsService(this)
+    protected open fun createSettingsService(): CoreSettingsService = CoreSettingsService(this)
 
     companion object {
         /** Master global context instance for the default NekoMod game environment. */
@@ -53,7 +53,7 @@ open class EngineContext(
  * ## ModEngineContext
  *
  * Specialized [EngineContext] implementation for the Mindustry Mod environment.
- * Strongly typed to provide domain-specific [AppSettingsService].
+ * Covariantly overrides [settings] to provide domain-specific [AppSettingsService].
  */
 open class ModEngineContext : EngineContext("neko-mod") {
     override val settings: AppSettingsService by lazy { createSettingsService() }

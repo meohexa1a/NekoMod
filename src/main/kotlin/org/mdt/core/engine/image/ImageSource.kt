@@ -8,8 +8,8 @@ import org.mdt.core.common.RequestBuilder
 /**
  * ## ImageSource
  *
- * Pure sealed algebraic data type representing an image data origin.
- * Decoupled from runtime texture caches and rendering engines.
+ * Pure sealed algebraic data type representing an image origin descriptor.
+ * Decoupled from runtime texture caches, network engines, and GPU graphics pipelines.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
@@ -36,9 +36,19 @@ sealed class ImageSource {
     companion object {
 
         /**
-         * Converts any supported object (String, Path, TextureRegion, ImageSource) into a typed [ImageSource].
+         * Resolves any supported input object into a strongly-typed [ImageSource].
+         *
+         * Supported types:
+         * - [ImageSource] -> Returns directly.
+         * - [TextureRegion] -> Wraps in [Region].
+         * - [Path] -> Wraps in [LocalFile].
+         * - [String] -> Parses prefixes (`http://`, `https://`, `atlas:`, `asset:`, `file:`) or defaults to [Atlas].
+         * - `null` or others -> Fallback [Atlas] ("ohno").
+         *
+         * @param source Raw input object or URI string.
+         * @return Structured [ImageSource] descriptor.
          */
-        fun of(source: Any?): ImageSource = when (source) {
+        fun from(source: Any?): ImageSource = when (source) {
             null -> Atlas("ohno")
             is ImageSource -> source
             is TextureRegion -> Region(source)
@@ -53,17 +63,27 @@ sealed class ImageSource {
             else -> Atlas("ohno")
         }
 
-        fun url(url: String, configure: RequestBuilder.() -> Unit): Url = Url(url, configure)
+        /** Alias for [from]. */
+        fun of(source: Any?): ImageSource = from(source)
 
-        fun authUrl(url: String, bearerToken: String): Url =
+        /** Creates a remote network URL image source with custom request configuration. */
+        fun url(url: String, configureRequest: (RequestBuilder.() -> Unit)? = null): Url =
+            Url(url, configureRequest)
+
+        /** Creates a remote network URL image source with Bearer authorization header. */
+        fun bearerTokenUrl(url: String, bearerToken: String): Url =
             Url(url) { header("Authorization", "Bearer $bearerToken") }
 
-        fun atlas(name: String): Atlas = Atlas(name)
+        /** Creates an Atlas sprite image source. */
+        fun atlas(spriteName: String): Atlas = Atlas(spriteName)
 
-        fun asset(path: String): Asset = Asset(path)
+        /** Creates a classpath or internal asset image source. */
+        fun asset(assetPath: String): Asset = Asset(assetPath)
 
-        fun file(path: Path): LocalFile = LocalFile(path)
+        /** Creates a local filesystem image source. */
+        fun file(filePath: Path): LocalFile = LocalFile(filePath)
 
-        fun region(region: TextureRegion): Region = Region(region)
+        /** Creates an in-memory TextureRegion image source. */
+        fun region(textureRegion: TextureRegion): Region = Region(textureRegion)
     }
 }

@@ -5,24 +5,34 @@ import arc.graphics.Texture
 import arc.graphics.g2d.TextureRegion
 import arc.util.Log
 import okio.ByteString.Companion.encodeUtf8
+import okio.Path
 import org.mdt.core.common.AsyncDispatcher
 import org.mdt.core.common.LRUTextureCache
+import org.mdt.core.common.Net
 import org.mdt.core.common.TextureHandle
 import org.mdt.core.common.TextureKind
 import org.mdt.core.engine.EngineContext
-import org.mdt.core.common.Net
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
+ * Functional callback invoked when an image resolution attempt completes.
+ *
+ * @param region Resolved [TextureRegion] (actual image or fallback placeholder).
+ * @param handle Retained [TextureHandle] if cached in memory (null for direct unmanaged regions).
+ * @param error [Throwable] error if the resolution failed, or `null` on success.
+ */
+typealias ImageLoadCallback = (region: TextureRegion, handle: TextureHandle?, error: Throwable?) -> Unit
+
+/**
  * ## ImageService
  *
- * Modular, multi-tiered image pipeline featuring:
- * 1. **L1 VRAM Memory Caching:** Lock-free [LRUTextureCache] bound to the active context.
+ * Multi-tiered, high-performance image and texture loading pipeline featuring:
+ * 1. **L1 VRAM Memory Cache:** Lock-free [LRUTextureCache] bound to the active context.
  * 2. **In-Flight Request Deduplication (Coalescing):** Merges concurrent requests for the same URL.
- * 3. **L2 Persistent Disk Caching:** Automated MD5-hashed disk cache managed via [EngineContext.storage].
- * 4. **Throttled Burst GPU Upload:** Uploads max 4 textures per frame via [EngineContext.host] frame hooks to prevent stutters.
- * 5. **Graceful Error Fallbacks:** Single-point fallback to iconic 'ohno' / 'error' atlas regions.
+ * 3. **L2 Persistent Disk Cache:** MD5-hashed disk storage managed via [EngineContext.storage].
+ * 4. **Throttled Burst GPU Upload:** Uploads max 4 textures per render frame to eliminate visual micro-stutters.
+ * 5. **Graceful Error Fallbacks:** Platform-abstracted placeholder resolution via [EngineContext.host].
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
@@ -34,204 +44,266 @@ open class ImageService(val context: EngineContext) {
     /** Factory method creating the L1 texture cache instance for this context. */
     protected open fun createTextureCache(): LRUTextureCache = LRUTextureCache()
 
-    private class UploadTask(
+    /** Internal descriptor for pending asynchronous GPU pixmap texture uploads. */
+    private class PendingUploadTask(
         val cacheKey: String,
         val pixmap: Pixmap,
-        val callbacks: List<(TextureRegion, TextureHandle?, Throwable?) -> Unit>
+        val pendingCallbacks: List<ImageLoadCallback>
     )
 
-    private val uploadQueue = ConcurrentLinkedQueue<UploadTask>()
-    private val inFlightUrlRequests = ConcurrentHashMap<String, MutableList<(TextureRegion, TextureHandle?, Throwable?) -> Unit>>()
-    private var isHooked = false
+    private val pendingUploadQueue = ConcurrentLinkedQueue<PendingUploadTask>()
+    private val inFlightUrlRequests = ConcurrentHashMap<String, MutableList<ImageLoadCallback>>()
+    private var isRenderHookInstalled = false
 
     init {
-        ensureRenderHook()
+        installRenderFrameHook()
     }
 
-    private fun ensureRenderHook() {
-        if (!isHooked) {
-            isHooked = true
+    private fun installRenderFrameHook() {
+        if (!isRenderHookInstalled) {
+            isRenderHookInstalled = true
             context.host.onFrameEnd { processUploadQueue() }
         }
     }
 
-    /**
-     * Resolves the fallback [TextureRegion] (e.g. 'ohno', 'error', or 'white') via [EngineContext.host].
-     */
-    fun fallbackRegion(): TextureRegion {
-        return context.host.resolveAtlasRegion("ohno")
-            ?: context.host.resolveAtlasRegion("error")
-            ?: context.host.resolveAtlasRegion("white")
-            ?: TextureRegion()
-    }
+    // =========================================================================
+    // I. Primary Public Loading & Resolution API
+    // =========================================================================
 
     /**
-     * Processes pending texture upload tasks onto the GPU main thread (max [MAX_UPLOADS_PER_FRAME] per invocation).
+     * Asynchronously loads an image from an [ImageSource] descriptor and delivers the result via [callback].
+     *
+     * @param source The origin descriptor for the image asset.
+     * @param callback Callback delivering the resolved [TextureRegion], [TextureHandle], and any [Throwable].
      */
-    fun processUploadQueue() {
-        var processed = 0
-        while (processed < MAX_UPLOADS_PER_FRAME && !uploadQueue.isEmpty()) {
-            val task = uploadQueue.poll() ?: break
-            processed++
-            try {
-                val texture = Texture(task.pixmap).apply {
-                    setFilter(Texture.TextureFilter.linear)
-                }
-                task.pixmap.dispose()
-                val handle = cache.put(task.cacheKey, texture, kind = TextureKind.MANAGED)
-                for (callback in task.callbacks) {
-                    callback(handle.region, handle, null)
-                }
-            } catch (e: Throwable) {
-                Log.err("[ImageService] Failed to upload texture for ${task.cacheKey}", e)
-                task.pixmap.dispose()
-                val fallback = fallbackRegion()
-                val handle = cache.put("atlas:ohno", fallback.texture, kind = TextureKind.FALLBACK)
-                for (callback in task.callbacks) {
-                    callback(fallback, handle, e)
-                }
-            }
-        }
-    }
-
-    /**
-     * Asynchronously loads an image from an [ImageSource] and invokes [onResult] with the resolved region.
-     */
-    fun load(source: ImageSource, onResult: (TextureRegion, TextureHandle?, Throwable?) -> Unit) {
+    fun load(source: ImageSource, callback: ImageLoadCallback) {
         when (source) {
-            is ImageSource.Atlas -> loadFromAtlas(source, onResult)
-            is ImageSource.Region -> loadFromRegion(source, onResult)
-            is ImageSource.Url -> loadFromUrl(source, onResult)
-            is ImageSource.Asset -> loadFromAsset(source, onResult)
-            is ImageSource.LocalFile -> loadFromFile(source, onResult)
+            is ImageSource.Atlas -> loadAtlasSource(source, callback)
+            is ImageSource.Region -> loadRegionSource(source, callback)
+            is ImageSource.Url -> loadUrlSource(source, callback)
+            is ImageSource.Asset -> loadAssetSource(source, callback)
+            is ImageSource.LocalFile -> loadLocalFileSource(source, callback)
         }
     }
 
-    private fun loadFromAtlas(source: ImageSource.Atlas, onResult: (TextureRegion, TextureHandle?, Throwable?) -> Unit) {
-        val reg = context.host.resolveAtlasRegion(source.name)
-        if (reg != null) {
-            val handle = cache.put("atlas:${source.name}", reg.texture, kind = TextureKind.SHARED)
-            onResult(reg, handle, null)
+    /**
+     * Resolves the platform-specific fallback placeholder [TextureRegion].
+     */
+    fun fallbackRegion(): TextureRegion = context.host.resolveFallbackRegion()
+
+    // =========================================================================
+    // II. Pipeline Source Handlers
+    // =========================================================================
+
+    private fun loadAtlasSource(source: ImageSource.Atlas, callback: ImageLoadCallback) {
+        val resolvedRegion = context.host.resolveAtlasRegion(source.name)
+        if (resolvedRegion != null) {
+            val handle = cache.put("atlas:${source.name}", resolvedRegion.texture, kind = TextureKind.SHARED)
+            callback(resolvedRegion, handle, null)
         } else {
             val fallback = fallbackRegion()
-            val handle = cache.put("atlas:ohno", fallback.texture, kind = TextureKind.FALLBACK)
-            onResult(fallback, handle, IllegalArgumentException("Atlas region not found: ${source.name}"))
+            val handle = cache.put("fallback:placeholder", fallback.texture, kind = TextureKind.FALLBACK)
+            callback(fallback, handle, IllegalArgumentException("Atlas sprite region not found: ${source.name}"))
         }
     }
 
-    private fun loadFromRegion(source: ImageSource.Region, onResult: (TextureRegion, TextureHandle?, Throwable?) -> Unit) {
+    private fun loadRegionSource(source: ImageSource.Region, callback: ImageLoadCallback) {
         val handle = cache.put(
             key = "region:" + source.region.texture.toString(),
             texture = source.region.texture,
             kind = TextureKind.SHARED
         )
-        onResult(source.region, handle, null)
+        callback(source.region, handle, null)
     }
 
-    private fun loadFromUrl(source: ImageSource.Url, onResult: (TextureRegion, TextureHandle?, Throwable?) -> Unit) {
+    private fun loadUrlSource(source: ImageSource.Url, callback: ImageLoadCallback) {
         val cacheKey = source.url
 
-        // 1. L1 Memory Cache hit
-        val cached = cache.get(cacheKey)
-        if (cached != null) {
-            onResult(cached.region, cached, null)
+        // 1. L1 VRAM Memory Cache lookup
+        val cachedHandle = cache.get(cacheKey)
+        if (cachedHandle != null) {
+            callback(cachedHandle.region, cachedHandle, null)
             return
         }
 
         // 2. In-Flight Request Deduplication (Coalescing)
-        val isFirstRequest = synchronized(inFlightUrlRequests) {
-            val list = inFlightUrlRequests.getOrPut(cacheKey) { ArrayList() }
-            val first = list.isEmpty()
-            list.add(onResult)
-            first
-        }
+        val isLeaderRequest = registerInFlightUrlRequest(cacheKey, callback)
+        if (!isLeaderRequest) return
 
-        if (!isFirstRequest) return
-
+        // 3. Background Download & L2 Cache Pipeline
         AsyncDispatcher.launch {
             try {
-                // 3. L2 Disk Cache check
-                val hash = cacheKey.encodeUtf8().md5().hex()
-                val diskCachePath = context.storage.resolveCache("images/$hash.bin")
-                var bytes = context.storage.readBytes(diskCachePath)
+                val rawBytes = fetchOrReadCachedUrlBytes(source, cacheKey)
+                val decodedPixmap = Pixmap(rawBytes, 0, rawBytes.size)
+                val targetCallbacks = drainInFlightUrlRequests(cacheKey)
 
-                if (bytes == null) {
-                    // 4. Download from network & persist to disk cache
-                    bytes = Net.get(source.url, source.configureRequest ?: {}).awaitBytes()
-                    try {
-                        context.storage.writeBytes(diskCachePath, bytes)
-                    } catch (e: Throwable) {
-                        Log.warn("[ImageService] Failed to cache image $cacheKey to disk: ${e.message}")
-                    }
-                }
-
-                val pixmap = Pixmap(bytes, 0, bytes.size)
-                val callbacks = synchronized(inFlightUrlRequests) {
-                    inFlightUrlRequests.remove(cacheKey) ?: emptyList()
-                }
-                uploadQueue.add(UploadTask(cacheKey, pixmap, callbacks))
-            } catch (e: Throwable) {
-                Log.err("[ImageService] Failed to load image from ${source.url}: ${e.message}")
-                val callbacks = synchronized(inFlightUrlRequests) {
-                    inFlightUrlRequests.remove(cacheKey) ?: emptyList()
-                }
-                val fallback = fallbackRegion()
-                val handle = cache.put("atlas:ohno", fallback.texture, kind = TextureKind.FALLBACK)
-                AsyncDispatcher.onMainThread {
-                    for (callback in callbacks) {
-                        callback(fallback, handle, e)
-                    }
-                }
+                enqueuePixmapUpload(cacheKey, decodedPixmap, targetCallbacks)
+            } catch (networkError: Throwable) {
+                Log.err("[ImageService] Failed to load network image from ${source.url}", networkError)
+                val targetCallbacks = drainInFlightUrlRequests(cacheKey)
+                dispatchFallbackError(targetCallbacks, networkError)
             }
         }
     }
 
-    private fun loadFromAsset(source: ImageSource.Asset, onResult: (TextureRegion, TextureHandle?, Throwable?) -> Unit) {
-        val cached = cache.get(source.path)
-        if (cached != null) {
-            onResult(cached.region, cached, null)
+    private fun loadAssetSource(source: ImageSource.Asset, callback: ImageLoadCallback) {
+        val cacheKey = source.path
+        val cachedHandle = cache.get(cacheKey)
+        if (cachedHandle != null) {
+            callback(cachedHandle.region, cachedHandle, null)
             return
         }
 
         AsyncDispatcher.launch {
             try {
-                val bytes = context.host.resolveAssetBytes(source.path)
-                    ?: throw IllegalArgumentException("Asset not found: ${source.path}")
+                val rawBytes = context.host.resolveAssetBytes(source.path)
+                    ?: throw IllegalArgumentException("Classpath asset not found: ${source.path}")
 
-                val pixmap = Pixmap(bytes, 0, bytes.size)
-                uploadQueue.add(UploadTask(source.path, pixmap, listOf(onResult)))
-            } catch (e: Throwable) {
-                val fallback = fallbackRegion()
-                val handle = cache.put("atlas:ohno", fallback.texture, kind = TextureKind.FALLBACK)
-                AsyncDispatcher.onMainThread { onResult(fallback, handle, e) }
+                val decodedPixmap = Pixmap(rawBytes, 0, rawBytes.size)
+                enqueuePixmapUpload(cacheKey, decodedPixmap, listOf(callback))
+            } catch (assetError: Throwable) {
+                dispatchFallbackError(listOf(callback), assetError)
             }
         }
     }
 
-    private fun loadFromFile(source: ImageSource.LocalFile, onResult: (TextureRegion, TextureHandle?, Throwable?) -> Unit) {
+    private fun loadLocalFileSource(source: ImageSource.LocalFile, callback: ImageLoadCallback) {
         val cacheKey = source.path.toString()
-        val cached = cache.get(cacheKey)
-        if (cached != null) {
-            onResult(cached.region, cached, null)
+        val cachedHandle = cache.get(cacheKey)
+        if (cachedHandle != null) {
+            callback(cachedHandle.region, cachedHandle, null)
             return
         }
 
         AsyncDispatcher.launch {
             try {
-                val bytes = context.storage.readBytes(source.path)
-                    ?: throw IllegalArgumentException("File not found: ${source.path}")
-                val pixmap = Pixmap(bytes, 0, bytes.size)
-                uploadQueue.add(UploadTask(cacheKey, pixmap, listOf(onResult)))
-            } catch (e: Throwable) {
-                val fallback = fallbackRegion()
-                val handle = cache.put("atlas:ohno", fallback.texture, kind = TextureKind.FALLBACK)
-                AsyncDispatcher.onMainThread { onResult(fallback, handle, e) }
+                val rawBytes = context.storage.readBytes(source.path)
+                    ?: throw IllegalArgumentException("Local filesystem image not found: ${source.path}")
+
+                val decodedPixmap = Pixmap(rawBytes, 0, rawBytes.size)
+                enqueuePixmapUpload(cacheKey, decodedPixmap, listOf(callback))
+            } catch (fileError: Throwable) {
+                dispatchFallbackError(listOf(callback), fileError)
             }
         }
     }
 
-    companion object {
-        /** Maximum number of GPU texture uploads permitted per render frame. */
-        private const val MAX_UPLOADS_PER_FRAME = 4
+    // =========================================================================
+    // III. Asynchronous I/O, Network & Disk Caching Helpers
+    // =========================================================================
+
+    /**
+     * Atomically registers a pending request callback for a URL.
+     *
+     * @return `true` if this is the primary leader request responsible for performing the network fetch.
+     */
+    private fun registerInFlightUrlRequest(urlKey: String, callback: ImageLoadCallback): Boolean =
+        synchronized(inFlightUrlRequests) {
+            val pendingList = inFlightUrlRequests.getOrPut(urlKey) { ArrayList() }
+            val isFirst = pendingList.isEmpty()
+            pendingList.add(callback)
+            isFirst
+        }
+
+    /**
+     * Atomically removes and returns all pending callbacks waiting on a URL resolution.
+     */
+    private fun drainInFlightUrlRequests(urlKey: String): List<ImageLoadCallback> =
+        synchronized(inFlightUrlRequests) {
+            inFlightUrlRequests.remove(urlKey) ?: emptyList()
+        }
+
+    /**
+     * Reads image bytes from L2 persistent disk cache, or downloads from network and saves to cache.
+     */
+    private suspend fun fetchOrReadCachedUrlBytes(source: ImageSource.Url, urlKey: String): ByteArray {
+        val diskCacheFilePath = computeDiskCacheFilePath(urlKey)
+        val diskCachedBytes = context.storage.readBytes(diskCacheFilePath)
+        if (diskCachedBytes != null) return diskCachedBytes
+
+        val downloadedBytes = Net.get(source.url, source.configureRequest ?: {}).awaitBytes()
+        try {
+            context.storage.writeBytes(diskCacheFilePath, downloadedBytes)
+        } catch (diskWriteError: Throwable) {
+            Log.warn("[ImageService] Failed to persist image $urlKey to L2 disk cache: ${diskWriteError.message}")
+        }
+        return downloadedBytes
+    }
+
+    /**
+     * Computes the MD5-hashed persistent disk cache file path for a URL.
+     */
+    private fun computeDiskCacheFilePath(urlKey: String): Path {
+        val md5HexHash = urlKey.encodeUtf8().md5().hex()
+        return context.storage.resolveCache("images/$md5HexHash.bin")
+    }
+
+    // =========================================================================
+    // IV. GPU Upload Queue & Error Dispatching
+    // =========================================================================
+
+    /**
+     * Schedules a decoded [Pixmap] for upload to the GPU on the main render thread.
+     */
+    private fun enqueuePixmapUpload(
+        cacheKey: String,
+        pixmap: Pixmap,
+        pendingCallbacks: List<ImageLoadCallback>
+    ) {
+        pendingUploadQueue.add(PendingUploadTask(cacheKey, pixmap, pendingCallbacks))
+    }
+
+    /**
+     * Dispatches an error with the fallback placeholder texture to all [targetCallbacks] on the main thread.
+     */
+    private fun dispatchFallbackError(
+        targetCallbacks: List<ImageLoadCallback>,
+        error: Throwable
+    ) {
+        val fallback = fallbackRegion()
+        val handle = cache.put("fallback:placeholder", fallback.texture, kind = TextureKind.FALLBACK)
+        AsyncDispatcher.onMainThread {
+            for (callback in targetCallbacks) {
+                callback(fallback, handle, error)
+            }
+        }
+    }
+
+    /**
+     * Maximum number of GPU texture uploads permitted per render frame.
+     * Defaults to 4, dynamically driven by [AppSettingsService] graphics configuration.
+     */
+    open val maxUploadsPerFrame: Int
+        get() = (context.settings as? org.mdt.core.engine.settings.AppSettingsService)?.current?.graphics?.maxUploadsPerFrame ?: 4
+
+    /**
+     * Processes queued texture uploads onto the GPU (throttled to [maxUploadsPerFrame] per frame).
+     * Invoked automatically at the end of every render frame.
+     */
+    fun processUploadQueue() {
+        val maxLimit = maxUploadsPerFrame
+        var processedCount = 0
+        while (processedCount < maxLimit && !pendingUploadQueue.isEmpty()) {
+            val task = pendingUploadQueue.poll() ?: break
+            processedCount++
+            try {
+                val uploadedTexture = Texture(task.pixmap).apply {
+                    setFilter(Texture.TextureFilter.linear)
+                }
+                task.pixmap.dispose()
+                val textureHandle = cache.put(task.cacheKey, uploadedTexture, kind = TextureKind.MANAGED)
+                for (callback in task.pendingCallbacks) {
+                    callback(textureHandle.region, textureHandle, null)
+                }
+            } catch (uploadError: Throwable) {
+                Log.err("[ImageService] Failed to upload GPU texture for key: ${task.cacheKey}", uploadError)
+                task.pixmap.dispose()
+                val fallback = fallbackRegion()
+                val textureHandle = cache.put("fallback:placeholder", fallback.texture, kind = TextureKind.FALLBACK)
+                for (callback in task.pendingCallbacks) {
+                    callback(fallback, textureHandle, uploadError)
+                }
+            }
+        }
     }
 }
