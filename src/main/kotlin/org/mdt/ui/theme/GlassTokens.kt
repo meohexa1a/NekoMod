@@ -7,7 +7,8 @@ import org.mdt.ui.components.layout.BoxVisuals
 /**
  * ## GlassMaterialPreset
  *
- * Predefined multi-pass Gaussian backdrop blur and vibrancy tints matching Apple iOS Material design.
+ * Predefined multi-pass Gaussian backdrop blur and vibrancy tints matching Apple iOS & Modern Web design.
+ * Scaled gently around CSS `backdrop-filter: blur(2px .. 6px)`.
  */
 enum class GlassMaterialPreset(
     val blurRadius: Float,
@@ -16,17 +17,17 @@ enum class GlassMaterialPreset(
     val tintAlpha: Float,
     val iterations: Int
 ) {
-    /** Ultra-thin translucent surface for navigation bars and floating toolbars. */
-    ULTRA_THIN(blurRadius = 8f, weight = 0.7f, blend = 0.7f, tintAlpha = 0.08f, iterations = 2),
+    /** Ultra-subtle gentle blur for navigation bars (~2px web blur). */
+    ULTRA_THIN(blurRadius = 2.0f, weight = 0.7f, blend = 0.7f, tintAlpha = 0.08f, iterations = 1),
 
-    /** Standard thin glass for segmented controls and cards. */
-    THIN(blurRadius = 12f, weight = 0.85f, blend = 0.80f, tintAlpha = 0.14f, iterations = 2),
+    /** Standard subtle glass for segmented controls (~3.5px web blur). */
+    THIN(blurRadius = 3.5f, weight = 0.85f, blend = 0.80f, tintAlpha = 0.14f, iterations = 1),
 
-    /** Regular frosted glass for prominent panels and sidebars. */
-    REGULAR(blurRadius = 16f, weight = 0.95f, blend = 0.88f, tintAlpha = 0.20f, iterations = 2),
+    /** Regular crisp frosted glass for cards and panels (~5.0px web blur). */
+    REGULAR(blurRadius = 5.0f, weight = 0.95f, blend = 0.88f, tintAlpha = 0.20f, iterations = 1),
 
-    /** Thick opaque glass for modal dialogs and alert popups. */
-    THICK(blurRadius = 24f, weight = 1.0f, blend = 0.95f, tintAlpha = 0.30f, iterations = 3)
+    /** Prominent glass for modal dialogs and alert popups (~8.0px web blur). */
+    THICK(blurRadius = 8.0f, weight = 1.0f, blend = 0.95f, tintAlpha = 0.28f, iterations = 1)
 }
 
 /**
@@ -55,7 +56,7 @@ fun UIModifier.glassMaterial(
         tint = tint,
         iterations = preset.iterations
     )
-    .border(width = 1f, color = border, style = BoxVisuals.BorderStyle.SOLID)
+    .border(width = 1f, color = border, style = org.mdt.ui.components.layout.Border.Style.SOLID)
     .shadow(
         color = shadow,
         offsetX = 0f,
