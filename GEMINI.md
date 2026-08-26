@@ -6,7 +6,7 @@
 1. **Type System (Float Everywhere):** Use `Float` (`f` literal suffix) for all geometric dimensions, insets (padding/margin), coordinates, corner radii, opacities, blur weights, and shader uniforms. Never use `Double`.
 2. **OpenGL Active Texture Enum:** Always call `Gl.activeTexture(Gl.texture0 + unit)`, NEVER `Gl.texture2d + unit` (which causes `[GL] Error: invalid enum`).
 3. **Arc Shader Headers & Precisions:** Never declare `#ifdef GL_ES` or `#version` in raw shader files (`*.frag`, `*.vert`). Arc's `Shader` compiler automatically injects precision qualifiers internally; manual declarations cause duplicate definition crashes.
-4. **Direct Engine Background Rendering:** When building root screens (e.g. Main Menu), disable legacy Arc Scene2D menu groups completely (`menuGroup.visible = false`, `menuGroup.touchable = disabled`) and invoke native renderers (e.g. `MenuRenderer.render()`) directly in `EngineRenderer` before the Virtual DOM canvas pass.
+4. **Declarative Custom Graphics & Background Rendering (Canvas Composable):** Never hardcode game-specific renderers (e.g. `MenuRenderer`) inside `EngineRenderer`. Instead, use the declarative `Canvas(modifier) { ... }` composable at the screen level, managing lifecycle and GPU disposal via `remember` and `DisposableEffect`.
 5. **Typography, Scaling & Multi-Line Wrapping:** Render BMFonts (`Fonts.def`, `Fonts.tech`, `Fonts.large`) at natural `scale = 1.0f` (or integer increments). Never apply fractional float scaling (e.g. `0.8f`, `0.85f`) to bitmap atlas fonts. When `wrap = true`, pass container inner width `innerW` to `font.draw(text, x, y, innerW, align, true)` and compute height via `layoutHelper.setText(f, text, color, innerW, align, true)`.
 
 ---
@@ -44,3 +44,12 @@
 ## 📖 VI. Documentation & In-Source Standards
 18. **Bilingual Documentation:** Maintain parallel bilingual documentation pairs (`*_vi.md` and `*_en.md`) in `docs/`. All inter-document markdown links must strictly use relative paths (`./` or `../`), never hardcoded machine paths (`file:///C:/...`).
 19. **In-Source KDoc Documentation:** All KDoc comments in Kotlin source files (`*.kt`) must be strictly 100% English. Reference documentation using plain text `See: docs/path/file_en.md` (do not use `@see` with file paths).
+
+---
+
+## 🔬 VII. Systematic Diagnostic & Anti-Pattern Hunting Protocol (4-Lens Methodology)
+20. **Coupling & Locality Audit (Isolation Test):** Low-level engines and core renderers (`EngineRenderer`) must remain 100% agnostic of specific domain screens, optional visual effects, or higher-level managers. If disabling or removing a feature leaves baggage in the core engine, encapsulate it immediately at the feature/screen level.
+21. **Algorithmic Waste & Lazy Frame-Indexing:** Never run recursive tree traversals ($O(N)$ pre-scans) before render loops to check for optional node states. Defer heavy operations (FBO captures, blur passes) to the exact moment of execution on-demand, protected by monotonic frame indexing (`lastFrameId == currentFrameId`) for $O(1)$ single execution per frame.
+22. **End-to-End Signal Chain Integrity:** When auditing UI primitives, verify the unbroken end-to-end signal flow: `Input Event` $\rightarrow$ `Actionable Node Matcher` (`findActionableNode`) $\rightarrow$ `Scissor Boundary Hit-Test` $\rightarrow$ `Event Bubbling` $\rightarrow$ `State Mutation` $\rightarrow$ `Layout/Draw`. Ensure no intermediate router silently drops or misroutes events for supported node types.
+23. **Framework Idiomaticity & Zero-GC Invariants:** Enforce minimal primitive node counts (deferring layout/presentation to pure composables) and strictly use typed modifier elements (`data class Element : UIModifier.Element`) with value-based `equals()`/`hashCode()` to eliminate GC allocations and enable Compose recomposition skipping.
+
