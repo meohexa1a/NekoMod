@@ -36,14 +36,14 @@ object GodotLayout {
 
         if (child.width > 0f && child.height > 0f) {
             val cx = when {
-                (hFlags and SizeFlags.SHRINK_CENTER) != 0 -> slotInnerX + (slotInnerW - child.width) * 0.5f
                 (hFlags and SizeFlags.SHRINK_END) != 0 -> slotInnerX + slotInnerW - child.width
-                else -> slotInnerX
+                (hFlags and SizeFlags.SHRINK_BEGIN) != 0 -> slotInnerX
+                else -> slotInnerX + (slotInnerW - child.width) * 0.5f
             }
             val cy = when {
-                (vFlags and SizeFlags.SHRINK_CENTER) != 0 -> slotInnerY + (slotInnerH - child.height) * 0.5f
                 (vFlags and SizeFlags.SHRINK_END) != 0 -> slotInnerY
-                else -> slotInnerY + slotInnerH - child.height
+                (vFlags and SizeFlags.SHRINK_BEGIN) != 0 -> slotInnerY + slotInnerH - child.height
+                else -> slotInnerY + (slotInnerH - child.height) * 0.5f
             }
             child.setBounds(cx, cy, child.width, child.height)
             return

@@ -1,6 +1,9 @@
 package org.mdt.core.engine.image
 
+import arc.graphics.Texture
 import arc.graphics.g2d.TextureRegion
+import arc.scene.style.Drawable
+import arc.scene.style.TextureRegionDrawable
 import okio.Path
 import okio.Path.Companion.toPath
 import org.mdt.core.common.RequestBuilder
@@ -41,6 +44,8 @@ sealed class ImageSource {
          * Supported types:
          * - [ImageSource] -> Returns directly.
          * - [TextureRegion] -> Wraps in [Region].
+         * - [TextureRegionDrawable] / [Drawable] -> Extracts [TextureRegion] and wraps in [Region].
+         * - [Texture] -> Wraps in [Region].
          * - [Path] -> Wraps in [LocalFile].
          * - [String] -> Parses prefixes (`http://`, `https://`, `atlas:`, `asset:`, `file:`) or defaults to [Atlas].
          * - `null` or others -> Fallback [Atlas] ("ohno").
@@ -52,6 +57,12 @@ sealed class ImageSource {
             null -> Atlas("ohno")
             is ImageSource -> source
             is TextureRegion -> Region(source)
+            is TextureRegionDrawable -> Region(source.region)
+            is Drawable -> {
+                val reg = (source as? TextureRegionDrawable)?.region
+                if (reg != null) Region(reg) else Atlas("ohno")
+            }
+            is Texture -> Region(TextureRegion(source))
             is Path -> LocalFile(source)
             is String -> when {
                 source.startsWith("http://") || source.startsWith("https://") -> Url(source)

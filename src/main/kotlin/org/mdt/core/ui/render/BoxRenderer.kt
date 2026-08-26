@@ -19,7 +19,7 @@ import org.mdt.ui.components.layout.BoxVisuals
  */
 object BoxRenderer {
     @JvmField
-    var blurEnabled = false
+    var blurEnabled = true
 
     fun draw(
         x: Float, y: Float,

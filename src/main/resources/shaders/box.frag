@@ -126,13 +126,25 @@ void main() {
         color = vec4(baseFill.rgb, baseFill.a * fillAlpha);
     }
 
-    // 2. Backdrop blur sampling (if available)
+    // 2. Apple iOS Vibrancy & Frosted Glass Backdrop
     if (u_backdropWeight > 0.001) {
         vec2 backUv = u_backdropCoords.xy + uv * (u_backdropCoords.zw - u_backdropCoords.xy);
         vec4 backColor = texture2D(u_backdropTex, backUv);
-        float blend = clamp(u_backdropBlend * u_backdropWeight, 0.0, 1.0);
-        color.rgb = mix(color.rgb, backColor.rgb, blend);
-        color.a = max(color.a, u_backdropMinAlpha * fillAlpha);
+
+        // Vibrancy saturation & brightness lift
+        vec3 rgb = backColor.rgb;
+        float luma = dot(rgb, vec3(0.299, 0.587, 0.114));
+        rgb = mix(vec3(luma), rgb, 1.30);
+        rgb = pow(max(rgb, vec3(0.0)), vec3(0.90));
+
+        // Subtle specular glass light gradient (soft highlight at top)
+        float topSheen = max(0.0, 1.0 - uv.y) * 0.06;
+        rgb += vec3(topSheen);
+
+        // Blend with tinted glass overlay
+        float tintAmount = clamp(u_fillColor.a, 0.0, 1.0);
+        color.rgb = mix(rgb, u_fillColor.rgb, tintAmount);
+        color.a = fillAlpha;
     }
 
     // 3. Glow
@@ -149,7 +161,7 @@ void main() {
         color.rgb = mix(color.rgb, u_innerShadowColor.rgb, inner * u_innerShadowColor.a * fillAlpha);
     }
 
-    // 5. Border Stroke
+    // 5. Border Stroke (Hairline Specular Glass Edge)
     if (u_borderWidth > 0.001) {
         float bw = u_borderWidth;
         vec2 innerSize = vec2(max(u_size.x - bw * 2.0, 0.0), max(u_size.y - bw * 2.0, 0.0));

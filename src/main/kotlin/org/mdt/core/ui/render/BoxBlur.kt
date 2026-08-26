@@ -13,9 +13,8 @@ import org.mdt.ui.components.layout.BoxVisuals
 /**
  * ## BoxBlur
  *
- * Self-contained high-performance backdrop blur coordinator.
- * Lazily captures the screen buffer on-demand and performs a single 2-pass Gaussian
- * blur per frame using downscaled ping-pong FrameBuffers.
+ * High-performance 2-pass Gaussian backdrop blur coordinator.
+ * Lazily captures the framebuffer and performs downscaled ping-pong blur passes on-demand.
  *
  * See: docs/rendering-shaders/rendering_shaders_en.md
  */
@@ -66,10 +65,10 @@ object BoxBlur {
         Draw.flush()
         scratchMat.set(Draw.proj())
 
-        // 1. Copy downscaled full screen capture into pingPongA with dedicated FBO projection
+        // 1. Copy downscaled full screen capture into pingPongA with dedicated FBO projection (pure white color)
         dstA.begin()
         Draw.proj(0f, 0f, fbW.toFloat(), fbH.toFloat())
-        Draw.color(visuals.backdropTint)
+        Draw.color(Color.white)
         Fill.quad(
             capture,
             0f, 0f, Draw.getColor().toFloatBits(), 0f, 0f,
@@ -88,7 +87,7 @@ object BoxBlur {
         repeat(iterations) {
             blurPass(dstA, dstB, fbW, fbH, radius, 1f, 0f)
             blurPass(dstB, dstA, fbW, fbH, radius, 0f, 1f)
-            radius *= 1.25f
+            radius *= 1.35f
         }
 
         // Restore camera/canvas projection matrix
@@ -137,6 +136,7 @@ object BoxBlur {
             s.setUniformf("u_texelSize", 1f / fbW.toFloat(), 1f / fbH.toFloat())
             s.setUniformf("u_radius", radius)
             s.setUniformf("u_dir", dx, dy)
+            Draw.color(Color.white)
 
             Fill.quad(
                 src.texture,
