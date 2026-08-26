@@ -7,7 +7,7 @@ import mindustry.Vars
 import mindustry.game.EventType.ClientLoadEvent
 import mindustry.game.EventType.Trigger
 import mindustry.mod.Mod
-import org.mdt.ui.EngineRuntime
+import org.mdt.core.ui.EngineRuntime
 import org.mdt.ui.screens.MainMenuScreen
 
 /**
@@ -26,9 +26,7 @@ class NekoMod : Mod() {
 
         // Completely turn off Mindustry's legacy Arc menuGroup
         Events.run(Trigger.update) {
-            if (Vars.state == null || Vars.state.isMenu) {
-                disableLegacyMenuGroup()
-            }
+            if (Vars.state == null || Vars.state.isMenu) disableLegacyMenuGroup()
         }
     }
 
@@ -36,9 +34,7 @@ class NekoMod : Mod() {
         disableLegacyMenuGroup()
 
         // Launch NekoMod Declarative UI Engine with MainMenuScreen
-        EngineRuntime.setContent {
-            MainMenuScreen()
-        }
+        EngineRuntime.setContent { MainMenuScreen() }
     }
 
     private fun disableLegacyMenuGroup() {
