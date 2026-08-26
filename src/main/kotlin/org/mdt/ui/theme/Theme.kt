@@ -8,11 +8,12 @@ import androidx.compose.runtime.staticCompositionLocalOf
 /**
  * ## NekoThemeData
  *
- * Immutable container encapsulating colors, shapes, and typography.
+ * Immutable container encapsulating Apple-inspired colors, shapes, spacing grid, and typography.
  */
 data class NekoThemeData(
     val colors: ColorTokens = ColorTokens(),
     val shapes: ShapeTokens = ShapeTokens(),
+    val spacing: SpacingTokens = SpacingTokens(),
     val typography: TypographyTokens = TypographyTokens()
 )
 
@@ -32,6 +33,11 @@ object Theme {
         @ReadOnlyComposable
         get() = LocalTheme.current.shapes
 
+    val spacing: SpacingTokens
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalTheme.current.spacing
+
     val typography: TypographyTokens
         @Composable
         @ReadOnlyComposable
@@ -41,9 +47,9 @@ object Theme {
 /**
  * ## NekoTheme
  *
- * Root theme provider composable wrapping the UI tree with Apple iOS Glassmorphism tokens.
+ * Root theme provider composable wrapping the UI tree with Apple macOS / iOS design tokens.
  *
- * @param theme Custom theme definition (defaults to standard Apple dark glass).
+ * @param theme Custom theme definition (defaults to standard Apple dark acrylic glass).
  * @param content Declarative child UI content.
  */
 @Composable
