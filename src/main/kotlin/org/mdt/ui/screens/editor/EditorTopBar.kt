@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import arc.graphics.Color
 import arc.scene.style.TextureRegionDrawable
 import mindustry.gen.Icon
-import mindustry.ui.Fonts
 import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
@@ -15,6 +14,7 @@ import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.surface.Button
 import org.mdt.ui.components.surface.ButtonVariant
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.theme.Theme
 
 /**
  * ## EditorMode
@@ -31,8 +31,10 @@ enum class EditorMode(val title: String, val icon: TextureRegionDrawable) {
 /**
  * ## EditorTopBar
  *
- * Clean, mathematically centered top navigation bar using [LayoutPreset.CENTER]
- * to guarantee true dead-center alignment for the segmented mode switcher.
+ * Apple macOS-inspired top navigation bar featuring centered [EditorMode] segmented switcher,
+ * frosted glass styling, and unified design tokens.
+ *
+ * See: docs/design-system/design_system_en.md
  */
 @Composable
 fun EditorTopBar(
@@ -41,18 +43,17 @@ fun EditorTopBar(
     onPreview: () -> Unit = {},
     onReload: () -> Unit = {}
 ) {
-    val figmaBg = Color.valueOf("1e1e1e")
-    val figmaBorder = Color.valueOf("333333")
-    val figmaText = Color.valueOf("ffffff")
-    val figmaMuted = Color.valueOf("8f8f8f")
-    val figmaAccent = Color.valueOf("0d99ff")
+    val colors = Theme.colors
+    val shapes = Theme.shapes
+    val spacing = Theme.spacing
+    val typography = Theme.typography
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(48f)
-            .background(figmaBg)
-            .border(1f, figmaBorder)
+            .background(colors.surfacePrimary)
+            .border(1f, colors.borderHairline)
     ) {
         // =====================================================================
         // 1. Left: Brand Logo & Title (Anchored to CENTER_LEFT)
@@ -60,21 +61,21 @@ fun EditorTopBar(
         Box(
             modifier = Modifier
                 .anchor(LayoutPreset.CENTER_LEFT)
-                .margin(left = 16f)
+                .margin(left = spacing.lg)
         ) {
             Row(
-                arrangement = Arrangement.spacedBy(10f),
+                arrangement = Arrangement.spacedBy(spacing.sm),
                 alignment = Alignment.CenterStart
             ) {
                 Image(
                     region = Icon.hammer.region,
                     modifier = Modifier.size(20f),
-                    tint = figmaAccent
+                    tint = colors.blue
                 )
                 Text(
                     text = "Neko Studio",
-                    color = figmaText,
-                    font = Fonts.def
+                    color = colors.textPrimary,
+                    font = typography.title
                 )
             }
         }
@@ -85,37 +86,37 @@ fun EditorTopBar(
         Box(
             modifier = Modifier
                 .anchor(LayoutPreset.CENTER)
-                .radius(8f)
-                .background(Color.valueOf("141414"))
-                .border(1f, figmaBorder)
+                .radius(shapes.md)
+                .background(colors.surfaceBackground)
+                .border(1f, colors.borderHairline)
                 .pad(3f)
         ) {
             Row(
-                arrangement = Arrangement.spacedBy(4f),
+                arrangement = Arrangement.spacedBy(spacing.xs),
                 alignment = Alignment.CenterStart
             ) {
                 for (mode in EditorMode.values()) {
                     val isSelected = mode == currentMode
                     Box(
                         modifier = Modifier
-                            .radius(6f)
-                            .background(if (isSelected) Color.valueOf("2c3e55") else Color.clear)
+                            .radius(shapes.sm)
+                            .background(if (isSelected) colors.surfaceHighlight else Color.clear)
                             .clickable { onSelectMode(mode) }
-                            .pad(horizontal = 14f, vertical = 6f)
+                            .pad(horizontal = spacing.md, vertical = spacing.xs + 1f)
                     ) {
                         Row(
-                            arrangement = Arrangement.spacedBy(8f),
+                            arrangement = Arrangement.spacedBy(spacing.sm),
                             alignment = Alignment.CenterStart
                         ) {
                             Image(
                                 region = mode.icon.region,
                                 modifier = Modifier.size(16f),
-                                tint = if (isSelected) figmaAccent else figmaMuted
+                                tint = if (isSelected) colors.blue else colors.textTertiary
                             )
                             Text(
                                 text = mode.title,
-                                color = if (isSelected) figmaText else figmaMuted,
-                                font = Fonts.def,
+                                color = if (isSelected) colors.textPrimary else colors.textSecondary,
+                                font = typography.body,
                                 scale = 1.0f
                             )
                         }
@@ -130,18 +131,18 @@ fun EditorTopBar(
         Box(
             modifier = Modifier
                 .anchor(LayoutPreset.CENTER_RIGHT)
-                .margin(right = 16f)
+                .margin(right = spacing.lg)
         ) {
             Row(
-                arrangement = Arrangement.spacedBy(8f),
+                arrangement = Arrangement.spacedBy(spacing.sm),
                 alignment = Alignment.CenterStart
             ) {
                 Button(
                     text = "Reload",
                     icon = Icon.refresh,
                     variant = ButtonVariant.PLAIN,
-                    paddingH = 12f,
-                    paddingV = 6f,
+                    paddingH = spacing.md,
+                    paddingV = spacing.xs + 1f,
                     onClick = onReload
                 )
 
@@ -149,9 +150,9 @@ fun EditorTopBar(
                     text = "Preview",
                     icon = Icon.play,
                     variant = ButtonVariant.FILLED,
-                    radius = 6f,
-                    paddingH = 16f,
-                    paddingV = 6f,
+                    radius = shapes.sm,
+                    paddingH = spacing.lg,
+                    paddingV = spacing.xs + 1f,
                     onClick = onPreview
                 )
             }

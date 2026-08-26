@@ -1,9 +1,8 @@
 package org.mdt.ui.screens.editor
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import arc.graphics.Color
 import mindustry.gen.Icon
-import mindustry.ui.Fonts
 import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
@@ -13,6 +12,7 @@ import org.mdt.ui.components.scroll.ScrollView
 import org.mdt.ui.components.surface.Divider
 import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.theme.Theme
 
 /**
  * ## TreeItemData
@@ -34,7 +34,9 @@ data class TreeItemData(
  * ## EditorLeftSidebar
  *
  * Left panel managing Pages, Hierarchical Layers, Templates, i18n, and NXML code.
- * Features hierarchical tree indentation, hover action toggles, and a collapse trigger.
+ * Styled with Apple Human Interface Guidelines and acrylic materials.
+ *
+ * See: docs/design-system/design_system_en.md
  */
 @Composable
 fun EditorLeftSidebar(
@@ -43,28 +45,24 @@ fun EditorLeftSidebar(
     onSelectItem: (String) -> Unit = {},
     onCollapse: () -> Unit = {}
 ) {
-    val figmaBg = Color.valueOf("1e1e1e")
-    val figmaBorder = Color.valueOf("333333")
-    val figmaText = Color.valueOf("ffffff")
-    val figmaMuted = Color.valueOf("8f8f8f")
-    val figmaAccent = Color.valueOf("0d99ff")
-    val tagContainerColor = Color.valueOf("60a5fa")
-    val tagTextColor = Color.valueOf("4ade80")
-    val tagComponentColor = Color.valueOf("c084fc")
+    val colors = Theme.colors
+    val shapes = Theme.shapes
+    val spacing = Theme.spacing
+    val typography = Theme.typography
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(figmaBg)
+            .background(colors.surfacePrimary)
     ) {
         ScrollView(
             modifier = Modifier.fillMaxSize(),
             enableVertical = true
         ) {
             Column(
-                arrangement = Arrangement.spacedBy(10f),
+                arrangement = Arrangement.spacedBy(spacing.sm),
                 alignment = Alignment.CenterStart,
-                modifier = Modifier.fillMaxWidth().pad(horizontal = 12f, vertical = 10f)
+                modifier = Modifier.fillMaxWidth().pad(horizontal = spacing.md, vertical = spacing.sm)
             ) {
                 when (mode) {
                     EditorMode.LAYERS -> {
@@ -72,25 +70,25 @@ fun EditorLeftSidebar(
                         // 1. SCENES & LAYERS HIERARCHICAL TREE VIEW
                         // =====================================================
                         Row(
-                            arrangement = Arrangement.spacedBy(8f),
+                            arrangement = Arrangement.spacedBy(spacing.sm),
                             alignment = Alignment.CenterStart,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(text = "Layers", color = figmaText, font = Fonts.def)
+                            Text(text = "Layers", color = colors.textPrimary, font = typography.title)
                             Spacer(modifier = Modifier.weight(1.0f))
 
                             // Add Node Button
                             Box(
                                 modifier = Modifier
                                     .size(24f, 24f)
-                                    .radius(4f)
+                                    .radius(shapes.xs)
                                     .clickable { }
                                     .pad(4f)
                             ) {
                                 Image(
                                     region = Icon.add.region,
                                     modifier = Modifier.fillMaxSize(),
-                                    tint = figmaMuted
+                                    tint = colors.textSecondary
                                 )
                             }
 
@@ -98,57 +96,57 @@ fun EditorLeftSidebar(
                             Box(
                                 modifier = Modifier
                                     .size(24f, 24f)
-                                    .radius(4f)
+                                    .radius(shapes.xs)
                                     .clickable { onCollapse() }
                                     .pad(4f)
                             ) {
                                 Image(
                                     region = Icon.left.region,
                                     modifier = Modifier.fillMaxSize(),
-                                    tint = figmaMuted
+                                    tint = colors.textSecondary
                                 )
                             }
                         }
 
                         // Scene / Page Chip Selector
                         Row(
-                            arrangement = Arrangement.spacedBy(6f),
+                            arrangement = Arrangement.spacedBy(spacing.xs + 2f),
                             alignment = Alignment.CenterStart,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .radius(6f)
-                                .background(Color.valueOf("25272e"))
-                                .border(1f, figmaBorder)
-                                .pad(horizontal = 8f, vertical = 6f)
+                                .radius(shapes.sm)
+                                .background(colors.surfaceSecondary)
+                                .border(1f, colors.borderHairline)
+                                .pad(horizontal = spacing.sm, vertical = spacing.xs + 2f)
                         ) {
                             Image(
                                 region = Icon.file.region,
                                 modifier = Modifier.size(14f),
-                                tint = figmaAccent
+                                tint = colors.blue
                             )
-                            Text(text = "app.nxml : MainScene", color = figmaText, font = Fonts.def)
+                            Text(text = "app.nxml : MainScene", color = colors.textPrimary, font = typography.body)
                             Spacer(modifier = Modifier.weight(1.0f))
-                            Text(text = "▾", color = figmaMuted)
+                            Text(text = "▾", color = colors.textTertiary)
                         }
 
                         Divider(modifier = Modifier.fillMaxWidth().height(1f))
 
                         // Hierarchical Node Tree
                         val treeItems = listOf(
-                            TreeItemData("root", "App Root Scene", "Scene", Icon.tree, figmaAccent, depth = 0, isExpandable = true),
-                            TreeItemData("header", "Header Container", "Box", Icon.box, tagContainerColor, depth = 1, isExpandable = true),
-                            TreeItemData("logo", "Logo Brand Image", "Image", Icon.planet, Color.valueOf("facc15"), depth = 2),
-                            TreeItemData("title", "Title Text", "Text", Icon.fileText, tagTextColor, depth = 2),
-                            TreeItemData("body", "Main Viewport Body", "Row", Icon.box, tagContainerColor, depth = 1, isExpandable = true),
-                            TreeItemData("card", "Hero Glass Card", "Card", Icon.layers, tagComponentColor, depth = 2, isExpandable = true),
-                            TreeItemData("card_txt", "Hero Subtext", "Text", Icon.fileText, tagTextColor, depth = 3),
-                            TreeItemData("btn_start", "Button (Primary)", "Button", Icon.play, tagComponentColor, depth = 3),
-                            TreeItemData("btn_opt", "Button (Options)", "Button", Icon.settings, tagComponentColor, depth = 3),
-                            TreeItemData("footer", "Status Dock Bar", "Box", Icon.box, tagContainerColor, depth = 1)
+                            TreeItemData("root", "App Root Scene", "Scene", Icon.tree, colors.blue, depth = 0, isExpandable = true),
+                            TreeItemData("header", "Header Container", "Box", Icon.box, colors.teal, depth = 1, isExpandable = true),
+                            TreeItemData("logo", "Logo Brand Image", "Image", Icon.planet, colors.yellow, depth = 2),
+                            TreeItemData("title", "Title Text", "Text", Icon.fileText, colors.green, depth = 2),
+                            TreeItemData("body", "Main Viewport Body", "Row", Icon.box, colors.teal, depth = 1, isExpandable = true),
+                            TreeItemData("card", "Hero Glass Card", "Card", Icon.layers, colors.purple, depth = 2, isExpandable = true),
+                            TreeItemData("card_txt", "Hero Subtext", "Text", Icon.fileText, colors.green, depth = 3),
+                            TreeItemData("btn_start", "Button (Primary)", "Button", Icon.play, colors.purple, depth = 3),
+                            TreeItemData("btn_opt", "Button (Options)", "Button", Icon.settings, colors.purple, depth = 3),
+                            TreeItemData("footer", "Status Dock Bar", "Box", Icon.box, colors.teal, depth = 1)
                         )
 
                         Column(
-                            arrangement = Arrangement.spacedBy(2f),
+                            arrangement = Arrangement.spacedBy(spacing.xxs),
                             alignment = Alignment.CenterStart,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -159,14 +157,14 @@ fun EditorLeftSidebar(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .radius(6f)
-                                        .background(if (isSelected) Color.valueOf("1e385a") else Color.clear)
-                                        .border(if (isSelected) 1f else 0f, if (isSelected) figmaAccent else Color.clear)
+                                        .radius(shapes.sm)
+                                        .background(if (isSelected) colors.surfaceHighlight else Color.clear)
+                                        .border(if (isSelected) 1f else 0f, if (isSelected) colors.blue else Color.clear)
                                         .clickable { onSelectItem(item.name) }
-                                        .pad(horizontal = 6f, vertical = 5f)
+                                        .pad(horizontal = spacing.xs + 2f, vertical = spacing.xs + 1f)
                                 ) {
                                     Row(
-                                        arrangement = Arrangement.spacedBy(6f),
+                                        arrangement = Arrangement.spacedBy(spacing.xs + 2f),
                                         alignment = Alignment.CenterStart,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
@@ -177,23 +175,23 @@ fun EditorLeftSidebar(
 
                                         // Expand chevron or leaf bullet
                                         if (item.isExpandable) {
-                                            Text(text = "▾", color = figmaMuted)
+                                            Text(text = "▾", color = colors.textTertiary)
                                         } else {
-                                            Text(text = "•", color = Color.valueOf("444444"))
+                                            Text(text = "•", color = colors.textQuaternary)
                                         }
 
                                         // Node Type Icon
                                         Image(
                                             region = item.icon.region,
                                             modifier = Modifier.size(14f),
-                                            tint = if (isSelected) figmaAccent else item.iconTint
+                                            tint = if (isSelected) colors.blue else item.iconTint
                                         )
 
                                         // Node Name
                                         Text(
                                             text = item.name,
-                                            color = if (isSelected) figmaText else Color.valueOf("d4d4d4"),
-                                            font = Fonts.def
+                                            color = if (isSelected) colors.textPrimary else colors.textSecondary,
+                                            font = typography.body
                                         )
 
                                         Spacer(modifier = Modifier.weight(1.0f))
@@ -202,7 +200,7 @@ fun EditorLeftSidebar(
                                         Image(
                                             region = Icon.eye.region,
                                             modifier = Modifier.size(12f),
-                                            tint = if (isSelected) figmaText else Color.valueOf("555555")
+                                            tint = if (isSelected) colors.textPrimary else colors.textQuaternary
                                         )
                                     }
                                 }
@@ -215,24 +213,24 @@ fun EditorLeftSidebar(
                         // 2. REUSABLE TEMPLATES VIEW
                         // =====================================================
                         Row(
-                            arrangement = Arrangement.spacedBy(8f),
+                            arrangement = Arrangement.spacedBy(spacing.sm),
                             alignment = Alignment.CenterStart,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(text = "Templates Library", color = figmaText, font = Fonts.def)
+                            Text(text = "Templates Library", color = colors.textPrimary, font = typography.title)
                             Spacer(modifier = Modifier.weight(1.0f))
 
                             Box(
                                 modifier = Modifier
                                     .size(24f, 24f)
-                                    .radius(4f)
+                                    .radius(shapes.xs)
                                     .clickable { onCollapse() }
                                     .pad(4f)
                             ) {
                                 Image(
                                     region = Icon.left.region,
                                     modifier = Modifier.fillMaxSize(),
-                                    tint = figmaMuted
+                                    tint = colors.textSecondary
                                 )
                             }
                         }
@@ -241,7 +239,7 @@ fun EditorLeftSidebar(
 
                         val components = listOf(
                             "Card" to "Apple Frosted Glass Container",
-                            "Button" to "Interactive Ripple Action Button",
+                            "Button" to "Interactive Action Button",
                             "Toggle" to "Smooth Sliding Boolean Switch",
                             "Slider" to "Numeric Continuous Progress Bar",
                             "Badge" to "Sleek Accent Status Pill",
@@ -255,29 +253,29 @@ fun EditorLeftSidebar(
                                 alignment = Alignment.CenterStart,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .radius(6f)
-                                    .background(if (isSelected) Color.valueOf("1e385a") else Color.valueOf("222222"))
-                                    .border(1f, if (isSelected) figmaAccent else figmaBorder)
+                                    .radius(shapes.sm)
+                                    .background(if (isSelected) colors.surfaceHighlight else colors.surfaceSecondary)
+                                    .border(1f, if (isSelected) colors.blue else colors.borderHairline)
                                     .clickable { onSelectItem(name) }
-                                    .pad(8f)
+                                    .pad(spacing.sm)
                             ) {
                                 Row(
-                                    arrangement = Arrangement.spacedBy(6f),
+                                    arrangement = Arrangement.spacedBy(spacing.xs + 2f),
                                     alignment = Alignment.CenterStart
                                 ) {
                                     Image(
                                         region = Icon.box.region,
                                         modifier = Modifier.size(14f),
-                                        tint = figmaAccent
+                                        tint = colors.blue
                                     )
                                     MonoText(
                                         text = "<$name>",
-                                        color = figmaText
+                                        color = colors.textPrimary
                                     )
                                 }
                                 Text(
                                     text = desc,
-                                    color = figmaMuted
+                                    color = colors.textSecondary
                                 )
                             }
                         }
@@ -288,24 +286,24 @@ fun EditorLeftSidebar(
                         // 3. I18N LOCALIZATION DICTIONARY
                         // =====================================================
                         Row(
-                            arrangement = Arrangement.spacedBy(8f),
+                            arrangement = Arrangement.spacedBy(spacing.sm),
                             alignment = Alignment.CenterStart,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(text = "i18n Dictionary", color = figmaText, font = Fonts.def)
+                            Text(text = "i18n Dictionary", color = colors.textPrimary, font = typography.title)
                             Spacer(modifier = Modifier.weight(1.0f))
 
                             Box(
                                 modifier = Modifier
                                     .size(24f, 24f)
-                                    .radius(4f)
+                                    .radius(shapes.xs)
                                     .clickable { onCollapse() }
                                     .pad(4f)
                             ) {
                                 Image(
                                     region = Icon.left.region,
                                     modifier = Modifier.fillMaxSize(),
-                                    tint = figmaMuted
+                                    tint = colors.textSecondary
                                 )
                             }
                         }
@@ -326,13 +324,13 @@ fun EditorLeftSidebar(
                                 alignment = Alignment.CenterStart,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .radius(6f)
-                                    .background(Color.valueOf("222222"))
-                                    .border(1f, figmaBorder)
-                                    .pad(8f)
+                                    .radius(shapes.sm)
+                                    .background(colors.surfaceSecondary)
+                                    .border(1f, colors.borderHairline)
+                                    .pad(spacing.sm)
                             ) {
-                                MonoText(text = "\$t($key)", color = figmaAccent)
-                                Text(text = value, color = figmaText, font = Fonts.def)
+                                MonoText(text = "\$t($key)", color = colors.blue)
+                                Text(text = value, color = colors.textPrimary, font = typography.body)
                             }
                         }
                     }
@@ -342,24 +340,24 @@ fun EditorLeftSidebar(
                         // 4. LIVE NXML CODE VIEW
                         // =====================================================
                         Row(
-                            arrangement = Arrangement.spacedBy(8f),
+                            arrangement = Arrangement.spacedBy(spacing.sm),
                             alignment = Alignment.CenterStart,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(text = "NXML Schema", color = figmaText, font = Fonts.def)
+                            Text(text = "NXML Schema", color = colors.textPrimary, font = typography.title)
                             Spacer(modifier = Modifier.weight(1.0f))
 
                             Box(
                                 modifier = Modifier
                                     .size(24f, 24f)
-                                    .radius(4f)
+                                    .radius(shapes.xs)
                                     .clickable { onCollapse() }
                                     .pad(4f)
                             ) {
                                 Image(
                                     region = Icon.left.region,
                                     modifier = Modifier.fillMaxSize(),
-                                    tint = figmaMuted
+                                    tint = colors.textSecondary
                                 )
                             }
                         }
@@ -378,7 +376,7 @@ fun EditorLeftSidebar(
                         )
 
                         for (line in nxmlLines) {
-                            MonoText(text = line, color = Color.valueOf("a5d6ff"))
+                            MonoText(text = line, color = colors.teal)
                         }
                     }
                 }

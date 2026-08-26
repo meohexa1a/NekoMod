@@ -10,20 +10,18 @@ import org.mdt.core.ui.layout.LayoutPreset
 import org.mdt.ui.components.display.canvas.Canvas
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.text.MonoText
+import org.mdt.ui.theme.Theme
 
 /**
  * ## EditorCenterCanvas
  *
  * True infinite 2D viewport (Figma & Godot 2D Engine paradigm) with interactive drag panning
- * and a 25px alternating checkerboard background texture.
- *
- * Free of artificial bounding frames or rigid dimensions: NXML scenes and UI trees render
- * directly into the infinite 2D world space.
+ * and a 25px alternating checkerboard background texture using Apple Design tokens.
  *
  * @param modifier Chainable layout modifier.
  * @param content Declarative preview content slotted into the infinite world space.
  *
- * See: docs/architecture/architecture_en.md
+ * See: docs/design-system/design_system_en.md
  */
 @Composable
 fun EditorCenterCanvas(
@@ -36,11 +34,9 @@ fun EditorCenterCanvas(
     var lastTouchX by remember { mutableStateOf(0f) }
     var lastTouchY by remember { mutableStateOf(0f) }
 
-    val figmaBorder = Color.valueOf("333333")
-
-    // Checkerboard Tile Colors (Every 25px)
-    val tileColorDark = Color.valueOf("121214")
-    val tileColorLight = Color.valueOf("1a1a1f")
+    val colors = Theme.colors
+    val shapes = Theme.shapes
+    val spacing = Theme.spacing
 
     Box(
         modifier = modifier
@@ -82,7 +78,7 @@ fun EditorCenterCanvas(
                 for (col in startCol..endCol) {
                     val cellX = col * cellSize + panX
                     val isEven = ((row + col) % 2 + 2) % 2 == 0
-                    Draw.color(if (isEven) tileColorDark else tileColorLight)
+                    Draw.color(if (isEven) colors.canvasGridDark else colors.canvasGridLight)
                     Fill.rect(cellX + cellSize * 0.5f, cellY + cellSize * 0.5f, cellSize, cellSize)
                 }
             }
@@ -106,15 +102,15 @@ fun EditorCenterCanvas(
         Box(
             modifier = Modifier
                 .anchor(LayoutPreset.TOP_RIGHT)
-                .margin(top = 12f, right = 12f)
-                .radius(6f)
-                .background(Color.valueOf("1e1e1e"))
-                .border(1f, figmaBorder)
-                .pad(horizontal = 10f, vertical = 5f)
+                .margin(top = spacing.md, right = spacing.md)
+                .radius(shapes.sm)
+                .background(colors.surfaceElevated)
+                .border(1f, colors.borderHairline)
+                .pad(horizontal = spacing.md, vertical = spacing.xs + 1f)
         ) {
             MonoText(
                 text = "X: ${panX.toInt()}  Y: ${panY.toInt()}  Zoom: 100%",
-                color = Color.valueOf("a0a0a0"),
+                color = colors.textSecondary,
                 scale = 0.9f
             )
         }

@@ -151,7 +151,7 @@ fun MainMenuScreen() {
             ) {
                 Card(
                     variant = CardVariant.GLASS,
-                    radius = shapes.xLarge,
+                    radius = shapes.xl,
                     padding = 28f,
                     modifier = Modifier.minWidth(450f)
                 ) {
@@ -161,7 +161,7 @@ fun MainMenuScreen() {
                         Column(gap = 4f, modifier = Modifier.fillMaxWidth()) {
                             Text(
                                 text = "EXPEDITION",
-                                color = colors.systemBlue
+                                color = colors.blue
                             )
                             Text(
                                 text = "Select an operation mode to begin.",
@@ -218,7 +218,7 @@ fun MainMenuScreen() {
                                 text = "Tech Tree",
                                 icon = Icon.treeSmall,
                                 variant = ButtonVariant.TINTED,
-                                radius = shapes.medium,
+                                radius = shapes.md,
                                 modifier = Modifier.weight(1f).tooltip("Inspect technology research"),
                                 onClick = {
                                     Sounds.uiButton.play()
@@ -230,7 +230,7 @@ fun MainMenuScreen() {
                                 text = "Map Editor",
                                 icon = Icon.terrain,
                                 variant = ButtonVariant.TINTED,
-                                radius = shapes.medium,
+                                radius = shapes.md,
                                 modifier = Modifier.weight(1f).tooltip("Create & edit maps"),
                                 onClick = {
                                     Sounds.uiButton.play()
@@ -242,7 +242,7 @@ fun MainMenuScreen() {
                                 text = "Schematics",
                                 icon = Icon.pasteSmall,
                                 variant = ButtonVariant.TINTED,
-                                radius = shapes.medium,
+                                radius = shapes.md,
                                 modifier = Modifier.weight(1f).tooltip("Factory blueprints"),
                                 onClick = {
                                     Sounds.uiButton.play()
