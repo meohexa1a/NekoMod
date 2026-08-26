@@ -1,4 +1,4 @@
-package org.mdt.core.cache
+package org.mdt.core.common
 
 import arc.graphics.Texture
 import arc.graphics.g2d.TextureRegion

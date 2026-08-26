@@ -5,7 +5,7 @@ package org.mdt.ui.components.display.image
 import androidx.compose.runtime.*
 import arc.graphics.Color
 import arc.graphics.g2d.TextureRegion
-import org.mdt.core.cache.TextureHandle
+import org.mdt.core.common.TextureHandle
 import org.mdt.core.image.ImageLoader
 import org.mdt.core.image.ImageSource
 import org.mdt.core.net.RequestBuilder

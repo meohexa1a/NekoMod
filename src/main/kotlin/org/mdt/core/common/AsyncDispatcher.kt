@@ -1,4 +1,4 @@
-package org.mdt.core.async
+package org.mdt.core.common
 
 import arc.Core
 import kotlinx.coroutines.*
