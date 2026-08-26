@@ -1,21 +1,32 @@
-package org.mdt.core.i18n
+package org.mdt.core.engine.i18n
 
+import org.mdt.core.engine.EngineContext
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * ## I18nEngine
+ * ## I18nService
  *
- * Modern hierarchical internationalization (i18n) engine supporting nested keys,
- * parameter interpolation ({name}), and live locale switching.
+ * In-memory, high-performance internationalization registry.
+ * Manages locale dictionary bundles, dynamic parameter interpolation ({name}),
+ * and reactive locale change notifications without filesystem I/O overhead.
+ *
+ * Designed specifically for NXML component-defined localization blocks (<i18n>)
+ * and runtime in-memory dictionary injection.
+ *
+ * See: docs/core-subsystems/core_subsystems_en.md
  */
-object I18nEngine {
+open class I18nService(val context: EngineContext) {
 
+    /** Active locale language code (e.g. 'en', 'vi'). Setting a new value triggers [onLocaleChanged]. */
     var currentLocale: String = "en"
         set(value) {
-            field = value
-            onLocaleChanged?.invoke()
+            if (field != value) {
+                field = value
+                onLocaleChanged?.invoke()
+            }
         }
 
+    /** Optional listener callback invoked when the active locale changes. */
     var onLocaleChanged: (() -> Unit)? = null
 
     private val translations = ConcurrentHashMap<String, MutableMap<String, String>>()
@@ -42,7 +53,7 @@ object I18nEngine {
     }
 
     /**
-     * Registers a map of translation key-value pairs for a specific locale.
+     * Registers a bundle of translation key-value pairs for a specific locale code.
      */
     fun register(locale: String, bundle: Map<String, String>) {
         val map = translations.computeIfAbsent(locale) { ConcurrentHashMap() }
@@ -50,9 +61,16 @@ object I18nEngine {
     }
 
     /**
-     * Resolves a localized string with parameter interpolation.
+     * Clears all registered translation bundles from memory.
      */
-    fun get(key: String, vararg params: Pair<String, Any>): String {
+    fun clear() {
+        translations.clear()
+    }
+
+    /**
+     * Resolves a localized string template with dynamic parameter interpolation ({paramName}).
+     */
+    operator fun get(key: String, vararg params: Pair<String, Any>): String {
         val localeMap = translations[currentLocale] ?: translations["en"]
         var template = localeMap?.get(key) ?: translations["en"]?.get(key) ?: key
 
@@ -65,6 +83,7 @@ object I18nEngine {
 }
 
 /**
- * Convenient global shorthand for [I18nEngine.get].
+ * Convenient global shorthand for [EngineContext.current.i18n.get].
  */
-fun i18n(key: String, vararg params: Pair<String, Any>): String = I18nEngine.get(key, *params)
+fun i18n(key: String, vararg params: Pair<String, Any>): String =
+    EngineContext.current.i18n.get(key, *params)

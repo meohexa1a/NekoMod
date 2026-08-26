@@ -1,4 +1,4 @@
-package org.mdt.core.store
+package org.mdt.core.engine.settings
 
 import arc.util.Log
 import kotlinx.coroutines.Job
@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.serializer
 import okio.Path
 import org.mdt.core.common.AsyncDispatcher
+import org.mdt.core.engine.storage.Storage
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -16,6 +17,11 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * Thread-safe, reactive, type-safe configuration store backed by typed Kotlinx Serialization
  * and atomic Okio disk persistence with debounced write throttling.
+ *
+ * ### Architectural Features:
+ * 1. **Lock-Free State Mutation:** Utilizes [AtomicReference] CAS loops in [update] for high concurrency.
+ * 2. **Debounced Disk Persistence:** Coalesces rapid sequential mutations into a single atomic write (300ms window).
+ * 3. **JVM Shutdown Safety:** Automatically registers a shutdown hook to flush in-flight changes on exit.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
@@ -29,6 +35,7 @@ class ConfigStore<T : Any>(
     private var saveJob: Job? = null
     private val listeners = ArrayList<(T) -> Unit>()
 
+    /** Current snapshot value of the configuration. Setting a new value triggers an atomic update. */
     var value: T
         get() = stateRef.get()
         set(newValue) {
@@ -50,7 +57,10 @@ class ConfigStore<T : Any>(
     }
 
     /**
-     * Atomically transforms the configuration state and schedules a debounced save.
+     * Atomically transforms the configuration state using a lock-free CAS loop and schedules a debounced save.
+     *
+     * @param transform State transition lambda.
+     * @return The updated state value.
      */
     fun update(transform: (T) -> T): T {
         while (true) {
@@ -89,10 +99,16 @@ class ConfigStore<T : Any>(
         }
     }
 
+    /**
+     * Registers a listener callback invoked whenever the state updates.
+     */
     fun addListener(listener: (T) -> Unit) {
         synchronized(listeners) { listeners.add(listener) }
     }
 
+    /**
+     * Unregisters a state update listener.
+     */
     fun removeListener(listener: (T) -> Unit) {
         synchronized(listeners) { listeners.remove(listener) }
     }
@@ -103,6 +119,9 @@ class ConfigStore<T : Any>(
     }
 
     companion object {
+        /**
+         * Factory creating a typed [ConfigStore] resolved against [Storage.resolve].
+         */
         inline fun <reified T : Any> create(
             name: String,
             default: T,

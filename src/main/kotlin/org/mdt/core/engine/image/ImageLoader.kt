@@ -1,9 +1,8 @@
-package org.mdt.core.image
+package org.mdt.core.engine.image
 
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.common.TextureHandle
 import org.mdt.core.engine.EngineContext
-import org.mdt.core.engine.image.ImageService
 
 /**
  * ## ImageLoader

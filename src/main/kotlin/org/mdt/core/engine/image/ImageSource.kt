@@ -1,9 +1,9 @@
-package org.mdt.core.image
+package org.mdt.core.engine.image
 
 import arc.graphics.g2d.TextureRegion
 import okio.Path
 import okio.Path.Companion.toPath
-import org.mdt.core.net.RequestBuilder
+import org.mdt.core.common.RequestBuilder
 
 /**
  * ## ImageSource
