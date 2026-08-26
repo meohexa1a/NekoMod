@@ -2,21 +2,21 @@
 
 package org.mdt.ui.screens
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import arc.Core
-import arc.graphics.Color
 import mindustry.Vars
 import mindustry.core.Version
+import mindustry.gen.Icon
 import mindustry.gen.Sounds
 import mindustry.graphics.MenuRenderer
 import org.mdt.core.engine.EngineContext
 import org.mdt.core.engine.settings.rememberSettings
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
 import org.mdt.core.ui.layout.LayoutPreset
+import org.mdt.ui.components.display.badge.Badge
+import org.mdt.ui.components.display.badge.BadgeVariant
 import org.mdt.ui.components.display.canvas.Canvas
 import org.mdt.ui.components.display.image.Image
 import org.mdt.ui.components.display.tooltip.tooltip
@@ -24,299 +24,299 @@ import org.mdt.ui.components.input.slider.Slider
 import org.mdt.ui.components.layout.*
 import org.mdt.ui.components.surface.*
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.theme.NekoTheme
+import org.mdt.ui.theme.Theme
 
 /**
  * ## MainMenuScreen
  *
- * Rich Bento Dashboard Main Menu screen built with clean, modern, modifier-driven
- * declarative composables, 3D animated space canvas background, and reactive telemetry controls.
+ * Minimalist Apple iOS Frosted Glass Main Menu with native Mindustry [Icon] integration.
+ * Zero unicode emojis to guarantee perfect BMFont baseline alignment.
+ *
+ * See: docs/design-system/design_system_en.md
  */
 @Composable
 fun MainMenuScreen() {
-    val settings by rememberSettings()
-    val sfxVolume = settings.audio.sfxVolume
-    val musicVolume = settings.audio.musicVolume
-    val ambientToggled = settings.audio.ambientEnabled
+    NekoTheme {
+        val colors = Theme.colors
+        val shapes = Theme.shapes
 
-    val menuRenderer = remember { MenuRenderer() }
-    DisposableEffect(Unit) {
-        onDispose {
-            try {
-                menuRenderer.dispose()
-            } catch (_: Throwable) {}
-        }
-    }
+        val settings by rememberSettings()
+        val sfxVolume = settings.audio.sfxVolume
+        val musicVolume = settings.audio.musicVolume
+        val ambientToggled = settings.audio.ambientEnabled
 
-    Box(modifier = Modifier.anchor(LayoutPreset.FULL_RECT)) {
-
-        // 0. NATIVE 3D ANIMATED SPACE MENU BACKGROUND
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            try {
-                menuRenderer.render()
-            } catch (_: Throwable) {}
-        }
-
-        // 1. LEFT MAIN NAVIGATION DRAWER (Hugs content dynamically with minWidth protection)
-        Card(
-            modifier = Modifier
-                .anchor(LayoutPreset.LEFT_WIDE)
-                .margin(left = 32f, top = 28f, bottom = 28f)
-                .minWidth(280f)
-                .pad(20f)
-                .radius(18f)
-                .background(Color.valueOf("10111a").a(0.94f))
-                .border(1f, Color.valueOf("25283d"))
-        ) {
-            Column(gap = 8f) {
-
-                // BRAND HEADER (Hugs icon + text)
-                Row(arrangement = Arrangement.spacedBy(12f)) {
-                    Image(
-                        source = "https://raw.githubusercontent.com/Anuken/Mindustry/master/core/assets-raw/sprites/blocks/distribution/router.png",
-                        modifier = Modifier.size(38f).tooltip("Mindustry Engine Core")
-                    )
-                    Column(gap = 2f) {
-                        Text(text = "MINDUSTRY", color = Color.white)
-                        Text(text = "NekoMod Pure KMP • ${Version.buildString()}", color = Color.valueOf("9399b2"))
-                    }
-                }
-
-                Divider(modifier = Modifier.margin(vertical = 4f))
-
-                // SECTION: GAME MODES
-                Text(
-                    text = "GAME MODES",
-                    color = Color.valueOf("89b4fa"),
-                    modifier = Modifier.margin(top = 2f)
-                )
-
-                Button(
-                    text = "▶  PLANETARY CAMPAIGN",
-                    colors = ButtonColors.Primary,
-                    modifier = Modifier.fillMaxWidth().radius(10f).tooltip("Launch the planetary sector campaign map"),
-                    onClick = {
-                        Sounds.uiButton.play()
-                        Vars.ui?.planet?.show()
-                    }
-                )
-
-                Button(
-                    text = "⚡  CUSTOM SKIRMISH",
-                    modifier = Modifier.fillMaxWidth().radius(10f).tooltip("Play custom sandbox or attack game on local maps"),
-                    onClick = {
-                        Sounds.uiButton.play()
-                        Vars.ui?.custom?.show()
-                    }
-                )
-
-                Button(
-                    text = "🌐  MULTIPLAYER SERVERS",
-                    modifier = Modifier.fillMaxWidth().radius(10f).tooltip("Browse and connect to multiplayer game servers"),
-                    onClick = {
-                        Sounds.uiButton.play()
-                        Vars.ui?.join?.show()
-                    }
-                )
-
-                Divider(modifier = Modifier.margin(vertical = 4f))
-
-                // SECTION: CONTENT & TOOLS
-                Text(
-                    text = "CONTENT & TOOLS",
-                    color = Color.valueOf("89b4fa"),
-                    modifier = Modifier.margin(top = 2f)
-                )
-
-                Button(
-                    text = "📖  DATABASE & TECH TREE",
-                    modifier = Modifier.fillMaxWidth().tooltip("Inspect blocks, units, and tech research tree"),
-                    onClick = {
-                        Sounds.uiButton.play()
-                        Vars.ui?.database?.show()
-                    }
-                )
-
-                Button(
-                    text = "🛠️  MAP EDITOR",
-                    modifier = Modifier.fillMaxWidth().tooltip("Create, edit, and script custom maps"),
-                    onClick = {
-                        Sounds.uiButton.play()
-                        Vars.ui?.maps?.show()
-                    }
-                )
-
-                Button(
-                    text = "📋  SCHEMATICS",
-                    modifier = Modifier.fillMaxWidth().tooltip("Manage and preview factory schematics"),
-                    onClick = {
-                        Sounds.uiButton.play()
-                        Vars.ui?.schematics?.show()
-                    }
-                )
-
-                Button(
-                    text = "📦  MODS MANAGER",
-                    modifier = Modifier.fillMaxWidth().tooltip("Browse installed mods and GitHub community mods"),
-                    onClick = {
-                        Sounds.uiButton.play()
-                        Vars.ui?.mods?.show()
-                    }
-                )
-
-                // FLEXIBLE GROWTH PUSHING SYSTEM CONTROLS TO THE BOTTOM
-                Spacer(modifier = Modifier.weight(1f))
-
-                Divider(modifier = Modifier.margin(vertical = 4f))
-
-                // SYSTEM ACTIONS ROW
-                Row(arrangement = Arrangement.spacedBy(8f)) {
-                    Button(
-                        text = "⚙️ SETTINGS",
-                        modifier = Modifier.weight(1f).tooltip("Configure graphics, sound, and keybinds"),
-                        onClick = {
-                            Sounds.uiButton.play()
-                            Vars.ui?.settings?.show()
-                        }
-                    )
-                    Button(
-                        text = "🚪 EXIT",
-                        colors = ButtonColors.Danger,
-                        modifier = Modifier.weight(1f).tooltip("Exit game to desktop"),
-                        onClick = {
-                            Sounds.uiButton.play()
-                            Core.app.exit()
-                        }
-                    )
-                }
+        val menuRenderer = remember { MenuRenderer() }
+        DisposableEffect(Unit) {
+            onDispose {
+                try {
+                    menuRenderer.dispose()
+                } catch (_: Throwable) {}
             }
         }
 
-        // 2. RIGHT BENTO CONTAINER (Hugs content dynamically)
-        Card(
-            modifier = Modifier
-                .anchor(LayoutPreset.RIGHT_WIDE)
-                .margin(right = 32f, top = 28f, bottom = 28f)
-                .minWidth(360f)
-                .pad(20f)
-                .radius(18f)
-                .background(Color.valueOf("10111a").a(0.92f))
-                .border(1f, Color.valueOf("25283d"))
-        ) {
-            Column(gap = 12f) {
+        Box(modifier = Modifier.anchor(LayoutPreset.FULL_RECT)) {
 
-                // TOP HERO EXPEDITION CARD
+            // 0. FULLSCREEN 3D ANIMATED SPACE CANVAS
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                try {
+                    menuRenderer.render()
+                } catch (_: Throwable) {}
+            }
+
+            // 1. TOP FLOATING ISLAND (Hug content with generous minWidth)
+            Box(
+                modifier = Modifier
+                    .anchor(LayoutPreset.CENTER_TOP)
+                    .margin(top = 28f)
+            ) {
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .pad(16f)
-                        .radius(14f)
-                        .background(Color.valueOf("181a2b").a(0.95f))
-                        .border(1f, Color.valueOf("3b82f6").a(0.4f))
+                    variant = CardVariant.GLASS,
+                    radius = shapes.pill,
+                    padding = 8f,
+                    modifier = Modifier.minWidth(460f)
                 ) {
-                    Column(gap = 8f) {
-                        Row(arrangement = Arrangement.spacedBy(8f)) {
-                            Text(text = "🪐 PLANETARY EXPEDITION", color = Color.valueOf("93c5fd"))
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(text = "● ACTIVE", color = Color.valueOf("a6e3a1"))
-                        }
-                        Text(
-                            text = "Serpulo campaign in progress. Conquer hostile sectors and build launch networks.",
-                            color = Color.valueOf("9399b2"),
-                            wrap = true
+                    Row(
+                        arrangement = Arrangement.spacedBy(14f),
+                        alignment = Alignment.CenterStart,
+                        modifier = Modifier.pad(horizontal = 14f, vertical = 2f)
+                    ) {
+                        Image(
+                            source = "https://raw.githubusercontent.com/Anuken/Mindustry/master/core/assets-raw/sprites/blocks/distribution/router.png",
+                            modifier = Modifier.size(24f).tooltip("Mindustry Pure KMP Engine")
                         )
+
+                        Text(
+                            text = "MINDUSTRY",
+                            color = colors.textPrimary
+                        )
+
+                        Badge(
+                            text = "v${Version.build}",
+                            variant = BadgeVariant.SUCCESS
+                        )
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        Divider(
+                            modifier = Modifier
+                                .width(1f)
+                                .height(16f)
+                        )
+
+                        Button(
+                            text = "Settings",
+                            icon = Icon.settingsSmall,
+                            variant = ButtonVariant.PLAIN,
+                            paddingH = 8f,
+                            paddingV = 4f,
+                            onClick = {
+                                Sounds.uiButton.play()
+                                Vars.ui?.settings?.show()
+                            }
+                        )
+
+                        Button(
+                            text = "Mods",
+                            icon = Icon.bookSmall,
+                            variant = ButtonVariant.PLAIN,
+                            paddingH = 8f,
+                            paddingV = 4f,
+                            onClick = {
+                                Sounds.uiButton.play()
+                                Vars.ui?.mods?.show()
+                            }
+                        )
+
+                        Button(
+                            text = "Exit",
+                            icon = Icon.exitSmall,
+                            variant = ButtonVariant.DESTRUCTIVE,
+                            radius = shapes.pill,
+                            paddingH = 12f,
+                            paddingV = 4f,
+                            onClick = {
+                                Sounds.uiButton.play()
+                                Core.app.exit()
+                            }
+                        )
+                    }
+                }
+            }
+
+            // 2. CENTERED FOCUSED ACTION DECK (Hug content with generous minWidth)
+            Box(
+                modifier = Modifier
+                    .anchor(LayoutPreset.CENTER)
+            ) {
+                Card(
+                    variant = CardVariant.GLASS,
+                    radius = shapes.xLarge,
+                    padding = 28f,
+                    modifier = Modifier.minWidth(450f)
+                ) {
+                    Column(gap = 14f, modifier = Modifier.fillMaxWidth()) {
+
+                        // Header Tagline
+                        Column(gap = 4f, modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "EXPEDITION",
+                                color = colors.systemBlue
+                            )
+                            Text(
+                                text = "Select an operation mode to begin.",
+                                color = colors.textSecondary
+                            )
+                        }
+
+                        // Primary Play Button
+                        Button(
+                            text = "PLAY CAMPAIGN",
+                            icon = Icon.play,
+                            variant = ButtonVariant.FILLED,
+                            paddingV = 12f,
+                            modifier = Modifier.fillMaxWidth().tooltip("Launch planetary campaign map"),
+                            onClick = {
+                                Sounds.uiButton.play()
+                                Vars.ui?.planet?.show()
+                            }
+                        )
+
+                        // Secondary Modes
+                        Button(
+                            text = "CUSTOM SKIRMISH",
+                            icon = Icon.hammer,
+                            variant = ButtonVariant.GLASS,
+                            paddingV = 10f,
+                            modifier = Modifier.fillMaxWidth().tooltip("Play custom sandbox or skirmish game"),
+                            onClick = {
+                                Sounds.uiButton.play()
+                                Vars.ui?.custom?.show()
+                            }
+                        )
+
+                        Button(
+                            text = "JOIN MULTIPLAYER",
+                            icon = Icon.host,
+                            variant = ButtonVariant.GLASS,
+                            paddingV = 10f,
+                            modifier = Modifier.fillMaxWidth().tooltip("Browse public & community servers"),
+                            onClick = {
+                                Sounds.uiButton.play()
+                                Vars.ui?.join?.show()
+                            }
+                        )
+
+                        Divider(modifier = Modifier.margin(vertical = 4f))
+
+                        // Secondary Quick Tools Row (Generous spacing and distinct tinted buttons with Mindustry Icons)
                         Row(
-                            arrangement = Arrangement.spacedBy(8f),
-                            modifier = Modifier.fillMaxWidth().margin(top = 2f)
+                            arrangement = Arrangement.spacedBy(10f),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Button(
-                                text = "▶  RESUME",
-                                colors = ButtonColors.Primary,
-                                modifier = Modifier.weight(1f).tooltip("Jump directly into active planetary campaign map"),
+                                text = "Tech Tree",
+                                icon = Icon.treeSmall,
+                                variant = ButtonVariant.TINTED,
+                                radius = shapes.medium,
+                                modifier = Modifier.weight(1f).tooltip("Inspect technology research"),
                                 onClick = {
                                     Sounds.uiButton.play()
-                                    Vars.ui?.planet?.show()
+                                    Vars.ui?.database?.show()
                                 }
                             )
+
                             Button(
-                                text = "⚡  SKIRMISH",
-                                modifier = Modifier.weight(1f).tooltip("Launch custom game skirmish"),
+                                text = "Map Editor",
+                                icon = Icon.terrain,
+                                variant = ButtonVariant.TINTED,
+                                radius = shapes.medium,
+                                modifier = Modifier.weight(1f).tooltip("Create & edit maps"),
                                 onClick = {
                                     Sounds.uiButton.play()
-                                    Vars.ui?.custom?.show()
+                                    Vars.ui?.maps?.show()
+                                }
+                            )
+
+                            Button(
+                                text = "Schematics",
+                                icon = Icon.pasteSmall,
+                                variant = ButtonVariant.TINTED,
+                                radius = shapes.medium,
+                                modifier = Modifier.weight(1f).tooltip("Factory blueprints"),
+                                onClick = {
+                                    Sounds.uiButton.play()
+                                    Vars.ui?.schematics?.show()
                                 }
                             )
                         }
                     }
                 }
+            }
 
-                // TELEMETRY & SYSTEM STATS BENTO ROW (Both cards hug text and expand equally)
-                Row(arrangement = Arrangement.spacedBy(10f), modifier = Modifier.fillMaxWidth()) {
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .pad(12f)
-                            .radius(12f)
-                            .background(Color.valueOf("161826").a(0.9f))
-                            .border(1f, Color.valueOf("25283d"))
+            // 3. BOTTOM FLOATING CONTROL DOCK (Hug content with generous minWidth)
+            Box(
+                modifier = Modifier
+                    .anchor(LayoutPreset.CENTER_BOTTOM)
+                    .margin(bottom = 28f)
+            ) {
+                Card(
+                    variant = CardVariant.GLASS,
+                    radius = shapes.pill,
+                    padding = 10f,
+                    modifier = Modifier.minWidth(520f)
+                ) {
+                    Row(
+                        arrangement = Arrangement.spacedBy(16f),
+                        alignment = Alignment.CenterStart,
+                        modifier = Modifier.pad(horizontal = 14f, vertical = 2f)
                     ) {
-                        Column(gap = 2f) {
-                            Text(text = "FRAME RATE", color = Color.valueOf("7c829e"))
-                            Text(text = "144 FPS", color = Color.valueOf("a6e3a1"))
-                            Text(text = "GPU SDF Batch", color = Color.valueOf("9399b2"))
+                        // SFX Slider with inner label and % readout
+                        Slider(
+                            label = "SFX",
+                            value = sfxVolume,
+                            onValueChange = { v ->
+                                EngineContext.default.settings.updateAudio { it.copy(sfxVolume = v) }
+                            },
+                            modifier = Modifier.minWidth(155f)
+                        )
+
+                        Divider(
+                            modifier = Modifier
+                                .width(1f)
+                                .height(20f)
+                        )
+
+                        // Music Slider with inner label and % readout
+                        Slider(
+                            label = "Music",
+                            value = musicVolume,
+                            onValueChange = { v ->
+                                EngineContext.default.settings.updateAudio { it.copy(musicVolume = v) }
+                            },
+                            modifier = Modifier.minWidth(155f)
+                        )
+
+                        Divider(
+                            modifier = Modifier
+                                .width(1f)
+                                .height(20f)
+                        )
+
+                        // Particles Toggle
+                        Row(
+                            arrangement = Arrangement.spacedBy(10f),
+                            alignment = Alignment.CenterStart
+                        ) {
+                            Text(text = "Particles", color = colors.textSecondary)
+                            Toggle(
+                                checked = ambientToggled,
+                                onToggle = { t ->
+                                    EngineContext.default.settings.updateAudio { it.copy(ambientEnabled = t) }
+                                }
+                            )
                         }
                     }
-
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .pad(12f)
-                            .radius(12f)
-                            .background(Color.valueOf("161826").a(0.9f))
-                            .border(1f, Color.valueOf("25283d"))
-                    ) {
-                        Column(gap = 2f) {
-                            Text(text = "ENGINE CORE", color = Color.valueOf("7c829e"))
-                            Text(text = "Pure KMP", color = Color.valueOf("89b4fa"))
-                            Text(text = "Build ${Version.build}", color = Color.valueOf("9399b2"))
-                        }
-                    }
-                }
-
-                // FLEXIBLE GROWTH
-                Spacer(modifier = Modifier.weight(1f))
-
-                Divider(modifier = Modifier.margin(vertical = 2f))
-
-                // AUDIO & ENVIRONMENT CONTROLS
-                Text(
-                    text = "QUICK AUDIO & ENVIRONMENT",
-                    color = Color.valueOf("89b4fa")
-                )
-
-                Slider(
-                    value = sfxVolume,
-                    onValueChange = { v -> EngineContext.default.settings.updateAudio { it.copy(sfxVolume = v) } },
-                    label = "SFX Volume",
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Slider(
-                    value = musicVolume,
-                    onValueChange = { v -> EngineContext.default.settings.updateAudio { it.copy(musicVolume = v) } },
-                    label = "Music Volume",
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(arrangement = Arrangement.spacedBy(8f)) {
-                    Text(
-                        text = "Ambient Particles",
-                        color = Color.valueOf("cad3f5"),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Toggle(
-                        checked = ambientToggled,
-                        onToggle = { t -> EngineContext.default.settings.updateAudio { it.copy(ambientEnabled = t) } }
-                    )
                 }
             }
         }
