@@ -20,10 +20,10 @@ Chào mừng bạn đến với hệ thống tài liệu kiến trúc chuẩn m�
 
 ## 🚀 Cấu trúc Không gian Tên Mã nguồn / Source Code Mapping
 
-- `org.mdt.core.async`: Coroutines & Thread dispatching ([`AsyncDispatcher`](../src/main/kotlin/org/mdt/core/async/AsyncDispatcher.kt)).
+- `org.mdt.core.async`: Coroutines & Thread dispatching ([`AsyncDispatcher`](../src/main/kotlin/org/mdt/core/common/AsyncDispatcher.kt)).
 - `org.mdt.core.net`: OkHttp Network engine & Fluent DSL ([`NetDsl`](../src/main/kotlin/org/mdt/core/net/NetDsl.kt)).
 - `org.mdt.core.store`: Okio atomic storage & KV store ([`KVStore`](../src/main/kotlin/org/mdt/core/store/KVStore.kt)).
-- `org.mdt.core.cache`: Safe reference-counted VRAM cache ([`LRUTextureCache`](../src/main/kotlin/org/mdt/core/cache/LRUTextureCache.kt)).
+- `org.mdt.core.cache`: Safe reference-counted VRAM cache ([`LRUTextureCache`](../src/main/kotlin/org/mdt/core/common/LRUTextureCache.kt)).
 - `org.mdt.core.image`: Asynchronous image pipeline ([`ImageLoader`](../src/main/kotlin/org/mdt/core/image/ImageLoader.kt)).
 - `org.mdt.core.i18n`: Modern nested key localization ([`I18nEngine`](../src/main/kotlin/org/mdt/core/i18n/I18nEngine.kt)).
 - `org.mdt.core.ui`: Virtual Node DOM tree primitives ([`UINode`](../src/main/kotlin/org/mdt/core/ui/UINode.kt), [`CanvasNode`](../src/main/kotlin/org/mdt/core/ui/CanvasNode.kt)).
