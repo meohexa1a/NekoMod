@@ -145,12 +145,13 @@ void main() {
         rgb = pow(max(rgb, vec3(0.0)), vec3(0.92));
 
         // Natural Top-down environmental specular glass sheen
-        float topSheen = max(0.0, 1.0 - uv.y) * 0.05;
+        float topSheen = max(0.0, 1.0 - uv.y) * 0.04;
         rgb += vec3(topSheen);
 
-        // Blend with tinted glass overlay
-        float tintAmount = clamp(u_fillColor.a, 0.0, 1.0);
-        color.rgb = mix(rgb, u_fillColor.rgb, tintAmount);
+        // Blend with tinted acrylic glass overlay
+        float tintAmount = (u_fillColor.a < 0.99) ? u_fillColor.a : 0.65;
+        float blendFactor = (u_backdropBlend > 0.001) ? u_backdropBlend : 0.85;
+        color.rgb = mix(rgb, u_fillColor.rgb, tintAmount * blendFactor);
         color.a = fillAlpha;
     }
 
@@ -168,8 +169,8 @@ void main() {
         color.rgb = mix(color.rgb, u_innerShadowColor.rgb, inner * u_innerShadowColor.a * fillAlpha);
     }
 
-    // 5. Border Stroke (Beveled Top-Left Specular Light Highlight)
-    if (u_borderWidth > 0.001) {
+    // 5. Border Stroke (True Alpha-Blended Specular Light Highlight)
+    if (u_borderWidth > 0.001 && u_borderColor.a > 0.001) {
         float bw = u_borderWidth;
         vec2 innerSize = vec2(max(u_size.x - bw * 2.0, 0.0), max(u_size.y - bw * 2.0, 0.0));
         vec4 innerRadii = max(u_cornerRadii - vec4(bw), vec4(0.0));
@@ -192,11 +193,12 @@ void main() {
             }
 
             // Directional Light: Top-Left edge catches overhead ambient light, bottom edge stays subtle
-            float directionalFactor = clamp((1.0 - uv.y) * 0.7 + (1.0 - uv.x) * 0.3, 0.4, 1.4);
-            vec4 bColor = vec4(u_borderColor.rgb, u_borderColor.a * directionalFactor);
+            float directionalFactor = clamp((1.0 - uv.y) * 0.6 + (1.0 - uv.x) * 0.4, 0.5, 1.3);
+            float borderA = clamp(u_borderColor.a * directionalFactor, 0.0, 1.0);
+            float effectiveAlpha = clamp(borderAlpha * draw * borderA, 0.0, 1.0);
 
-            color.rgb = mix(color.rgb, bColor.rgb, borderAlpha * draw);
-            color.a = max(color.a, borderAlpha * draw * bColor.a);
+            color.rgb = mix(color.rgb, u_borderColor.rgb, effectiveAlpha);
+            color.a = max(color.a, effectiveAlpha);
         }
     }
 
