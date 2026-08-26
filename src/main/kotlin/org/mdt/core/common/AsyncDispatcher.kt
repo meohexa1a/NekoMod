@@ -22,9 +22,7 @@ object AsyncDispatcher {
      * Custom CoroutineDispatcher that posts execution blocks onto Mindustry's Main/Render Thread.
      */
     val Main: CoroutineDispatcher = object : CoroutineDispatcher() {
-        override fun dispatch(context: CoroutineContext, block: Runnable) {
-            if (Core.app != null) Core.app.post(block) else block.run()
-        }
+        override fun dispatch(context: CoroutineContext, block: Runnable) = onMainThread(block::run)
     }
 
     /**

@@ -1,6 +1,7 @@
 plugins {
     `java-library`
     kotlin("jvm") version "2.1.20"
+    kotlin("plugin.serialization") version "2.1.20"
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.20"
     id("com.gradleup.shadow") version "9.2.2"
 }
@@ -51,6 +52,7 @@ dependencies {
     implementation("com.squareup.okio:okio:3.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
     implementation("org.jetbrains.compose.runtime:runtime-desktop:1.7.1")
     implementation("org.jetbrains.compose.animation:animation-core-desktop:1.7.1")
 }
