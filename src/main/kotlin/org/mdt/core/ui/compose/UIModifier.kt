@@ -9,9 +9,9 @@ import org.mdt.core.ui.UINode
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.layout.LayoutPreset
 import org.mdt.core.ui.layout.SizeFlags
+import org.mdt.ui.components.display.image.ScaleMode
 import org.mdt.ui.components.layout.BoxVisuals
 import org.mdt.ui.components.layout.LayoutNode
-import org.mdt.ui.components.layout.ScaleMode
 import org.mdt.ui.components.text.TextNode
 import org.mdt.ui.components.text.TextVisuals
 
@@ -140,8 +140,8 @@ data class AnchorSpanModifier(val left: Float, val bottom: Float, val right: Flo
 data class BackgroundModifier(val color: Color) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         (node as? LayoutNode)?.ensureVisuals()?.let {
-            it.fillColor.set(color)
-            it.backgroundMode = BoxVisuals.BackgroundMode.COLOR
+            it.background.color.set(color)
+            it.background.mode = org.mdt.ui.components.layout.BackgroundFill.Mode.COLOR
         }
     }
 }
@@ -152,16 +152,16 @@ data class ProgressModifier(val fraction: Float, val color: Color) : UIModifier.
     }
 }
 
-data class RadiusModifier(val topLeft: Float, val topRight: Float, val bottomRight: Float, val bottomLeft: Float) : UIModifier.Element {
+data class RadiusModifier(val topStart: Float, val topEnd: Float, val bottomEnd: Float, val bottomStart: Float) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        (node as? LayoutNode)?.ensureVisuals()?.radius(topLeft, topRight, bottomRight, bottomLeft)
+        (node as? LayoutNode)?.ensureVisuals()?.radius(topStart, topEnd, bottomEnd, bottomStart)
     }
 }
 
 data class BorderModifier(
     val width: Float,
     val color: Color,
-    val style: BoxVisuals.BorderStyle = BoxVisuals.BorderStyle.SOLID
+    val style: org.mdt.ui.components.layout.Border.Style = org.mdt.ui.components.layout.Border.Style.SOLID
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         (node as? LayoutNode)?.ensureVisuals()?.border(width, color, style)
@@ -196,13 +196,13 @@ data class BackdropModifier(
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         (node as? LayoutNode)?.ensureVisuals()?.let { vis ->
-            vis.blur = blur
-            vis.blurRadius = blurRadius
-            vis.backdropWeight = weight
-            vis.backdropBlend = blend
-            vis.backdropTint.set(tint)
-            vis.blurIterations = iterations
-            vis.backgroundMode = BoxVisuals.BackgroundMode.BACKDROP
+            vis.backdrop.enabled = blur
+            vis.backdrop.blurRadius = blurRadius
+            vis.backdrop.weight = weight
+            vis.backdrop.blend = blend
+            vis.backdrop.tint.set(tint)
+            vis.backdrop.iterations = iterations
+            vis.background.mode = org.mdt.ui.components.layout.BackgroundFill.Mode.BACKDROP
         }
     }
 }
@@ -399,7 +399,7 @@ fun UIModifier.radius(topLeft: Float, topRight: Float, bottomRight: Float, botto
 fun UIModifier.border(
     width: Float,
     color: Color = Color.white,
-    style: BoxVisuals.BorderStyle = BoxVisuals.BorderStyle.SOLID
+    style: org.mdt.ui.components.layout.Border.Style = org.mdt.ui.components.layout.Border.Style.SOLID
 ): UIModifier = then(BorderModifier(width, color, style))
 
 /** Sets outer drop shadow. */

@@ -1,11 +1,13 @@
 package org.mdt.core.ui
 
+import arc.input.KeyCode
 import arc.math.geom.Vec2
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.layout.AnchorData
 import org.mdt.core.ui.layout.SizeFlags
 import org.mdt.core.ui.render.EngineRenderer
+import org.mdt.core.ui.render.ScissorStack
 
 /**
  * ## UINode (Virtual UI Node)
@@ -181,10 +183,10 @@ open class UINode {
     var onKeyTyped: ((Char) -> Boolean)? = null
 
     /** Invoked when a key is pressed while focused. Return true to consume. */
-    var onKeyDown: ((arc.input.KeyCode) -> Boolean)? = null
+    var onKeyDown: ((KeyCode) -> Boolean)? = null
 
     /** Invoked when a key is released while focused. Return true to consume. */
-    var onKeyUp: ((arc.input.KeyCode) -> Boolean)? = null
+    var onKeyUp: ((KeyCode) -> Boolean)? = null
 
     /** Whether pointer is currently hovering over this node. */
     var isHovered: Boolean = false
@@ -211,9 +213,9 @@ open class UINode {
     }
 
     /** Sets node dimensions (width, height). */
-    fun setSize(w: Float, h: Float) {
-        bounds.width = w
-        bounds.height = h
+    fun setSize(width: Float, height: Float) {
+        bounds.width = width
+        bounds.height = height
     }
 
     /** Computes preferred width including inward padding. */
@@ -243,10 +245,10 @@ open class UINode {
         val shouldClip = clip && bounds.width > 0f && bounds.height > 0f
         var pushed = false
         if (shouldClip) {
-            pushed = org.mdt.core.ui.render.ScissorStack.push(bounds)
+            pushed = ScissorStack.push(bounds)
             if (!pushed) {
                 // Completely clipped outside visible bounds
-                org.mdt.core.ui.render.ScissorStack.pop()
+                ScissorStack.pop()
                 return
             }
         }
@@ -254,7 +256,7 @@ open class UINode {
         drawSelf(renderer)
         drawChildren(renderer)
 
-        if (pushed) org.mdt.core.ui.render.ScissorStack.pop()
+        if (pushed) ScissorStack.pop()
     }
 
     /** Renders the visual representation of this node. */

@@ -18,7 +18,7 @@ interface MeasurePolicy {
     fun measureHeight(node: LayoutNode): Float
 
     /** Computes and applies spatial layouts onto [node] children inside the available inner box. */
-    fun layout(node: LayoutNode, innerX: Float, innerY: Float, availW: Float, availH: Float)
+    fun layout(node: LayoutNode, innerX: Float, innerY: Float, availableWidth: Float, availableHeight: Float)
 }
 
 /**
@@ -30,38 +30,42 @@ interface MeasurePolicy {
 object BoxMeasurePolicy : MeasurePolicy {
     override fun measureWidth(node: LayoutNode): Float {
         val visibleChildren = node.children.filter { it.visible }
-        var maxChildW = 0f
+        var maxChildWidth = 0f
         for (child in visibleChildren) {
-            maxChildW = maxOf(maxChildW, GodotLayout.getChildMinWidth(child))
+            maxChildWidth = maxOf(maxChildWidth, GodotLayout.getChildMinWidth(child))
         }
-        return if (node.minWidth >= 0f) maxOf(maxChildW, node.minWidth) else maxChildW
+        return if (node.minWidth >= 0f) maxOf(maxChildWidth, node.minWidth) else maxChildWidth
     }
 
     override fun measureHeight(node: LayoutNode): Float {
         val visibleChildren = node.children.filter { it.visible }
-        var maxChildH = 0f
+        var maxChildHeight = 0f
         for (child in visibleChildren) {
-            maxChildH = maxOf(maxChildH, GodotLayout.getChildMinHeight(child))
+            maxChildHeight = maxOf(maxChildHeight, GodotLayout.getChildMinHeight(child))
         }
-        return if (node.minHeight >= 0f) maxOf(maxChildH, node.minHeight) else maxChildH
+        return if (node.minHeight >= 0f) maxOf(maxChildHeight, node.minHeight) else maxChildHeight
     }
 
-    override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availW: Float, availH: Float) {
+    override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availableWidth: Float, availableHeight: Float) {
         for (child in node.children) {
             if (!child.visible) continue
-            val a = child.anchorData
-            val hasExplicitAnchor = a.anchorLeft != 0f || a.anchorRight != 0f || a.anchorTop != 0f || a.anchorBottom != 0f ||
-                    a.offsetLeft != 0f || a.offsetRight != 0f || a.offsetTop != 0f || a.offsetBottom != 0f
+
+            val anchor = child.anchorData
+            val hasExplicitAnchor = anchor.anchorLeft != 0f || anchor.anchorRight != 0f || anchor.anchorTop != 0f || anchor.anchorBottom != 0f ||
+                    anchor.offsetLeft != 0f || anchor.offsetRight != 0f || anchor.offsetTop != 0f || anchor.offsetBottom != 0f
 
             if (hasExplicitAnchor) {
-                GodotLayout.layoutSingleAnchor(child, innerX, innerY, availW, availH)
+                GodotLayout.layoutSingleAnchor(child, innerX, innerY, availableWidth, availableHeight)
             } else {
                 // Standard unanchored box child: fit inside box with alignment and size flags
                 GodotLayout.fitChildInRect(
                     child = child,
-                    rx = innerX, ry = innerY, rw = availW, rh = availH,
-                    hFlags = child.sizeFlagsHorizontal,
-                    vFlags = child.sizeFlagsVertical
+                    rectX = innerX,
+                    rectY = innerY,
+                    rectWidth = availableWidth,
+                    rectHeight = availableHeight,
+                    horizontalFlags = child.sizeFlagsHorizontal,
+                    verticalFlags = child.sizeFlagsVertical
                 )
             }
         }
@@ -85,30 +89,37 @@ data class ColumnMeasurePolicy(
     override fun measureWidth(node: LayoutNode): Float {
         val visibleChildren = node.children.filter { it.visible }
         if (visibleChildren.isEmpty()) return 0f
-        var maxW = 0f
+
+        var maxWidth = 0f
         for (child in visibleChildren) {
-            maxW = maxOf(maxW, GodotLayout.getChildMinWidth(child))
+            maxWidth = maxOf(maxWidth, GodotLayout.getChildMinWidth(child))
         }
-        return maxW
+        return maxWidth
     }
 
     override fun measureHeight(node: LayoutNode): Float {
         val visibleChildren = node.children.filter { it.visible }
         if (visibleChildren.isEmpty()) return 0f
-        var sum = 0f
+
+        var sumHeight = 0f
         for (child in visibleChildren) {
-            sum += GodotLayout.getChildMinHeight(child)
+            sumHeight += GodotLayout.getChildMinHeight(child)
         }
-        if (visibleChildren.size > 1) sum += (visibleChildren.size - 1) * effectiveArrangement.spacing
-        return sum
+        if (visibleChildren.size > 1) sumHeight += (visibleChildren.size - 1) * effectiveArrangement.spacing
+        return sumHeight
     }
 
-    override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availW: Float, availH: Float) {
+    override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availableWidth: Float, availableHeight: Float) {
         GodotLayout.layoutBox(
             children = node.children,
-            parentX = node.bounds.x, parentY = node.bounds.y,
-            parentW = node.bounds.width, parentH = node.bounds.height,
-            padL = node.padL, padT = node.padT, padR = node.padR, padB = node.padB,
+            parentX = node.bounds.x,
+            parentY = node.bounds.y,
+            parentWidth = node.bounds.width,
+            parentHeight = node.bounds.height,
+            padLeft = node.padL,
+            padTop = node.padT,
+            padRight = node.padR,
+            padBottom = node.padB,
             isVertical = true,
             arrangement = effectiveArrangement
         )
@@ -132,20 +143,26 @@ data class RowMeasurePolicy(
     override fun measureWidth(node: LayoutNode): Float {
         val visibleChildren = node.children.filter { it.visible }
         if (visibleChildren.isEmpty()) return 0f
-        var sum = 0f
+
+        var sumWidth = 0f
         for (child in visibleChildren) {
-            sum += GodotLayout.getChildMinWidth(child)
+            sumWidth += GodotLayout.getChildMinWidth(child)
         }
-        if (visibleChildren.size > 1) sum += (visibleChildren.size - 1) * effectiveArrangement.spacing
-        return sum
+        if (visibleChildren.size > 1) sumWidth += (visibleChildren.size - 1) * effectiveArrangement.spacing
+        return sumWidth
     }
 
-    override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availW: Float, availH: Float) {
+    override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availableWidth: Float, availableHeight: Float) {
         GodotLayout.layoutBox(
             children = node.children,
-            parentX = node.bounds.x, parentY = node.bounds.y,
-            parentW = node.bounds.width, parentH = node.bounds.height,
-            padL = node.padL, padT = node.padT, padR = node.padR, padB = node.padB,
+            parentX = node.bounds.x,
+            parentY = node.bounds.y,
+            parentWidth = node.bounds.width,
+            parentHeight = node.bounds.height,
+            padLeft = node.padL,
+            padTop = node.padT,
+            padRight = node.padR,
+            padBottom = node.padB,
             isVertical = false,
             arrangement = effectiveArrangement
         )
@@ -154,11 +171,12 @@ data class RowMeasurePolicy(
     override fun measureHeight(node: LayoutNode): Float {
         val visibleChildren = node.children.filter { it.visible }
         if (visibleChildren.isEmpty()) return 0f
-        var maxH = 0f
+
+        var maxHeight = 0f
         for (child in visibleChildren) {
-            maxH = maxOf(maxH, GodotLayout.getChildMinHeight(child))
+            maxHeight = maxOf(maxHeight, GodotLayout.getChildMinHeight(child))
         }
-        return maxH
+        return maxHeight
     }
 }
 
@@ -172,23 +190,28 @@ data class GridMeasurePolicy(
     val hGap: Float = 0f,
     val vGap: Float = 0f
 ) : MeasurePolicy {
+
     override fun measureWidth(node: LayoutNode): Float {
         if (columns <= 0) return 0f
+
         val visibleChildren = node.children.filter { it.visible }
         if (visibleChildren.isEmpty()) return 0f
-        val colWidths = FloatArray(columns)
+
+        val columnWidths = FloatArray(columns)
         for (i in visibleChildren.indices) {
             val c = i % columns
-            colWidths[c] = maxOf(colWidths[c], GodotLayout.getChildMinWidth(visibleChildren[i]))
+            columnWidths[c] = maxOf(columnWidths[c], GodotLayout.getChildMinWidth(visibleChildren[i]))
         }
         val totalGaps = if (columns > 1) (columns - 1) * hGap else 0f
-        return colWidths.sum() + totalGaps
+        return columnWidths.sum() + totalGaps
     }
 
     override fun measureHeight(node: LayoutNode): Float {
         if (columns <= 0) return 0f
+
         val visibleChildren = node.children.filter { it.visible }
         if (visibleChildren.isEmpty()) return 0f
+
         val rows = (visibleChildren.size + columns - 1) / columns
         val rowHeights = FloatArray(rows)
         for (i in visibleChildren.indices) {
@@ -199,12 +222,17 @@ data class GridMeasurePolicy(
         return rowHeights.sum() + totalGaps
     }
 
-    override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availW: Float, availH: Float) {
+    override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availableWidth: Float, availableHeight: Float) {
         GodotLayout.layoutGrid(
             children = node.children,
-            parentX = node.bounds.x, parentY = node.bounds.y,
-            parentW = node.bounds.width, parentH = node.bounds.height,
-            padL = node.padL, padT = node.padT, padR = node.padR, padB = node.padB,
+            parentX = node.bounds.x,
+            parentY = node.bounds.y,
+            parentWidth = node.bounds.width,
+            parentHeight = node.bounds.height,
+            padLeft = node.padL,
+            padTop = node.padT,
+            padRight = node.padR,
+            padBottom = node.padB,
             columns = columns,
             hSeparation = hGap,
             vSeparation = vGap
