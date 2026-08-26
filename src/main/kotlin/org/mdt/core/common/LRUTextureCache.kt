@@ -14,17 +14,17 @@ import kotlin.collections.iterator
  *
  * ### Architectural Features:
  * 1. **Lock-Free Atomic Retrieval:** Atomic CAS increments pin textures in memory without thread blocking.
- * 2. **Zero VRAM Leak on Duplicate Put:** Unused dynamic textures submitted to [put] are safely disposed immediately.
+ * 2. **Zero VRAM Leak on Duplicate Put:** Redundant dynamic textures submitted to [put] are safely disposed immediately.
  * 3. **Non-Blocking Eviction:** High-resolution nanosecond timestamps order evictable idle handles (`refCount == 0`).
- * 4. **Protected Atlas Textures:** Game atlas and external textures marked `isDisposable = false` are never destroyed.
- * 5. **Diagnostic Failure Tracking:** Handles can report [TextureHandle.isFailed] status.
+ * 4. **Protected Atlas Textures:** Game atlas and external textures marked [TextureKind.SHARED] are never destroyed.
+ * 5. **Diagnostic Failure Tracking:** Handles can report [TextureHandle.isFailed] fallback status.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
 class LRUTextureCache(
     val maxIdleVramBytes: Long = 64L * 1024L * 1024L // 64 MB default idle budget
 ) {
-    /** Lock-free concurrent texture registry. */
+    /** Lock-free concurrent texture registry mapping unique keys to their handles. */
     private val cache = ConcurrentHashMap<String, TextureHandle>()
 
     /** Total VRAM currently consumed by idle (unreferenced, refCount == 0) textures. */
@@ -38,6 +38,10 @@ class LRUTextureCache(
 
     /** Single-runner guard for idle eviction to prevent concurrent trim contention. */
     private val isTrimming = AtomicBoolean(false)
+
+    // =========================================================================
+    // I. Texture Retrieval & Insertion (Read/Write API)
+    // =========================================================================
 
     /**
      * Retrieves a texture handle from cache, atomically retaining it if found.
@@ -58,6 +62,14 @@ class LRUTextureCache(
         cache.remove(key, handle)
         return null
     }
+
+    /**
+     * Checks whether a texture handle exists in the cache under the given [key].
+     *
+     * @param key Unique texture key identifier.
+     * @return `true` if the key is present in cache.
+     */
+    fun contains(key: String): Boolean = cache.containsKey(key)
 
     /**
      * Stores a new texture in the cache and returns a retained [TextureHandle].
@@ -93,6 +105,37 @@ class LRUTextureCache(
         return handle
     }
 
+    // =========================================================================
+    // II. Public Invalidation & Cache Eviction
+    // =========================================================================
+
+    /**
+     * Clears all idle (unreferenced, refCount == 0) textures from cache and frees GPU memory.
+     */
+    fun clearIdle() {
+        for ((key, handle) in cache) {
+            if (handle.activeRefCount == 0 && cache.remove(key, handle)) {
+                _idleVramBytes.addAndGet(-handle.byteSize)
+                AsyncDispatcher.onMainThread { handle.dispose() }
+            }
+        }
+    }
+
+    /**
+     * Clears the entire cache (both active and idle textures), disposing all managed resources.
+     */
+    fun clear() {
+        for ((key, handle) in cache) {
+            cache.remove(key, handle)
+            AsyncDispatcher.onMainThread { handle.dispose() }
+        }
+        _idleVramBytes.set(0L)
+    }
+
+    // =========================================================================
+    // III. Internal Eviction & Memory Management (Private)
+    // =========================================================================
+
     /**
      * Invoked atomically when all active UI references to a [TextureHandle] reach 0.
      * Updates idle VRAM tracking and triggers lock-free eviction.
@@ -126,29 +169,6 @@ class LRUTextureCache(
         } finally {
             isTrimming.set(false)
         }
-    }
-
-    /**
-     * Clears all idle (unreferenced, refCount == 0) textures from cache and frees GPU memory.
-     */
-    fun clearIdle() {
-        for ((key, handle) in cache) {
-            if (handle.activeRefCount == 0 && cache.remove(key, handle)) {
-                _idleVramBytes.addAndGet(-handle.byteSize)
-                AsyncDispatcher.onMainThread { handle.dispose() }
-            }
-        }
-    }
-
-    /**
-     * Clears the entire cache (both active and idle textures), disposing all managed resources.
-     */
-    fun clear() {
-        for ((key, handle) in cache) {
-            cache.remove(key, handle)
-            AsyncDispatcher.onMainThread { handle.dispose() }
-        }
-        _idleVramBytes.set(0L)
     }
 
     companion object {

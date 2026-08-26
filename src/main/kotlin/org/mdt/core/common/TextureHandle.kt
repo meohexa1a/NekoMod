@@ -14,10 +14,10 @@ import java.util.concurrent.atomic.AtomicLong
  * See: docs/core-subsystems/core_subsystems_en.md
  */
 enum class TextureKind {
-    /** Dynamic texture allocated by the mod engine -> Safe to dispose on GPU when evicted. */
+    /** Dynamic texture allocated by the engine -> Eligible for GPU disposal upon cache eviction. */
     MANAGED,
 
-    /** External shared texture (e.g. Mindustry Game Atlas) -> Never disposed. */
+    /** External shared texture (e.g. Mindustry Game Atlas) -> Never disposed by the cache. */
     SHARED,
 
     /** Error placeholder texture (e.g. iconic 'ohno') -> Never disposed, marks loading failure. */
@@ -52,17 +52,21 @@ class TextureHandle(
     /** Whether this handle represents a failed load fallback texture. */
     val isFailed: Boolean get() = kind == TextureKind.FALLBACK
 
-    private val refCount = AtomicInteger(1)
-    private val _isDisposed = AtomicBoolean(false)
-
     /** Timestamp in nanoseconds of the most recent retention or release. */
     val lastAccessTimeNano = AtomicLong(System.nanoTime())
+
+    private val refCount = AtomicInteger(1)
+    private val _isDisposed = AtomicBoolean(false)
 
     /** Whether the underlying OpenGL texture has been disposed from GPU memory. */
     val isDisposed: Boolean get() = _isDisposed.get()
 
     /** Current number of active references holding this texture. Returns 0 if dead or disposed. */
     val activeRefCount: Int get() = maxOf(0, refCount.get())
+
+    // =========================================================================
+    // I. Atomic Reference Counting & Lifecycle Operations
+    // =========================================================================
 
     /**
      * Atomically increments the reference count using a lock-free CAS loop.

@@ -17,6 +17,7 @@ import kotlin.coroutines.resumeWithException
  *
  * Fluent, high-performance HTTP networking engine backed by OkHttp connection pooling.
  * Supports cancellable coroutines, query parameters, custom headers, streaming sources, and JSON payloads.
+ * Encapsulates all underlying network client dependencies to prevent platform data type leakage.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
@@ -32,8 +33,31 @@ object Net {
         .followSslRedirects(true)
         .build()
 
+    // =========================================================================
+    // I. Fluent DSL Entry Points
+    // =========================================================================
+
+    /** Initiates a GET request builder. */
+    fun get(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("GET", url, block)
+
+    /** Initiates a POST request builder. */
+    fun post(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("POST", url, block)
+
+    /** Initiates a PUT request builder. */
+    fun put(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("PUT", url, block)
+
+    /** Initiates a DELETE request builder. */
+    fun delete(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("DELETE", url, block)
+
+    // =========================================================================
+    // II. Asynchronous Request Execution
+    // =========================================================================
+
     /**
      * Executes an [okhttp3.Request] as an asynchronous, cancellable coroutine.
+     *
+     * @param request The prepared OkHttp request.
+     * @return The received HTTP [Response].
      */
     suspend fun execute(request: Request): Response = suspendCancellableCoroutine { continuation ->
         val call = client.newCall(request)
@@ -48,18 +72,6 @@ object Net {
             }
         })
     }
-
-    /** Initiates a GET request builder. */
-    fun get(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("GET", url, block)
-
-    /** Initiates a POST request builder. */
-    fun post(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("POST", url, block)
-
-    /** Initiates a PUT request builder. */
-    fun put(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("PUT", url, block)
-
-    /** Initiates a DELETE request builder. */
-    fun delete(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("DELETE", url, block)
 }
 
 /**
@@ -100,6 +112,44 @@ class HttpRequest(
     private val rawUrl: String,
     private val block: RequestBuilder.() -> Unit
 ) {
+    // =========================================================================
+    // I. Asynchronous Response Readers
+    // =========================================================================
+
+    /**
+     * Executes the request and decodes the response body as a UTF-8 string.
+     */
+    suspend fun awaitString(): String {
+        val request = buildOkHttpRequest()
+        val response = Net.execute(request)
+        if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
+        return response.body?.string() ?: ""
+    }
+
+    /**
+     * Executes the request and returns the response body as raw bytes.
+     */
+    suspend fun awaitBytes(): ByteArray {
+        val request = buildOkHttpRequest()
+        val response = Net.execute(request)
+        if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
+        return response.body?.bytes() ?: ByteArray(0)
+    }
+
+    /**
+     * Executes the request and returns an Okio [BufferedSource] for streaming without loading into RAM.
+     */
+    suspend fun awaitSource(): BufferedSource {
+        val request = buildOkHttpRequest()
+        val response = Net.execute(request)
+        if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
+        return response.body?.source() ?: throw IOException("Empty response body")
+    }
+
+    // =========================================================================
+    // II. Internal Request Assembly
+    // =========================================================================
+
     /**
      * Builds the underlying [okhttp3.Request] instance.
      */
@@ -134,35 +184,5 @@ class HttpRequest(
 
         requestBuilder.method(method, requestBody)
         return requestBuilder.build()
-    }
-
-    /**
-     * Executes the request and decodes the response body as a UTF-8 string.
-     */
-    suspend fun awaitString(): String {
-        val request = buildOkHttpRequest()
-        val response = Net.execute(request)
-        if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
-        return response.body?.string() ?: ""
-    }
-
-    /**
-     * Executes the request and returns the response body as raw bytes.
-     */
-    suspend fun awaitBytes(): ByteArray {
-        val request = buildOkHttpRequest()
-        val response = Net.execute(request)
-        if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
-        return response.body?.bytes() ?: ByteArray(0)
-    }
-
-    /**
-     * Executes the request and returns an Okio [BufferedSource] for streaming without loading into RAM.
-     */
-    suspend fun awaitSource(): BufferedSource {
-        val request = buildOkHttpRequest()
-        val response = Net.execute(request)
-        if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
-        return response.body?.source() ?: throw IOException("Empty response body")
     }
 }

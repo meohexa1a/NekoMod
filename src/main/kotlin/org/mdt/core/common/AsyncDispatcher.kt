@@ -1,44 +1,61 @@
 package org.mdt.core.common
 
-import arc.Core
 import kotlinx.coroutines.*
+import org.mdt.core.engine.EngineContext
 import kotlin.coroutines.CoroutineContext
 
 /**
  * ## AsyncDispatcher
  *
- * Manages background asynchronous coroutine scopes and safe dispatching back onto
- * the Mindustry OpenGL Render/Main Thread.
+ * Centralized coroutine dispatcher and background execution manager.
+ * Safely bridges asynchronous background tasks back onto the host platform's
+ * Main / Render Thread via [org.mdt.core.engine.PlatformHost].
+ *
+ * See: docs/core-subsystems/core_subsystems_en.md
  */
 object AsyncDispatcher {
 
-    /** Supervisor job for all background subsystem tasks. */
+    /** Supervisor job managing all background subsystem tasks without cascading failures. */
     private val supervisorJob = SupervisorJob()
 
-    /** Background I/O and computation coroutine scope. */
+    /** Background I/O and computation coroutine scope bound to [Dispatchers.IO]. */
     val scope = CoroutineScope(Dispatchers.IO + supervisorJob)
 
+    // =========================================================================
+    // I. Coroutine Dispatching & Execution
+    // =========================================================================
+
     /**
-     * Custom CoroutineDispatcher that posts execution blocks onto Mindustry's Main/Render Thread.
+     * Launches a background asynchronous coroutine task on [Dispatchers.IO].
+     *
+     * @param block Asynchronous coroutine body.
+     * @return Active coroutine [Job].
+     */
+    fun launch(block: suspend CoroutineScope.() -> Unit): Job = scope.launch(block = block)
+
+    /**
+     * Posts a callback block onto the host platform's Main/Render thread.
+     * Inlined to eliminate heap lambda allocations (Zero-GC invariant).
+     *
+     * @param block Action to execute on the main thread.
+     */
+    inline fun onMainThread(crossinline block: () -> Unit) {
+        EngineContext.default.host.postToMainThread { block() }
+    }
+
+    /**
+     * Custom [CoroutineDispatcher] that posts execution blocks onto the host platform's Main/Render Thread.
      */
     val Main: CoroutineDispatcher = object : CoroutineDispatcher() {
         override fun dispatch(context: CoroutineContext, block: Runnable) = onMainThread(block::run)
     }
 
-    /**
-     * Launches a background asynchronous coroutine task on [Dispatchers.IO].
-     */
-    fun launch(block: suspend CoroutineScope.() -> Unit): Job = scope.launch(block = block)
+    // =========================================================================
+    // II. Lifecycle Cleanup
+    // =========================================================================
 
     /**
-     * Posts a callback block onto the Mindustry Main/Render thread.
-     */
-    inline fun onMainThread(crossinline block: () -> Unit) {
-        if (Core.app != null) Core.app.post { block() } else block()
-    }
-
-    /**
-     * Disposes and cancels all active background coroutine jobs.
+     * Cancels all active background coroutine jobs without terminating the dispatcher scope.
      */
     fun dispose() = supervisorJob.cancelChildren()
 }
