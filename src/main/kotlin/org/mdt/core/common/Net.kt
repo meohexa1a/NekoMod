@@ -1,4 +1,4 @@
-package org.mdt.core.net
+package org.mdt.core.common
 
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.*
@@ -8,6 +8,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okio.BufferedSource
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import kotlin.collections.iterator
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -15,10 +16,13 @@ import kotlin.coroutines.resumeWithException
  * ## Net
  *
  * Fluent, high-performance HTTP networking engine backed by OkHttp connection pooling.
+ * Supports cancellable coroutines, query parameters, custom headers, streaming sources, and JSON payloads.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
 object Net {
+
+    /** Shared OkHttpClient instance configured with connection pooling and timeouts. */
     val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
@@ -28,6 +32,9 @@ object Net {
         .followSslRedirects(true)
         .build()
 
+    /**
+     * Executes an [okhttp3.Request] as an asynchronous, cancellable coroutine.
+     */
     suspend fun execute(request: Request): Response = suspendCancellableCoroutine { continuation ->
         val call = client.newCall(request)
         continuation.invokeOnCancellation { call.cancel() }
@@ -42,14 +49,23 @@ object Net {
         })
     }
 
+    /** Initiates a GET request builder. */
     fun get(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("GET", url, block)
+
+    /** Initiates a POST request builder. */
     fun post(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("POST", url, block)
+
+    /** Initiates a PUT request builder. */
     fun put(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("PUT", url, block)
+
+    /** Initiates a DELETE request builder. */
     fun delete(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("DELETE", url, block)
 }
 
 /**
- * Fluent request builder helper.
+ * ## RequestBuilder
+ *
+ * Fluent configuration builder for HTTP headers, query parameters, form fields, and raw JSON payloads.
  */
 class RequestBuilder {
     val headers = mutableMapOf<String, String>()
@@ -58,25 +74,35 @@ class RequestBuilder {
     var bodyMediaType: String = "application/json; charset=utf-8"
     val formParams = mutableMapOf<String, String>()
 
+    /** Adds an HTTP header key-value pair. */
     fun header(name: String, value: String) { headers[name] = value }
+
+    /** Adds an HTTP query parameter. */
     fun param(name: String, value: String) { queryParams[name] = value }
 
+    /** Sets the raw JSON body payload. */
     fun json(body: String) {
         this.rawBody = body
         this.bodyMediaType = "application/json; charset=utf-8"
     }
 
+    /** Adds a form field parameter. */
     fun form(name: String, value: String) { formParams[name] = value }
 }
 
 /**
- * Asynchronous HTTP request execution wrapper.
+ * ## HttpRequest
+ *
+ * Asynchronous HTTP request execution wrapper providing string, byte array, and streaming source readers.
  */
 class HttpRequest(
     private val method: String,
     private val rawUrl: String,
     private val block: RequestBuilder.() -> Unit
 ) {
+    /**
+     * Builds the underlying [okhttp3.Request] instance.
+     */
     fun buildOkHttpRequest(): Request {
         val builder = RequestBuilder().apply(block)
 
@@ -111,7 +137,7 @@ class HttpRequest(
     }
 
     /**
-     * Executes request and returns response body as UTF-8 string.
+     * Executes the request and decodes the response body as a UTF-8 string.
      */
     suspend fun awaitString(): String {
         val request = buildOkHttpRequest()
@@ -121,7 +147,7 @@ class HttpRequest(
     }
 
     /**
-     * Executes request and returns response body as byte array.
+     * Executes the request and returns the response body as raw bytes.
      */
     suspend fun awaitBytes(): ByteArray {
         val request = buildOkHttpRequest()
@@ -131,7 +157,7 @@ class HttpRequest(
     }
 
     /**
-     * Executes request and returns Okio BufferedSource for streaming without loading into memory.
+     * Executes the request and returns an Okio [BufferedSource] for streaming without loading into RAM.
      */
     suspend fun awaitSource(): BufferedSource {
         val request = buildOkHttpRequest()

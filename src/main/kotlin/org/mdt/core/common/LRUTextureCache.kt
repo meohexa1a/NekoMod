@@ -12,7 +12,7 @@ import kotlin.collections.iterator
  * High-performance, lock-free, coroutine-friendly Least-Recently-Used (LRU) texture cache.
  * Designed for asynchronous game engines with zero blocking monitor locks (`synchronized`).
  *
- * ### Features:
+ * ### Architectural Features:
  * 1. **Lock-Free Atomic Retrieval:** Atomic CAS increments pin textures in memory without thread blocking.
  * 2. **Zero VRAM Leak on Duplicate Put:** Unused dynamic textures submitted to [put] are safely disposed immediately.
  * 3. **Non-Blocking Eviction:** High-resolution nanosecond timestamps order evictable idle handles (`refCount == 0`).
@@ -30,9 +30,10 @@ class LRUTextureCache(
     /** Total VRAM currently consumed by idle (unreferenced, refCount == 0) textures. */
     private val _idleVramBytes = AtomicLong(0L)
 
+    /** Total VRAM in bytes consumed by idle textures. */
     val idleVramBytes: Long get() = _idleVramBytes.get()
 
-    /** Total active textures registered in cache. */
+    /** Total number of textures currently tracked in the cache. */
     val size: Int get() = cache.size
 
     /** Single-runner guard for idle eviction to prevent concurrent trim contention. */
@@ -41,6 +42,9 @@ class LRUTextureCache(
     /**
      * Retrieves a texture handle from cache, atomically retaining it if found.
      * Guaranteed lock-free and thread-safe.
+     *
+     * @param key Unique texture key identifier.
+     * @return Retained [TextureHandle], or `null` if absent or disposed.
      */
     fun get(key: String): TextureHandle? {
         val handle = cache[key] ?: return null
@@ -58,6 +62,11 @@ class LRUTextureCache(
     /**
      * Stores a new texture in the cache and returns a retained [TextureHandle].
      * If the key already exists, safely disposes the redundant [texture] if [TextureKind.MANAGED] to prevent VRAM leaks.
+     *
+     * @param key Unique texture key identifier.
+     * @param texture Unmanaged OpenGL [Texture] instance.
+     * @param kind Lifecycle classification of the texture.
+     * @return Retained [TextureHandle].
      */
     fun put(
         key: String,
@@ -103,7 +112,7 @@ class LRUTextureCache(
         try {
             if (_idleVramBytes.get() <= maxIdleVramBytes) return
 
-            // Collect all unreferenced handles
+            // Collect all unreferenced handles sorted by least-recently accessed
             val idleHandles = cache.values.filter { it.activeRefCount == 0 && !it.isDisposed }
                 .sortedBy { it.lastAccessTimeNano.get() }
 
@@ -111,7 +120,7 @@ class LRUTextureCache(
                 if (_idleVramBytes.get() <= maxIdleVramBytes) break
                 if (handle.activeRefCount == 0 && cache.remove(handle.key, handle)) {
                     _idleVramBytes.addAndGet(-handle.byteSize)
-                    AsyncDispatcher.onMainThread { handle.disposeDirectly() }
+                    AsyncDispatcher.onMainThread { handle.dispose() }
                 }
             }
         } finally {
@@ -120,24 +129,24 @@ class LRUTextureCache(
     }
 
     /**
-     * Clears all idle (unreferenced) textures from cache and frees GPU memory.
+     * Clears all idle (unreferenced, refCount == 0) textures from cache and frees GPU memory.
      */
-    fun clear() {
+    fun clearIdle() {
         for ((key, handle) in cache) {
             if (handle.activeRefCount == 0 && cache.remove(key, handle)) {
                 _idleVramBytes.addAndGet(-handle.byteSize)
-                AsyncDispatcher.onMainThread { handle.disposeDirectly() }
+                AsyncDispatcher.onMainThread { handle.dispose() }
             }
         }
     }
 
     /**
-     * Force-clears the entire cache (both active and idle).
+     * Clears the entire cache (both active and idle textures), disposing all managed resources.
      */
-    fun clearAll() {
+    fun clear() {
         for ((key, handle) in cache) {
             cache.remove(key, handle)
-            AsyncDispatcher.onMainThread { handle.disposeDirectly() }
+            AsyncDispatcher.onMainThread { handle.dispose() }
         }
         _idleVramBytes.set(0L)
     }

@@ -33,8 +33,8 @@ object AsyncDispatcher {
     /**
      * Posts a callback block onto the Mindustry Main/Render thread.
      */
-    fun onMainThread(block: () -> Unit) {
-        if (Core.app != null) Core.app.post(block) else block()
+    inline fun onMainThread(crossinline block: () -> Unit) {
+        if (Core.app != null) Core.app.post { block() } else block()
     }
 
     /**
