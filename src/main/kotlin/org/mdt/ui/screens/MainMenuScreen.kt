@@ -12,7 +12,7 @@ import mindustry.Vars
 import mindustry.core.Version
 import mindustry.gen.Sounds
 import mindustry.graphics.MenuRenderer
-import org.mdt.core.engine.settings.Settings
+import org.mdt.core.engine.EngineContext
 import org.mdt.core.engine.settings.rememberSettings
 import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.layout.Arrangement
@@ -295,14 +295,14 @@ fun MainMenuScreen() {
 
                 Slider(
                     value = sfxVolume,
-                    onValueChange = { v -> Settings.updateAudio { it.copy(sfxVolume = v) } },
+                    onValueChange = { v -> EngineContext.default.settings.updateAudio { it.copy(sfxVolume = v) } },
                     label = "SFX Volume",
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Slider(
                     value = musicVolume,
-                    onValueChange = { v -> Settings.updateAudio { it.copy(musicVolume = v) } },
+                    onValueChange = { v -> EngineContext.default.settings.updateAudio { it.copy(musicVolume = v) } },
                     label = "Music Volume",
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -315,7 +315,7 @@ fun MainMenuScreen() {
                     )
                     Toggle(
                         checked = ambientToggled,
-                        onToggle = { t -> Settings.updateAudio { it.copy(ambientEnabled = t) } }
+                        onToggle = { t -> EngineContext.default.settings.updateAudio { it.copy(ambientEnabled = t) } }
                     )
                 }
             }

@@ -11,6 +11,7 @@ import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.layout.Spacer
 import org.mdt.ui.components.text.Text
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.layout.Alignment
 
 /**
@@ -138,7 +139,7 @@ data class SliderDragModifier(
     val onValueChange: (Float) -> Unit
 ) : UIModifier.Element {
     override fun applyTo(node: org.mdt.core.ui.UINode) {
-        val update = { event: org.mdt.core.ui.PointerEvent ->
+        val update = { event: PointerEvent ->
             val w = node.bounds.width - node.padL - node.padR
             if (w > 0f) {
                 val localX = event.x - (node.bounds.x + node.padL)

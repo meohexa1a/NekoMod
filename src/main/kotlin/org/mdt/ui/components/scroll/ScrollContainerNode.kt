@@ -3,11 +3,11 @@ package org.mdt.ui.components.scroll
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
-import org.mdt.core.ui.PointerEvent
-import org.mdt.core.ui.ScrollEvent
 import org.mdt.core.ui.UINode
-import org.mdt.ui.components.layout.LayoutNode
+import org.mdt.core.ui.input.PointerEvent
+import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.render.EngineRenderer
+import org.mdt.ui.components.layout.LayoutNode
 
 /**
  * ## ScrollContainerNode

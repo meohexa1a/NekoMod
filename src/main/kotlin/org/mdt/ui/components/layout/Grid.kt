@@ -7,7 +7,7 @@ import androidx.compose.runtime.ComposeNode
 import org.mdt.core.ui.compose.GridScope
 import org.mdt.core.ui.compose.NodeApplier
 import org.mdt.core.ui.compose.UIModifier
-import org.mdt.core.ui.layout.policy.GridMeasurePolicy
+import org.mdt.core.ui.layout.GridMeasurePolicy
 
 /**
  * ## Grid

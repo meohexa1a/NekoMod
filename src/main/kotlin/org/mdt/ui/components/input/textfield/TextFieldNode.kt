@@ -8,7 +8,7 @@ import arc.graphics.g2d.GlyphLayout
 import mindustry.ui.Fonts
 import org.mdt.ui.components.layout.BoxVisuals
 import org.mdt.ui.components.layout.LayoutNode
-import org.mdt.core.ui.PointerEvent
+import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.render.EngineRenderer
 
 /**

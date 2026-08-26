@@ -10,8 +10,8 @@ import org.mdt.core.ui.compose.RowScope
 import org.mdt.core.ui.compose.UIModifier
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
-import org.mdt.core.ui.layout.policy.ColumnMeasurePolicy
-import org.mdt.core.ui.layout.policy.RowMeasurePolicy
+import org.mdt.core.ui.layout.ColumnMeasurePolicy
+import org.mdt.core.ui.layout.RowMeasurePolicy
 
 /**
  * ## Row
