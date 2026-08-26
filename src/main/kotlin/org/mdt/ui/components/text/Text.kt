@@ -19,7 +19,7 @@ import org.mdt.core.ui.compose.UIModifier
  * @param text Content string to display.
  * @param modifier Chainable [UIModifier].
  * @param color Text tint color.
- * @param font Font family ([Fonts.def], [Fonts.tech], [Fonts.large], [Fonts.outline]).
+ * @param font Font family ([Fonts.def], [Fonts.monospace], [Fonts.large], [Fonts.outline]).
  * @param scale Font scale multiplier (default 1.0f for pixel-perfect clarity).
  * @param align Horizontal text alignment ([Align.left], [Align.center], [Align.right]).
  * @param wrap Whether to enable multi-line text wrapping.
@@ -66,5 +66,39 @@ fun Text(
                 invalidateLayout()
             }
         }
+    )
+}
+
+/**
+ * ## MonoText
+ *
+ * Declarative clean technical monospace text rendering component.
+ * Uses [Fonts.monospace] if available, falling back to [Fonts.def] for crystal clear readability.
+ *
+ * @param text Content string to display.
+ * @param modifier Chainable [UIModifier].
+ * @param color Text tint color.
+ * @param scale Font scale multiplier (default 1.0f).
+ * @param align Horizontal text alignment ([Align.left], [Align.center], [Align.right]).
+ * @param wrap Whether to enable multi-line text wrapping.
+ */
+@Composable
+fun MonoText(
+    text: String,
+    modifier: UIModifier = UIModifier,
+    color: Color = Color.white,
+    scale: Float = 1.0f,
+    align: Int = Align.left,
+    wrap: Boolean = false
+) {
+    val cleanFont = Fonts.monospace ?: Fonts.def
+    Text(
+        text = text,
+        modifier = modifier,
+        color = color,
+        font = cleanFont,
+        scale = scale,
+        align = align,
+        wrap = wrap
     )
 }

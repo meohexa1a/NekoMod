@@ -24,6 +24,9 @@ data class ColorTokens(
     val systemTeal: Color = Color.valueOf("30b0c7"),
     val systemYellow: Color = Color.valueOf("ffcc00"),
 
+    // Convenience semantic alias for primary accent
+    val accent: Color = Color.valueOf("007aff"),
+
     // ==========================================
     // II. Frosted Glass & Material Tints
     // ==========================================
@@ -47,6 +50,7 @@ data class ColorTokens(
     val surfaceTertiary: Color = Color.valueOf("252938"),
     val surfaceElevated: Color = Color.valueOf("2d3244"),
     val surfaceGrouped: Color = Color(0.08f, 0.09f, 0.13f, 0.24f),
+    val surfaceDivider: Color = Color(1f, 1f, 1f, 0.10f),
 
     // ==========================================
     // IV. Text & Typography Hierarchy

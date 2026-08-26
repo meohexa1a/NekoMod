@@ -2,16 +2,42 @@
 
 package org.mdt.ui.components.display.tooltip
 
+import androidx.compose.runtime.Composable
 import arc.Core
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.GlyphLayout
 import mindustry.ui.Fonts
 import org.mdt.core.ui.UINode
-import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.render.BoxRenderer
 import org.mdt.core.ui.render.EngineRenderer
+import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.BoxVisuals
+import org.mdt.ui.components.text.Text
+
+/**
+ * ## Tooltip
+ *
+ * Declarative Frosted Glass tooltip card with hairline specular highlight and 1.0x BMFont clarity.
+ */
+@Composable
+fun Tooltip(
+    text: String,
+    modifier: UIModifier = UIModifier
+) {
+    Box(
+        modifier = Modifier
+            .background(Color(0.08f, 0.09f, 0.13f, 0.92f))
+            .radius(8f)
+            .border(1f, Color(1f, 1f, 1f, 0.25f))
+            .shadow(Color(0f, 0f, 0f, 0.45f), blur = 12f, spread = 2f)
+            .pad(horizontal = 12f, vertical = 8f)
+            .then(modifier)
+    ) {
+        Text(text = text, color = Color.white)
+    }
+}
 
 /**
  * ## TooltipManager
