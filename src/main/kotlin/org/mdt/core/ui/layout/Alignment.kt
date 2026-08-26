@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package org.mdt.ui.layout
+package org.mdt.core.ui.layout
 
 enum class ArrangementType {
     START,

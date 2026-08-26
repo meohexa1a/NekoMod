@@ -1,4 +1,4 @@
-package org.mdt.ui
+package org.mdt.core.ui
 
 import arc.Core
 import arc.Events
@@ -6,10 +6,10 @@ import arc.util.Log
 import mindustry.game.EventType.ResizeEvent
 import mindustry.game.EventType.Trigger
 import org.mdt.core.image.ImageLoader
-import org.mdt.ui.compose.CompositionManager
-import org.mdt.ui.compose.UIComposition
+import org.mdt.core.ui.compose.CompositionManager
+import org.mdt.core.ui.compose.UIComposition
 import org.mdt.core.ui.CanvasNode
-import org.mdt.ui.input.EngineInputProcessor
+import org.mdt.core.ui.input.EngineInputProcessor
 import org.mdt.ui.render.EngineRenderer
 
 object EngineRuntime {
@@ -26,9 +26,7 @@ object EngineRuntime {
 
         // 1. Insert our input processor at the very front (Priority 1)
         val processors = Core.input.inputProcessors
-        if (!processors.contains(inputProcessor)) {
-            processors.insert(0, inputProcessor)
-        }
+        if (!processors.contains(inputProcessor)) processors.insert(0, inputProcessor)
 
         // 2. Set initial canvas dimensions
         canvas.resize(Core.graphics.width.toFloat(), Core.graphics.height.toFloat())
@@ -39,9 +37,7 @@ object EngineRuntime {
         }
 
         // 4. Hook render loop to Trigger.uiDrawEnd (runs ON TOP of native UI)
-        Events.run(Trigger.uiDrawEnd) {
-            draw()
-        }
+        Events.run(Trigger.uiDrawEnd) { draw() }
 
         Log.info("[NekoMod] EngineRuntime initialized successfully.")
     }

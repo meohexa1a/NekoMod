@@ -1,4 +1,4 @@
-package org.mdt.ui.layout
+package org.mdt.core.ui.layout
 
 import org.mdt.core.ui.UINode
 

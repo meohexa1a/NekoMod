@@ -1,4 +1,4 @@
-package org.mdt.ui.input
+package org.mdt.core.ui.input
 
 import arc.input.InputProcessor
 import arc.input.KeyCode
@@ -30,14 +30,16 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
         }
     }
 
-    fun clearFocus() {
-        requestFocus(null)
-    }
+    fun clearFocus() = requestFocus(null)
 
     private fun findActionableNode(hit: UINode?): UINode? {
         var cur = hit
         while (cur != null && cur !== canvas) {
-            if (cur.onClick != null || cur.onDoubleClick != null || cur.onPointerDown != null || cur.onPointerUp != null || cur.isFocusable) {
+            if (cur.onClick != null || cur.onDoubleClick != null ||
+                cur.onPointerDown != null || cur.onPointerUp != null ||
+                cur.onPointerDrag != null || cur.onHover != null ||
+                cur.onPointerEnter != null || cur.onPointerExit != null ||
+                cur.onScroll != null || cur.isFocusable) {
                 return cur
             }
             cur = cur.parent
@@ -65,11 +67,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
             if (actionable != null) {
                 pressedNode = actionable
                 // Focus handling
-                if (actionable.isFocusable) {
-                    requestFocus(actionable)
-                } else {
-                    clearFocus()
-                }
+                if (actionable.isFocusable) requestFocus(actionable) else clearFocus()
 
                 val event = PointerEvent(x, y, pointer, button)
                 actionable.onPointerDown?.invoke(event)
@@ -151,10 +149,12 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
     }
 
     override fun scrolled(amountX: Float, amountY: Float): Boolean {
-        val node = hoveredNode ?: return false
+        val x = arc.Core.input.mouseX().toFloat()
+        val y = toLocalY(arc.Core.input.mouseY())
+        val hit = canvas.hitTest(x, y) ?: hoveredNode ?: return false
         val event = ScrollEvent(amountX, amountY)
 
-        var cur: UINode? = node
+        var cur: UINode? = hit
         while (cur != null) {
             if (cur.onScroll != null) {
                 cur.onScroll!!.invoke(event)
@@ -166,18 +166,9 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
         return false
     }
 
-    override fun keyDown(keyCode: KeyCode): Boolean {
-        val focused = focusedNode ?: return false
-        return focused.onKeyDown?.invoke(keyCode) ?: false
-    }
+    override fun keyDown(keyCode: KeyCode): Boolean = focusedNode?.onKeyDown?.invoke(keyCode) ?: false
 
-    override fun keyUp(keyCode: KeyCode): Boolean {
-        val focused = focusedNode ?: return false
-        return focused.onKeyUp?.invoke(keyCode) ?: false
-    }
+    override fun keyUp(keyCode: KeyCode): Boolean = focusedNode?.onKeyUp?.invoke(keyCode) ?: false
 
-    override fun keyTyped(character: Char): Boolean {
-        val focused = focusedNode ?: return false
-        return focused.onKeyTyped?.invoke(character) ?: false
-    }
+    override fun keyTyped(character: Char): Boolean = focusedNode?.onKeyTyped?.invoke(character) ?: false
 }

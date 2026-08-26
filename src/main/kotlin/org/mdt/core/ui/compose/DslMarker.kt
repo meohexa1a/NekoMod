@@ -1,4 +1,4 @@
-package org.mdt.ui.compose
+package org.mdt.core.ui.compose
 
 @DslMarker
 annotation class UIDslMarker

@@ -1,8 +1,8 @@
 package org.mdt.core.ui
 
 import arc.math.geom.Vec2
-import org.mdt.ui.layout.AnchorData
-import org.mdt.ui.layout.SizeFlags
+import org.mdt.core.ui.layout.AnchorData
+import org.mdt.core.ui.layout.SizeFlags
 import org.mdt.ui.render.EngineRenderer
 
 /**
@@ -73,14 +73,10 @@ open class UINode {
     var marginB: Float = 0f
 
     /** Sets equal margin on all 4 sides. */
-    fun margin(all: Float) {
-        margin(all, all, all, all)
-    }
+    fun margin(all: Float) = margin(all, all, all, all)
 
     /** Sets margin on horizontal and vertical axes. */
-    fun margin(horizontal: Float = 0f, vertical: Float = 0f) {
-        margin(horizontal, vertical, horizontal, vertical)
-    }
+    fun margin(horizontal: Float = 0f, vertical: Float = 0f) = margin(horizontal, vertical, horizontal, vertical)
 
     /** Sets margin individually for each side. */
     fun margin(left: Float = 0f, top: Float = 0f, right: Float = 0f, bottom: Float = 0f) {
@@ -105,14 +101,10 @@ open class UINode {
     var padB: Float = 0f
 
     /** Sets equal padding on all 4 sides. */
-    fun pad(all: Float) {
-        pad(all, all, all, all)
-    }
+    fun pad(all: Float) = pad(all, all, all, all)
 
     /** Sets padding on horizontal and vertical axes. */
-    fun pad(horizontal: Float = 0f, vertical: Float = 0f) {
-        pad(horizontal, vertical, horizontal, vertical)
-    }
+    fun pad(horizontal: Float = 0f, vertical: Float = 0f) = pad(horizontal, vertical, horizontal, vertical)
 
     /** Sets padding individually for each side. */
     fun pad(left: Float = 0f, top: Float = 0f, right: Float = 0f, bottom: Float = 0f) {
@@ -208,9 +200,7 @@ open class UINode {
     }
 
     /** Sets node boundary rectangle. */
-    fun setBounds(x: Float, y: Float, width: Float, height: Float) {
-        bounds.set(x, y, width, height)
-    }
+    fun setBounds(x: Float, y: Float, width: Float, height: Float) = bounds.set(x, y, width, height)
 
     /** Sets node position (x, y). */
     fun setPosition(x: Float, y: Float) {
@@ -240,9 +230,7 @@ open class UINode {
     open fun layout() {
         isLayoutDirty = false
         for (child in children) {
-            if (child.visible) {
-                child.layout()
-            }
+            if (child.visible) child.layout()
         }
     }
 
@@ -264,9 +252,7 @@ open class UINode {
         drawSelf(renderer)
         drawChildren(renderer)
 
-        if (pushed) {
-            org.mdt.ui.render.ScissorStack.pop()
-        }
+        if (pushed) org.mdt.ui.render.ScissorStack.pop()
     }
 
     /** Renders the visual representation of this node. */
@@ -275,9 +261,7 @@ open class UINode {
     /** Renders all visible children in bottom-up order. */
     protected open fun drawChildren(renderer: EngineRenderer) {
         for (child in children) {
-            if (child.visible) {
-                child.draw(renderer)
-            }
+            if (child.visible) child.draw(renderer)
         }
     }
 

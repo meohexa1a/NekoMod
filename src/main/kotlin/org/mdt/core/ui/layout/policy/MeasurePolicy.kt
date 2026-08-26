@@ -1,9 +1,9 @@
-package org.mdt.ui.layout.policy
+package org.mdt.core.ui.layout.policy
 
 import org.mdt.ui.components.layout.LayoutNode
-import org.mdt.ui.layout.Alignment
-import org.mdt.ui.layout.Arrangement
-import org.mdt.ui.layout.GodotLayout
+import org.mdt.core.ui.layout.Alignment
+import org.mdt.core.ui.layout.Arrangement
+import org.mdt.core.ui.layout.GodotLayout
 
 /**
  * ## MeasurePolicy

@@ -1,4 +1,4 @@
-package org.mdt.ui.compose
+package org.mdt.core.ui.compose
 
 import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.Composable
@@ -61,7 +61,5 @@ class UIComposition(
         }
     }
 
-    fun dispose() {
-        composition.dispose()
-    }
+    fun dispose() = composition.dispose()
 }

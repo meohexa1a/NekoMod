@@ -6,9 +6,7 @@ data class Rect(
     var width: Float = 0f,
     var height: Float = 0f
 ) {
-    fun contains(px: Float, py: Float): Boolean {
-        return px >= x && px <= x + width && py >= y && py <= y + height
-    }
+    fun contains(px: Float, py: Float): Boolean = px >= x && px <= x + width && py >= y && py <= y + height
 
     fun set(x: Float, y: Float, width: Float, height: Float) {
         this.x = x
@@ -17,9 +15,7 @@ data class Rect(
         this.height = height
     }
 
-    fun set(other: Rect) {
-        set(other.x, other.y, other.width, other.height)
-    }
+    fun set(other: Rect) = set(other.x, other.y, other.width, other.height)
 }
 
 data class Insets(
@@ -35,7 +31,5 @@ data class Insets(
         bottom = b
     }
 
-    fun set(all: Float) {
-        set(all, all, all, all)
-    }
+    fun set(all: Float) = set(all, all, all, all)
 }

@@ -1,7 +1,7 @@
 package org.mdt.core.ui
 
 import org.mdt.ui.components.display.tooltip.TooltipManager
-import org.mdt.ui.layout.GodotLayout
+import org.mdt.core.ui.layout.GodotLayout
 import org.mdt.ui.render.EngineRenderer
 
 class CanvasNode : UINode() {
@@ -30,9 +30,7 @@ class CanvasNode : UINode() {
     }
 
     override fun draw(renderer: EngineRenderer) {
-        if (isLayoutDirty) {
-            layout()
-        }
+        if (isLayoutDirty) layout()
         super.draw(renderer)
 
         // Draw top-layer overlays (Tooltips, Modals, Popups) strictly above all children

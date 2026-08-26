@@ -1,4 +1,4 @@
-package org.mdt.ui.layout
+package org.mdt.core.ui.layout
 
 enum class LayoutPreset {
     TOP_LEFT,

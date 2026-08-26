@@ -1,4 +1,4 @@
-package org.mdt.ui.layout
+package org.mdt.core.ui.layout
 
 object SizeFlags {
     /** Do not expand, place at the start of the allocated slot. */

@@ -1,6 +1,6 @@
 @file:Suppress("FunctionName")
 
-package org.mdt.ui.compose
+package org.mdt.core.ui.compose
 
 // Top-level modifier factory shortcuts
 fun Modifier(): UIModifier = UIModifier
