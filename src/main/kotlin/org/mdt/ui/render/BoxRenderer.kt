@@ -24,13 +24,14 @@ object BoxRenderer {
     fun draw(
         x: Float, y: Float,
         w: Float, h: Float,
-        visuals: BoxVisuals,
-        blur: BoxBlur
+        visuals: BoxVisuals
     ) {
         if (w <= 0.001f || h <= 0.001f) return
         Shaders.ensure()
-        val backdrop = if (blurEnabled) blur.getBlurredTexture(visuals) else null
-        drawContent(visuals, x, y, w, h, backdrop, blur.screenWidth, blur.screenHeight)
+        val backdrop = if (blurEnabled) BoxBlur.getBlurredTexture(visuals) else null
+        val screenW = if (Core.graphics != null && Core.graphics.width > 0) Core.graphics.width.toFloat() else 1920f
+        val screenH = if (Core.graphics != null && Core.graphics.height > 0) Core.graphics.height.toFloat() else 1080f
+        drawContent(visuals, x, y, w, h, backdrop, screenW, screenH)
     }
 
     private fun drawContent(
@@ -48,7 +49,7 @@ object BoxRenderer {
         Draw.shader(s)
         s.bind()
         applyCommon(s, visuals, w, h)
-        applyFill(s, visuals)
+        applyFill(s, visuals, w, h)
         applyBorder(s, visuals, w, h)
         applyInnerShadow(s, visuals)
         applyGlow(s, visuals)
@@ -99,12 +100,14 @@ object BoxRenderer {
         s.setUniformf("u_fillColor", v.fillColor.r, v.fillColor.g, v.fillColor.b, v.fillColor.a)
     }
 
-    private fun applyFill(s: Shader, v: BoxVisuals) {
-        if (v.backgroundMode != BoxVisuals.BackgroundMode.TEXTURE || v.fillTexture == null) return
+    private fun applyFill(s: Shader, v: BoxVisuals, w: Float, h: Float) {
+        if (v.backgroundMode != BoxVisuals.BackgroundMode.TEXTURE) return
+        val tex = v.fillRegion?.texture ?: v.fillTexture ?: return
+        v.computeUVs(w, h)
         s.setUniformf("u_uvScale", v.uvScaleX, v.uvScaleY)
         s.setUniformf("u_uvOffset", v.uvOffsetX, v.uvOffsetY)
         Gl.activeTexture(Gl.texture0 + Shaders.TEX_UNIT_FILL)
-        v.fillTexture!!.bind()
+        tex.bind()
     }
 
     private fun applyBorder(s: Shader, v: BoxVisuals, w: Float, h: Float) {

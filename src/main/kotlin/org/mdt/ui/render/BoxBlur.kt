@@ -1,6 +1,8 @@
 package org.mdt.ui.render
 
+import arc.Core
 import arc.graphics.Color
+import arc.graphics.Gl
 import arc.graphics.Texture
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
@@ -11,46 +13,42 @@ import org.mdt.ui.components.layout.BoxVisuals
 /**
  * ## BoxBlur
  *
- * High-performance backdrop blur coordinator using screen-sized downscaled
- * ping-pong FrameBuffers.
- * Performs a single 2-pass Gaussian blur over the captured screen texture per frame,
- * allowing all backdrop glassmorphism boxes to sample at zero additional GPU allocation cost.
+ * Self-contained high-performance backdrop blur coordinator.
+ * Lazily captures the screen buffer on-demand and performs a single 2-pass Gaussian
+ * blur per frame using downscaled ping-pong FrameBuffers.
  *
  * See: docs/rendering-shaders/rendering_shaders_en.md
  */
-class BoxBlur {
-    private var sharedCapture: Texture? = null
-    var screenWidth: Float = 1f
-        private set
-    var screenHeight: Float = 1f
-        private set
+object BoxBlur {
+    private const val DOWNSCALE_FACTOR = 0.5f
 
+    private var screenCaptureFbo: FrameBuffer? = null
     private var pingPongA: FrameBuffer? = null
     private var pingPongB: FrameBuffer? = null
     private var blurredTexture: Texture? = null
-    private var hasBlurredThisFrame = false
+
+    private var lastFrameId: Long = -1L
     private val scratchMat = Mat()
 
-    fun setSharedCapture(texture: Texture?, sw: Float, sh: Float) {
-        this.sharedCapture = texture
-        this.screenWidth = if (sw > 0f) sw else 1f
-        this.screenHeight = if (sh > 0f) sh else 1f
-        this.hasBlurredThisFrame = false
-    }
-
     /**
-     * Performs Gaussian blur on the shared screen capture and returns the blurred texture.
+     * Lazily captures the current screen buffer and performs Gaussian blur on-demand.
+     * Guaranteed to execute at most ONCE per frame regardless of how many backdrop boxes are rendered.
      */
     fun getBlurredTexture(visuals: BoxVisuals): Texture? {
         if (!visuals.blur || visuals.backgroundMode != BoxVisuals.BackgroundMode.BACKDROP) return null
-        val capture = sharedCapture ?: return null
 
-        if (hasBlurredThisFrame && blurredTexture != null) {
+        val currentFrame = if (Core.graphics != null) Core.graphics.frameId else System.nanoTime()
+        if (lastFrameId == currentFrame && blurredTexture != null) {
             return blurredTexture
         }
 
-        val fbW = maxOf(64, (screenWidth * DOWNSCALE_FACTOR).toInt())
-        val fbH = maxOf(64, (screenHeight * DOWNSCALE_FACTOR).toInt())
+        val screenW = if (Core.graphics != null && Core.graphics.width > 0) Core.graphics.width else 1920
+        val screenH = if (Core.graphics != null && Core.graphics.height > 0) Core.graphics.height else 1080
+
+        val capture = captureScreen(screenW, screenH) ?: return null
+
+        val fbW = maxOf(64, (screenW * DOWNSCALE_FACTOR).toInt())
+        val fbH = maxOf(64, (screenH * DOWNSCALE_FACTOR).toInt())
 
         val existing = pingPongA
         if (existing != null && (existing.width != fbW || existing.height != fbH)) {
@@ -96,9 +94,36 @@ class BoxBlur {
         // Restore camera/canvas projection matrix
         Draw.proj(scratchMat)
         Draw.color(Color.white)
-        hasBlurredThisFrame = true
+        lastFrameId = currentFrame
         blurredTexture = dstA.texture
         return blurredTexture
+    }
+
+    private fun captureScreen(physW: Int, physH: Int): Texture? {
+        val existing = screenCaptureFbo
+        if (existing != null && (existing.width != physW || existing.height != physH)) {
+            existing.dispose()
+            screenCaptureFbo = null
+        }
+        if (screenCaptureFbo == null) {
+            screenCaptureFbo = FrameBuffer(physW, physH).apply {
+                texture.setFilter(Texture.TextureFilter.linear)
+            }
+        }
+
+        val fbo = screenCaptureFbo ?: return null
+        Draw.flush()
+        val blendWas = Gl.isEnabled(Gl.blend)
+        Gl.disable(Gl.blend)
+        Gl.depthMask(false)
+        Gl.bindTexture(Gl.texture2d, fbo.texture.textureObjectHandle)
+        Gl.copyTexSubImage2D(Gl.texture2d, 0, 0, 0, 0, 0, physW, physH)
+        Gl.bindTexture(Gl.texture2d, 0)
+        if (blendWas) Gl.enable(Gl.blend) else Gl.disable(Gl.blend)
+        Gl.depthMask(true)
+        Draw.flush()
+
+        return fbo.texture
     }
 
     private fun blurPass(src: FrameBuffer, dst: FrameBuffer, fbW: Int, fbH: Int, radius: Float, dx: Float, dy: Float) {
@@ -127,8 +152,9 @@ class BoxBlur {
     }
 
     fun dispose() {
+        screenCaptureFbo?.dispose()
+        screenCaptureFbo = null
         disposeScratch()
-        sharedCapture = null
     }
 
     private fun disposeScratch() {
@@ -137,10 +163,6 @@ class BoxBlur {
         pingPongB?.dispose()
         pingPongB = null
         blurredTexture = null
-        hasBlurredThisFrame = false
-    }
-
-    companion object {
-        private const val DOWNSCALE_FACTOR = 0.5f
+        lastFrameId = -1L
     }
 }

@@ -65,14 +65,8 @@ object ScissorStack {
 
         stack.addFirst(effectiveRect)
 
-        if (effectiveRect.width <= 0.001f || effectiveRect.height <= 0.001f) {
-            // Empty intersection: nothing is visible
-            return false
-        }
-
-        if (stack.size == 1) {
-            Gl.enable(Gl.scissorTest)
-        }
+        if (effectiveRect.width <= 0.001f || effectiveRect.height <= 0.001f) return false
+        if (stack.size == 1) Gl.enable(Gl.scissorTest)
 
         applyScissor(effectiveRect)
         return true
@@ -87,11 +81,7 @@ object ScissorStack {
         stack.removeFirst()
 
         val current = stack.peekFirst()
-        if (current != null) {
-            applyScissor(current)
-        } else {
-            Gl.disable(Gl.scissorTest)
-        }
+        if (current != null) applyScissor(current) else Gl.disable(Gl.scissorTest)
     }
 
     /** Clears and disables all scissor tests. */
