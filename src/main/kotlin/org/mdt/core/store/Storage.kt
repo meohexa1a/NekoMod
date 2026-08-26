@@ -1,95 +1,112 @@
 package org.mdt.core.store
 
 import arc.Core
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import okio.BufferedSink
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
-import okio.buffer
 import java.io.IOException
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * ## Storage
  *
- * High-performance file system manager backed by Okio with crash-resilient atomic file writing.
+ * High-performance, cross-platform file system facade powered by Okio and Kotlinx Serialization.
+ * Provides atomic file writing, streaming JSON serialization, and safe multiplatform directory resolution.
+ *
+ * See: docs/core-subsystems/core_subsystems_en.md
  */
 object Storage {
 
     val fs: FileSystem = FileSystem.SYSTEM
-    private val writeLocks = ConcurrentHashMap<String, Any>()
+
+    val json: Json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+        isLenient = true
+        prettyPrint = false
+    }
+
+    val prettyJson: Json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+        isLenient = true
+        prettyPrint = true
+    }
 
     /**
-     * Resolves the base data directory for NekoMod within Mindustry's mod storage.
+     * Base storage directory for NekoMod with cross-platform fallback (Windows, Linux, macOS, Android).
      */
     val modDir: Path by lazy {
-        val baseDir = (Core.settings?.dataDirectory?.file()?.absolutePath)
-            ?: (System.getenv("APPDATA") + "/Mindustry")
-        val path = "$baseDir/nekomod".toPath()
-        if (!fs.exists(path)) {
-            fs.createDirectories(path)
-        }
-        path
+        val base = Core.settings?.dataDirectory?.file()?.absolutePath
+            ?: (System.getProperty("user.home") + "/.nekomod")
+        "$base/nekomod".toPath().also { fs.createDirectories(it) }
     }
 
     /**
-     * Resolves a subpath within the NekoMod directory.
+     * Dedicated persistent disk cache directory for images, schemas, and temporary assets.
      */
-    fun resolve(relativePath: String): Path {
-        val target = modDir.resolve(relativePath)
-        val parent = target.parent
-        if (parent != null && !fs.exists(parent)) {
-            fs.createDirectories(parent)
-        }
-        return target
+    val cacheDir: Path by lazy {
+        modDir.resolve("cache").also { fs.createDirectories(it) }
     }
 
+    /** Resolves a relative subpath within [modDir], auto-creating parent directories. */
+    fun resolve(relativePath: String): Path =
+        modDir.resolve(relativePath).also { it.parent?.let(fs::createDirectories) }
+
+    /** Resolves a relative subpath within [cacheDir], auto-creating parent directories. */
+    fun resolveCache(relativePath: String): Path =
+        cacheDir.resolve(relativePath).also { it.parent?.let(fs::createDirectories) }
+
     /**
-     * Atomically writes data to a target path using a unique staging file,
-     * ensuring zero file corruption if the process terminates unexpectedly.
+     * Atomically writes data to [targetPath] using a temporary staging file and [FileSystem.atomicMove].
      */
-    fun atomicWrite(targetPath: Path, block: (okio.BufferedSink) -> Unit) {
+    fun atomicWrite(targetPath: Path, block: (BufferedSink) -> Unit) {
         val parent = targetPath.parent
-        if (parent != null && !fs.exists(parent)) {
-            fs.createDirectories(parent)
-        }
+        if (parent != null && !fs.exists(parent)) fs.createDirectories(parent)
 
-        val lock = writeLocks.computeIfAbsent(targetPath.toString()) { Any() }
-        synchronized(lock) {
-            val tempPath = "${targetPath}.${System.nanoTime()}.tmp".toPath()
-            try {
-                fs.sink(tempPath).buffer().use { sink ->
-                    block(sink)
-                    sink.flush()
-                }
-                // On Windows, if target exists, delete temp on failure or atomicMove
-                if (fs.exists(targetPath)) {
-                    try {
-                        fs.delete(targetPath)
-                    } catch (_: Exception) {}
-                }
-                fs.atomicMove(tempPath, targetPath)
-            } catch (e: Exception) {
-                if (fs.exists(tempPath)) {
-                    try { fs.delete(tempPath) } catch (_: Exception) {}
-                }
-                throw IOException("Atomic write failed for path: $targetPath", e)
-            }
+        val tempPath = "${targetPath}.${System.nanoTime()}.tmp".toPath()
+        try {
+            fs.write(tempPath) { block(this) }
+            fs.atomicMove(tempPath, targetPath)
+        } catch (e: Exception) {
+            fs.delete(tempPath, mustExist = false)
+            throw IOException("Atomic write failed for path: $targetPath", e)
         }
     }
 
-    /**
-     * Reads the entire content of a file as a UTF-8 string.
-     */
-    fun readString(path: Path): String? {
-        if (!fs.exists(path)) return null
-        return fs.source(path).buffer().use { it.readUtf8() }
+    // --- PRIMITIVE I/O ---
+
+    fun exists(path: Path): Boolean = fs.exists(path)
+
+    fun delete(path: Path, mustExist: Boolean = false): Unit = fs.delete(path, mustExist = mustExist)
+
+    fun size(path: Path): Long = fs.metadataOrNull(path)?.size ?: 0L
+
+    fun readString(path: Path): String? = if (fs.exists(path)) fs.read(path) { readUtf8() } else null
+
+    fun readBytes(path: Path): ByteArray? = if (fs.exists(path)) fs.read(path) { readByteArray() } else null
+
+    fun writeString(path: Path, content: String) = atomicWrite(path) { it.writeUtf8(content) }
+
+    fun writeBytes(path: Path, bytes: ByteArray) = atomicWrite(path) { it.write(bytes) }
+
+    // --- STRUCTURED JSON SERIALIZATION ---
+
+    inline fun <reified T> readJson(path: Path, serializer: Json = json): T? {
+        val content = readString(path) ?: return null
+        return try {
+            serializer.decodeFromString<T>(content)
+        } catch (_: Exception) {
+            null
+        }
     }
 
-    /**
-     * Reads the entire content of a file as a byte array.
-     */
-    fun readBytes(path: Path): ByteArray? {
-        if (!fs.exists(path)) return null
-        return fs.source(path).buffer().use { it.readByteArray() }
+    inline fun <reified T> writeJson(path: Path, value: T, pretty: Boolean = false) {
+        val serializer = if (pretty) prettyJson else json
+        val content = serializer.encodeToString(value)
+        writeString(path, content)
     }
 }

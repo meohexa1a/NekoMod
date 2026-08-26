@@ -1,44 +1,73 @@
 package org.mdt.core.store
 
+import arc.util.Log
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.serializer
 import okio.Path
-import org.mdt.core.async.AsyncDispatcher
-import java.util.concurrent.ConcurrentHashMap
+import org.mdt.core.common.AsyncDispatcher
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * ## KVStore
+ * ## ConfigStore
  *
- * Blazing fast, thread-safe Key-Value store backed by an in-memory cache
- * and Okio atomic disk persistence with debounced write throttling.
+ * Thread-safe, reactive, type-safe configuration store backed by typed Kotlinx Serialization
+ * and atomic Okio disk persistence with debounced write throttling.
+ *
+ * See: docs/core-subsystems/core_subsystems_en.md
  */
-class KVStore(name: String = "config") {
-
-    private val storePath: Path = Storage.resolve("$name.kv")
-    private val memoryMap = ConcurrentHashMap<String, String>()
+class ConfigStore<T : Any>(
+    val path: Path,
+    val default: T,
+    private val serializer: KSerializer<T>,
+    private val json: Json = Storage.prettyJson
+) {
+    private val stateRef = AtomicReference<T>(loadFromDisk())
     private var saveJob: Job? = null
+    private val listeners = ArrayList<(T) -> Unit>()
+
+    var value: T
+        get() = stateRef.get()
+        set(newValue) {
+            update { newValue }
+        }
 
     init {
-        loadFromDisk()
+        Runtime.getRuntime().addShutdownHook(Thread { flushToDisk() })
     }
 
-    private fun loadFromDisk() {
-        val content = Storage.readString(storePath) ?: return
-        for (line in content.lines()) {
-            val trimmed = line.trim()
-            if (trimmed.isEmpty() || trimmed.startsWith("#")) continue
-            val separatorIdx = trimmed.indexOf('=')
-            if (separatorIdx > 0) {
-                val key = trimmed.substring(0, separatorIdx).trim()
-                val value = trimmed.substring(separatorIdx + 1).trim()
-                memoryMap[key] = value
+    private fun loadFromDisk(): T {
+        val content = Storage.readString(path) ?: return default
+        return try {
+            json.decodeFromString(serializer, content)
+        } catch (e: Throwable) {
+            Log.warn("[ConfigStore] Failed to parse $path, falling back to default: ${e.message}")
+            default
+        }
+    }
+
+    /**
+     * Atomically transforms the configuration state and schedules a debounced save.
+     */
+    fun update(transform: (T) -> T): T {
+        while (true) {
+            val current = stateRef.get()
+            val next = transform(current)
+            if (stateRef.compareAndSet(current, next)) {
+                if (current != next) {
+                    save()
+                    notifyListeners(next)
+                }
+                return next
             }
         }
     }
 
     /**
-     * Schedules a debounced disk persistence pass (300ms after last mutation).
+     * Schedules a debounced disk save pass (300ms after last mutation).
      */
     fun save() {
         saveJob?.cancel()
@@ -49,55 +78,35 @@ class KVStore(name: String = "config") {
     }
 
     /**
-     * Flushes current in-memory entries onto disk immediately.
+     * Flushes current configuration onto disk immediately.
      */
     fun flushToDisk() {
-        val snapshot = HashMap(memoryMap)
         try {
-            Storage.atomicWrite(storePath) { sink ->
-                for ((k, v) in snapshot) {
-                    sink.writeUtf8("$k=$v\n")
-                }
-            }
-        } catch (_: Exception) {
-            // Ignore collision retries
+            val content = json.encodeToString(serializer, stateRef.get())
+            Storage.writeString(path, content)
+        } catch (e: Throwable) {
+            Log.warn("[ConfigStore] Failed to flush $path: ${e.message}")
         }
     }
 
-    // --- GETTERS ---
-
-    fun getString(key: String, default: String = ""): String = memoryMap[key] ?: default
-    fun getInt(key: String, default: Int = 0): Int = memoryMap[key]?.toIntOrNull() ?: default
-    fun getFloat(key: String, default: Float = 0f): Float = memoryMap[key]?.toFloatOrNull() ?: default
-    fun getBoolean(key: String, default: Boolean = false): Boolean = memoryMap[key]?.toBooleanStrictOrNull() ?: default
-
-    // --- SETTERS ---
-
-    fun putString(key: String, value: String): KVStore {
-        memoryMap[key] = value
-        save()
-        return this
+    fun addListener(listener: (T) -> Unit) {
+        synchronized(listeners) { listeners.add(listener) }
     }
 
-    fun putInt(key: String, value: Int): KVStore = putString(key, value.toString())
-    fun putFloat(key: String, value: Float): KVStore = putString(key, value.toString())
-    fun putBoolean(key: String, value: Boolean): KVStore = putString(key, value.toString())
-
-    fun remove(key: String): KVStore {
-        if (memoryMap.remove(key) != null) {
-            save()
-        }
-        return this
+    fun removeListener(listener: (T) -> Unit) {
+        synchronized(listeners) { listeners.remove(listener) }
     }
 
-    fun clear(): KVStore {
-        memoryMap.clear()
-        save()
-        return this
+    private fun notifyListeners(newValue: T) {
+        val copy = synchronized(listeners) { listeners.toList() }
+        for (listener in copy) listener(newValue)
     }
 
     companion object {
-        /** Default shared application KV store instance. */
-        val default by lazy { KVStore("default") }
+        inline fun <reified T : Any> create(
+            name: String,
+            default: T,
+            json: Json = Storage.prettyJson
+        ): ConfigStore<T> = ConfigStore(Storage.resolve("$name.json"), default, serializer<T>(), json)
     }
 }
