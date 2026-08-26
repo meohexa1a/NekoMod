@@ -67,6 +67,4 @@ object I18nEngine {
 /**
  * Convenient global shorthand for [I18nEngine.get].
  */
-fun i18n(key: String, vararg params: Pair<String, Any>): String {
-    return I18nEngine.get(key, *params)
-}
+fun i18n(key: String, vararg params: Pair<String, Any>): String = I18nEngine.get(key, *params)

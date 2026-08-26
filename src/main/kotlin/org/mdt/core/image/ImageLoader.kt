@@ -4,6 +4,7 @@ import arc.Core
 import arc.Events
 import arc.graphics.Pixmap
 import arc.graphics.Texture
+import arc.graphics.g2d.TextureRegion
 import arc.util.Log
 import mindustry.Vars
 import mindustry.game.EventType.Trigger
@@ -17,8 +18,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
 /**
  * ## ImageLoader
  *
- * Asynchronous, zero-frame-stall image pipeline with Burst Upload Throttling
- * and automatic fallback to Mindustry's iconic 'ohno' meme texture on error.
+ * Asynchronous, zero-frame-stall image pipeline with Burst Upload Throttling,
+ * reference-counted VRAM caching, and single-point fallback to Mindustry's iconic 'ohno' / 'error' region.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
@@ -29,7 +30,7 @@ object ImageLoader {
     private class UploadTask(
         val cacheKey: String,
         val pixmap: Pixmap,
-        val onResult: (TextureHandle?, Throwable?) -> Unit
+        val onResult: (TextureRegion, TextureHandle?, Throwable?) -> Unit
     )
 
     private val uploadQueue = ConcurrentLinkedQueue<UploadTask>()
@@ -43,9 +44,20 @@ object ImageLoader {
         if (!isHooked) {
             isHooked = true
             // Run on both update and uiDrawEnd to ensure execution in menus and paused states
-            Events.run(Trigger.uiDrawEnd) {
-                processUploadQueue()
-            }
+            Events.run(Trigger.uiDrawEnd) { processUploadQueue() }
+        }
+    }
+
+    /**
+     * Resolves Mindustry's iconic 'ohno' error fallback texture region.
+     */
+    fun fallbackRegion(): TextureRegion {
+        val atlas = Core.atlas ?: return TextureRegion()
+        return when {
+            atlas.has("ohno") -> atlas.find("ohno")
+            atlas.has("error") -> atlas.find("error")
+            atlas.has("white") -> atlas.find("white")
+            else -> atlas.white() ?: TextureRegion()
         }
     }
 
@@ -60,39 +72,43 @@ object ImageLoader {
                 }
                 task.pixmap.dispose()
                 val handle = LRUTextureCache.shared.put(task.cacheKey, texture)
-                Log.info("[ImageLoader] Uploaded GPU texture for: ${task.cacheKey} (${texture.width}x${texture.height})")
-                task.onResult(handle, null)
+                task.onResult(handle.region, handle, null)
             } catch (e: Throwable) {
                 Log.err("[ImageLoader] Failed to upload texture for ${task.cacheKey}", e)
                 task.pixmap.dispose()
-                fallbackToOhno(task.onResult, e)
+                task.onResult(fallbackRegion(), null, e)
             }
         }
     }
 
-    fun load(source: ImageSource, onResult: (TextureHandle?, Throwable?) -> Unit) {
+    /**
+     * Loads an [ImageSource] asynchronously.
+     * Invokes [onResult] with resolved [TextureRegion], optional cache [TextureHandle], and any [Throwable].
+     */
+    fun load(source: ImageSource, onResult: (TextureRegion, TextureHandle?, Throwable?) -> Unit) {
         when (source) {
+            is ImageSource.Atlas -> loadFromAtlas(source.name, onResult)
+            is ImageSource.Region -> onResult(source.region, null, null)
             is ImageSource.Url -> loadFromUrl(source, onResult)
             is ImageSource.Asset -> loadFromAsset(source.path, onResult)
             is ImageSource.LocalFile -> loadFromFile(source, onResult)
-            is ImageSource.Region -> {
-                val handle = LRUTextureCache.shared.put(source.region.texture.toString(), source.region.texture)
-                onResult(handle, null)
-            }
         }
     }
 
-    private fun fallbackToOhno(onResult: (TextureHandle?, Throwable?) -> Unit, error: Throwable) {
-        val fallback = ImageSource.fallbackRegion()
-        val handle = LRUTextureCache.shared.put("atlas:ohno", fallback.texture)
-        AsyncDispatcher.onMainThread { onResult(handle, error) }
+    private fun loadFromAtlas(name: String, onResult: (TextureRegion, TextureHandle?, Throwable?) -> Unit) {
+        val atlas = Core.atlas
+        if (atlas != null && atlas.has(name)) {
+            onResult(atlas.find(name), null, null)
+        } else {
+            onResult(fallbackRegion(), null, IllegalArgumentException("Atlas region not found: $name"))
+        }
     }
 
-    private fun loadFromUrl(source: ImageSource.Url, onResult: (TextureHandle?, Throwable?) -> Unit) {
+    private fun loadFromUrl(source: ImageSource.Url, onResult: (TextureRegion, TextureHandle?, Throwable?) -> Unit) {
         val cacheKey = source.url
         val cached = LRUTextureCache.shared.get(cacheKey)
         if (cached != null) {
-            onResult(cached, null)
+            onResult(cached.region, cached, null)
             return
         }
 
@@ -103,15 +119,15 @@ object ImageLoader {
                 uploadQueue.add(UploadTask(cacheKey, pixmap, onResult))
             } catch (e: Throwable) {
                 Log.err("[ImageLoader] Failed to download image from ${source.url}: ${e.message}")
-                fallbackToOhno(onResult, e)
+                AsyncDispatcher.onMainThread { onResult(fallbackRegion(), null, e) }
             }
         }
     }
 
-    private fun loadFromAsset(path: String, onResult: (TextureHandle?, Throwable?) -> Unit) {
+    private fun loadFromAsset(path: String, onResult: (TextureRegion, TextureHandle?, Throwable?) -> Unit) {
         val cached = LRUTextureCache.shared.get(path)
         if (cached != null) {
-            onResult(cached, null)
+            onResult(cached.region, cached, null)
             return
         }
 
@@ -129,16 +145,16 @@ object ImageLoader {
                 val pixmap = Pixmap(bytes, 0, bytes.size)
                 uploadQueue.add(UploadTask(path, pixmap, onResult))
             } catch (e: Throwable) {
-                fallbackToOhno(onResult, e)
+                AsyncDispatcher.onMainThread { onResult(fallbackRegion(), null, e) }
             }
         }
     }
 
-    private fun loadFromFile(source: ImageSource.LocalFile, onResult: (TextureHandle?, Throwable?) -> Unit) {
+    private fun loadFromFile(source: ImageSource.LocalFile, onResult: (TextureRegion, TextureHandle?, Throwable?) -> Unit) {
         val cacheKey = source.path.toString()
         val cached = LRUTextureCache.shared.get(cacheKey)
         if (cached != null) {
-            onResult(cached, null)
+            onResult(cached.region, cached, null)
             return
         }
 
@@ -149,7 +165,7 @@ object ImageLoader {
                 val pixmap = Pixmap(bytes, 0, bytes.size)
                 uploadQueue.add(UploadTask(cacheKey, pixmap, onResult))
             } catch (e: Throwable) {
-                fallbackToOhno(onResult, e)
+                AsyncDispatcher.onMainThread { onResult(fallbackRegion(), null, e) }
             }
         }
     }

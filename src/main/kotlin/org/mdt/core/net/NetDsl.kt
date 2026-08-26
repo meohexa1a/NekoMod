@@ -17,22 +17,10 @@ import java.io.IOException
  * Fully compatible with runtime HJSON schemas and visual UI data binding.
  */
 object Net {
-
-    fun get(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest {
-        return HttpRequest("GET", url, block)
-    }
-
-    fun post(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest {
-        return HttpRequest("POST", url, block)
-    }
-
-    fun put(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest {
-        return HttpRequest("PUT", url, block)
-    }
-
-    fun delete(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest {
-        return HttpRequest("DELETE", url, block)
-    }
+    fun get(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("GET", url, block)
+    fun post(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("POST", url, block)
+    fun put(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("PUT", url, block)
+    fun delete(url: String, block: RequestBuilder.() -> Unit = {}): HttpRequest = HttpRequest("DELETE", url, block)
 }
 
 /**
@@ -45,22 +33,15 @@ class RequestBuilder {
     var bodyMediaType: String = "application/json; charset=utf-8"
     val formParams = mutableMapOf<String, String>()
 
-    fun header(name: String, value: String) {
-        headers[name] = value
-    }
-
-    fun param(name: String, value: String) {
-        queryParams[name] = value
-    }
+    fun header(name: String, value: String) { headers[name] = value }
+    fun param(name: String, value: String) { queryParams[name] = value }
 
     fun json(body: String) {
         this.rawBody = body
         this.bodyMediaType = "application/json; charset=utf-8"
     }
 
-    fun form(name: String, value: String) {
-        formParams[name] = value
-    }
+    fun form(name: String, value: String) { formParams[name] = value }
 }
 
 /**
@@ -110,9 +91,7 @@ class HttpRequest(
     suspend fun awaitString(): String {
         val request = buildOkHttpRequest()
         val response = HttpEngine.execute(request)
-        if (!response.isSuccessful) {
-            throw IOException("HTTP ${response.code}: ${response.message}")
-        }
+        if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
         return response.body?.string() ?: ""
     }
 
@@ -122,9 +101,7 @@ class HttpRequest(
     suspend fun awaitBytes(): ByteArray {
         val request = buildOkHttpRequest()
         val response = HttpEngine.execute(request)
-        if (!response.isSuccessful) {
-            throw IOException("HTTP ${response.code}: ${response.message}")
-        }
+        if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
         return response.body?.bytes() ?: ByteArray(0)
     }
 
@@ -134,9 +111,7 @@ class HttpRequest(
     suspend fun awaitSource(): BufferedSource {
         val request = buildOkHttpRequest()
         val response = HttpEngine.execute(request)
-        if (!response.isSuccessful) {
-            throw IOException("HTTP ${response.code}: ${response.message}")
-        }
+        if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
         return response.body?.source() ?: throw IOException("Empty response body")
     }
 }

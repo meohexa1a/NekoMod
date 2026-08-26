@@ -1,71 +1,69 @@
 package org.mdt.core.image
 
-import arc.Core
 import arc.graphics.g2d.TextureRegion
 import okio.Path
+import okio.Path.Companion.toPath
 import org.mdt.core.net.RequestBuilder
 
 /**
  * ## ImageSource
  *
- * Represents an image data origin (Remote URL, local file, classpath asset, or in-memory TextureRegion).
- * Supports HTTP request templates and graceful fallback to Mindustry's iconic 'ohno' / 'error' texture.
+ * Pure sealed algebraic data type representing an image data origin.
+ * Decoupled from runtime texture caches and rendering engines.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
 sealed class ImageSource {
 
-    /**
-     * Remote URL image source with optional HTTP request builder template.
-     */
+    /** Remote network URL image with optional HTTP request builder. */
     data class Url(
         val url: String,
         val configureRequest: (RequestBuilder.() -> Unit)? = null
     ) : ImageSource()
 
+    /** Mindustry Sprite Atlas texture region name (e.g. "router", "ohno", "error"). */
+    data class Atlas(val name: String) : ImageSource()
+
+    /** Classpath or internal asset file path (e.g. "sprites/icon.png"). */
     data class Asset(val path: String) : ImageSource()
+
+    /** Local filesystem file path (Okio Path). */
     data class LocalFile(val path: Path) : ImageSource()
+
+    /** Direct in-memory [TextureRegion]. */
     data class Region(val region: TextureRegion) : ImageSource()
 
     companion object {
 
         /**
-         * Returns Mindustry's iconic 'ohno' error fallback texture region.
-         */
-        fun fallbackRegion(): TextureRegion {
-            val atlas = Core.atlas ?: return TextureRegion()
-            return when {
-                atlas.has("ohno") -> atlas.find("ohno")
-                atlas.has("error") -> atlas.find("error")
-                else -> atlas.error() ?: atlas.white() ?: TextureRegion()
-            }
-        }
-
-        /**
-         * Safely converts any object into an [ImageSource], falling back to 'ohno' instead of throwing.
+         * Converts any supported object (String, Path, TextureRegion, ImageSource) into a typed [ImageSource].
          */
         fun of(source: Any?): ImageSource = when (source) {
-            null -> Region(fallbackRegion())
+            null -> Atlas("ohno")
             is ImageSource -> source
             is TextureRegion -> Region(source)
             is Path -> LocalFile(source)
             is String -> when {
                 source.startsWith("http://") || source.startsWith("https://") -> Url(source)
-                source.startsWith("atlas:") -> {
-                    val name = source.removePrefix("atlas:")
-                    val reg = if (Core.atlas != null && Core.atlas.has(name)) Core.atlas.find(name) else fallbackRegion()
-                    Region(reg)
-                }
-                Core.atlas != null && Core.atlas.has(source) -> Region(Core.atlas.find(source))
-                else -> Asset(source)
+                source.startsWith("atlas:") -> Atlas(source.removePrefix("atlas:"))
+                source.startsWith("asset:") -> Asset(source.removePrefix("asset:"))
+                source.startsWith("file:") -> LocalFile(source.removePrefix("file:").toPath())
+                else -> Atlas(source)
             }
-            else -> Region(fallbackRegion())
+            else -> Atlas("ohno")
         }
 
-        fun url(url: String, configure: RequestBuilder.() -> Unit): Url =
-            Url(url, configure)
+        fun url(url: String, configure: RequestBuilder.() -> Unit): Url = Url(url, configure)
 
         fun authUrl(url: String, bearerToken: String): Url =
             Url(url) { header("Authorization", "Bearer $bearerToken") }
+
+        fun atlas(name: String): Atlas = Atlas(name)
+
+        fun asset(path: String): Asset = Asset(path)
+
+        fun file(path: Path): LocalFile = LocalFile(path)
+
+        fun region(region: TextureRegion): Region = Region(region)
     }
 }
