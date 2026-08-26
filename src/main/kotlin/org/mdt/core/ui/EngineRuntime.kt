@@ -1,74 +1,114 @@
 package org.mdt.core.ui
 
-import arc.Core
-import arc.Events
+import androidx.compose.runtime.Composable
 import arc.util.Log
-import mindustry.game.EventType.ResizeEvent
-import mindustry.game.EventType.Trigger
-import org.mdt.core.engine.image.ImageLoader
+import org.mdt.core.engine.EngineContext
 import org.mdt.core.ui.compose.CompositionManager
 import org.mdt.core.ui.compose.UIComposition
 import org.mdt.core.ui.input.EngineInputProcessor
 import org.mdt.core.ui.render.EngineRenderer
 
+/**
+ * ## EngineRuntime
+ *
+ * Top-level UI orchestration runtime and display surface bridge.
+ * Connects the host platform's window, viewport resizing, input event dispatch chain,
+ * Compose snapshot frame scheduler, and OpenGL GPU batch renderer to the root [CanvasNode].
+ *
+ * Designed as the 1:1 host UI runtime bridge for the active display window.
+ *
+ * See: docs/ui-engine/ui_engine_en.md
+ */
 object EngineRuntime {
+
+    /** Root Virtual DOM canvas container node. */
     val canvas = CanvasNode()
+
+    /** Core 2D OpenGL batch renderer. */
     val renderer = EngineRenderer()
+
+    /** High-priority input processor intercepting pointer and keyboard gestures for the UI canvas. */
     val inputProcessor = EngineInputProcessor(canvas)
 
+    private var activeContext: EngineContext = EngineContext.default
     private var composition: UIComposition? = null
     private var initialized = false
 
-    fun init() {
+    // =========================================================================
+    // I. Lifecycle Initialization & Content Mounting
+    // =========================================================================
+
+    /**
+     * Initializes the UI runtime bridge against the specified [EngineContext].
+     * Hooks viewport resize listeners, input processor, and end-of-frame render loop onto [EngineContext.host].
+     *
+     * @param context Target engine context environment (defaults to [EngineContext.default]).
+     */
+    fun init(context: EngineContext = EngineContext.default) {
         if (initialized) return
         initialized = true
+        activeContext = context
 
-        // 1. Insert our input processor at the very front (Priority 1)
-        val processors = Core.input.inputProcessors
-        if (!processors.contains(inputProcessor)) processors.insert(0, inputProcessor)
+        val host = context.host
 
-        // 2. Set initial canvas dimensions
-        canvas.resize(Core.graphics.width.toFloat(), Core.graphics.height.toFloat())
+        // 1. Insert input processor at the front of the input dispatch chain
+        host.addInputProcessor(inputProcessor)
+
+        // 2. Set initial canvas surface dimensions
+        canvas.resize(host.screenWidth, host.screenHeight)
 
         // 3. Listen for window resize events
-        Events.on(ResizeEvent::class.java) {
-            canvas.resize(Core.graphics.width.toFloat(), Core.graphics.height.toFloat())
-        }
+        host.onResize { width, height -> canvas.resize(width, height) }
 
-        // 4. Hook render loop to Trigger.uiDrawEnd (runs ON TOP of native UI)
-        Events.run(Trigger.uiDrawEnd) { draw() }
+        // 4. Hook frame render dispatch to end of frame
+        host.onFrameEnd { draw() }
 
-        Log.info("[NekoMod] EngineRuntime initialized successfully.")
+        Log.info("[NekoMod] EngineRuntime initialized successfully via PlatformHost.")
     }
 
-    fun setContent(content: @androidx.compose.runtime.Composable () -> Unit) {
+    /**
+     * Mounts a declarative Compose UI tree onto the root [canvas].
+     * Automatically initializes the runtime if not yet started.
+     *
+     * @param content Composable UI hierarchy definition.
+     */
+    fun setContent(content: @Composable () -> Unit) {
         init()
         composition?.dispose()
         composition = UIComposition(canvas, content)
     }
 
+    // =========================================================================
+    // II. Frame Rendering & Teardown
+    // =========================================================================
+
+    /**
+     * Executes a single UI frame rendering pass:
+     * synchronizes viewport dimensions, dispatches Compose recomposition frames,
+     * and renders the virtual DOM tree via [EngineRenderer].
+     */
     fun draw() {
-        if (Core.graphics == null) return
-        val w = Core.graphics.width.toFloat()
-        val h = Core.graphics.height.toFloat()
-        if (w <= 0f || h <= 0f) return
+        val host = activeContext.host
+        val screenWidth = host.screenWidth
+        val screenHeight = host.screenHeight
+        if (screenWidth <= 0f || screenHeight <= 0f) return
 
         try {
-            // Process queued GPU uploads for ImageLoader
-            ImageLoader.processUploadQueue()
-
-            canvas.resize(w, h)
+            canvas.resize(screenWidth, screenHeight)
             CompositionManager.frame()
             renderer.render(canvas)
-        } catch (t: Throwable) {
-            Log.err("[NekoMod] Error in EngineRuntime.draw()", t)
+        } catch (renderError: Throwable) {
+            Log.err("[NekoMod] Error in EngineRuntime.draw()", renderError)
         }
     }
 
+    /**
+     * Disposes the active Compose composition and unhooks the input processor from the host platform.
+     */
     fun dispose() {
         composition?.dispose()
         composition = null
-        Core.input.removeProcessor(inputProcessor)
+        activeContext.host.removeInputProcessor(inputProcessor)
         CompositionManager.stop()
         initialized = false
     }

@@ -1,49 +1,56 @@
-@file:Suppress("unused")
+@file:Suppress("unused", "FunctionName")
 
 package org.mdt.core.ui.compose
 
 import arc.graphics.Color
 import arc.graphics.g2d.TextureRegion
 import mindustry.graphics.Pal
-import org.mdt.core.ui.PointerEvent
 import org.mdt.core.ui.UINode
+import org.mdt.core.ui.input.PointerEvent
+import org.mdt.core.ui.layout.LayoutPreset
+import org.mdt.core.ui.layout.SizeFlags
 import org.mdt.ui.components.layout.BoxVisuals
 import org.mdt.ui.components.layout.LayoutNode
 import org.mdt.ui.components.layout.ScaleMode
 import org.mdt.ui.components.text.TextNode
 import org.mdt.ui.components.text.TextVisuals
-import org.mdt.core.ui.layout.LayoutPreset
-import org.mdt.core.ui.layout.SizeFlags
 
 /**
  * ## UIModifier
  *
- * Immutable, type-safe modifier chain representing layout rules, visual styles,
- * and input gestures applied to virtual [UINode] instances.
+ * Immutable, type-safe modifier chain representing layout constraints, visual styles,
+ * and input gesture listeners applied onto virtual [UINode] instances.
  *
- * Designed with Typed Modifier Elements for Zero-GC execution and fast recomposition skipping.
+ * Designed with Typed Modifier Elements for Zero-GC execution and fast Compose recomposition skipping.
  *
  * See: docs/compose-dsl/compose_dsl_en.md
  */
 interface UIModifier {
 
-    /** Applies this modifier's configuration onto the target [UINode]. */
+    /** Applies this modifier's rules onto the target [node]. */
     fun applyTo(node: UINode)
 
-    /** Chains this modifier with another [UIModifier]. */
+    /** Chains this modifier with another [other] modifier. */
     fun then(other: UIModifier): UIModifier = if (other === None) this else CombinedModifier(this, other)
 
-    /**
-     * Single atomic modifier element with structural equality.
-     */
+    /** Single atomic modifier element supporting value-based structural equality. */
     interface Element : UIModifier
 
-    /** Empty modifier representing no-op. */
+    /** Empty modifier singleton representing a no-op chain start. */
     companion object None : UIModifier {
         override fun applyTo(node: UINode) {}
         override fun toString(): String = "Modifier.None"
     }
 }
+
+/** Top-level modifier factory returning an empty [UIModifier]. */
+fun Modifier(): UIModifier = UIModifier
+
+/** Ambient top-level accessor returning an empty [UIModifier]. */
+val Modifier: UIModifier get() = UIModifier
+
+/** Fluent modifier configuration builder. */
+fun Modifier(block: UIModifier.() -> UIModifier): UIModifier = UIModifier.block()
 
 /** Chains two modifiers sequentially with structural equality support. */
 class CombinedModifier(val outer: UIModifier, val inner: UIModifier) : UIModifier {
@@ -64,49 +71,49 @@ class CombinedModifier(val outer: UIModifier, val inner: UIModifier) : UIModifie
 }
 
 // =========================================================================
-// TYPED MODIFIER ELEMENTS (Zero-GC, Value-based, Compose Recomposition Safe)
+// I. Typed Modifier Elements (Zero-GC, Value-based Equality)
 // =========================================================================
 
-data class PaddingModifier(val l: Float, val t: Float, val r: Float, val b: Float) : UIModifier.Element {
-    override fun applyTo(node: UINode) = node.pad(l, t, r, b)
+data class PaddingModifier(val left: Float, val top: Float, val right: Float, val bottom: Float) : UIModifier.Element {
+    override fun applyTo(node: UINode) = node.pad(left, top, right, bottom)
 }
 
-data class MarginModifier(val l: Float, val t: Float, val r: Float, val b: Float) : UIModifier.Element {
-    override fun applyTo(node: UINode) = node.margin(l, t, r, b)
+data class MarginModifier(val left: Float, val top: Float, val right: Float, val bottom: Float) : UIModifier.Element {
+    override fun applyTo(node: UINode) = node.margin(left, top, right, bottom)
 }
 
-data class SizeModifier(val w: Float = -1f, val h: Float = -1f) : UIModifier.Element {
+data class SizeModifier(val width: Float = -1f, val height: Float = -1f) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        if (w >= 0f) node.width = w
-        if (h >= 0f) node.height = h
+        if (width >= 0f) node.width = width
+        if (height >= 0f) node.height = height
     }
 }
 
-data class MinSizeModifier(val minW: Float = -1f, val minH: Float = -1f) : UIModifier.Element {
+data class MinSizeModifier(val minWidth: Float = -1f, val minHeight: Float = -1f) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        if (minW >= 0f) node.minWidth = minW
-        if (minH >= 0f) node.minHeight = minH
+        if (minWidth >= 0f) node.minWidth = minWidth
+        if (minHeight >= 0f) node.minHeight = minHeight
     }
 }
 
-data class MaxSizeModifier(val maxW: Float = -1f, val maxH: Float = -1f) : UIModifier.Element {
+data class MaxSizeModifier(val maxWidth: Float = -1f, val maxHeight: Float = -1f) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        if (maxW >= 0f) node.maxWidth = maxW
-        if (maxH >= 0f) node.maxHeight = maxH
+        if (maxWidth >= 0f) node.maxWidth = maxWidth
+        if (maxHeight >= 0f) node.maxHeight = maxHeight
     }
 }
 
-data class FillModifier(val h: Boolean = true, val v: Boolean = true) : UIModifier.Element {
+data class FillModifier(val horizontal: Boolean = true, val vertical: Boolean = true) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        if (h) node.sizeFlagsHorizontal = node.sizeFlagsHorizontal or SizeFlags.FILL
-        if (v) node.sizeFlagsVertical = node.sizeFlagsVertical or SizeFlags.FILL
+        if (horizontal) node.sizeFlagsHorizontal = node.sizeFlagsHorizontal or SizeFlags.FILL
+        if (vertical) node.sizeFlagsVertical = node.sizeFlagsVertical or SizeFlags.FILL
     }
 }
 
-data class ExpandModifier(val h: Boolean = true, val v: Boolean = true, val ratio: Float = 1f) : UIModifier.Element {
+data class ExpandModifier(val horizontal: Boolean = true, val vertical: Boolean = true, val ratio: Float = 1f) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        if (h) node.sizeFlagsHorizontal = node.sizeFlagsHorizontal or SizeFlags.EXPAND
-        if (v) node.sizeFlagsVertical = node.sizeFlagsVertical or SizeFlags.EXPAND
+        if (horizontal) node.sizeFlagsHorizontal = node.sizeFlagsHorizontal or SizeFlags.EXPAND
+        if (vertical) node.sizeFlagsVertical = node.sizeFlagsVertical or SizeFlags.EXPAND
         node.stretchRatio = ratio
     }
 }
@@ -145,9 +152,9 @@ data class ProgressModifier(val fraction: Float, val color: Color) : UIModifier.
     }
 }
 
-data class RadiusModifier(val tl: Float, val tr: Float, val br: Float, val bl: Float) : UIModifier.Element {
+data class RadiusModifier(val topLeft: Float, val topRight: Float, val bottomRight: Float, val bottomLeft: Float) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        (node as? LayoutNode)?.ensureVisuals()?.radius(tl, tr, br, bl)
+        (node as? LayoutNode)?.ensureVisuals()?.radius(topLeft, topRight, bottomRight, bottomLeft)
     }
 }
 
@@ -290,7 +297,7 @@ class CustomModifier(val block: (UINode) -> Unit) : UIModifier.Element {
 }
 
 // =========================================================================
-// FLUENT MODIFIER EXTENSION BUILDERS
+// II. Fluent Modifier Extension Builders
 // =========================================================================
 
 /** Sets equal inward padding on all 4 sides of the node. */
@@ -319,47 +326,48 @@ fun UIModifier.margin(left: Float = 0f, top: Float = 0f, right: Float = 0f, bott
 fun UIModifier.size(all: Float): UIModifier = then(SizeModifier(all, all))
 
 /** Sets explicit desired dimensions (width, height) in pixels. */
-fun UIModifier.size(w: Float, h: Float): UIModifier = then(SizeModifier(w, h))
+fun UIModifier.size(width: Float, height: Float): UIModifier = then(SizeModifier(width, height))
 
 /** Sets explicit desired width in pixels. */
-fun UIModifier.width(w: Float): UIModifier = then(SizeModifier(w = w, h = -1f))
+fun UIModifier.width(width: Float): UIModifier = then(SizeModifier(width = width, height = -1f))
 
 /** Sets explicit desired height in pixels. */
-fun UIModifier.height(h: Float): UIModifier = then(SizeModifier(w = -1f, h = h))
+fun UIModifier.height(height: Float): UIModifier = then(SizeModifier(width = -1f, height = height))
 
 /** Sets minimum dimensions constraint in pixels. */
-fun UIModifier.minSize(w: Float, h: Float): UIModifier = then(MinSizeModifier(w, h))
+fun UIModifier.minSize(minWidth: Float, minHeight: Float): UIModifier = then(MinSizeModifier(minWidth, minHeight))
 
 /** Sets minimum width constraint in pixels. */
-fun UIModifier.minWidth(w: Float): UIModifier = then(MinSizeModifier(minW = w, minH = -1f))
+fun UIModifier.minWidth(minWidth: Float): UIModifier = then(MinSizeModifier(minWidth = minWidth, minHeight = -1f))
 
 /** Sets minimum height constraint in pixels. */
-fun UIModifier.minHeight(h: Float): UIModifier = then(MinSizeModifier(minW = -1f, minH = h))
+fun UIModifier.minHeight(minHeight: Float): UIModifier = then(MinSizeModifier(minWidth = -1f, minHeight = minHeight))
 
 /** Sets maximum dimensions constraint in pixels. */
-fun UIModifier.maxSize(w: Float, h: Float): UIModifier = then(MaxSizeModifier(w, h))
+fun UIModifier.maxSize(maxWidth: Float, maxHeight: Float): UIModifier = then(MaxSizeModifier(maxWidth, maxHeight))
 
 /** Sets maximum width constraint in pixels. */
-fun UIModifier.maxWidth(w: Float): UIModifier = then(MaxSizeModifier(maxW = w, maxH = -1f))
+fun UIModifier.maxWidth(maxWidth: Float): UIModifier = then(MaxSizeModifier(maxWidth = maxWidth, maxHeight = -1f))
 
 /** Sets maximum height constraint in pixels. */
-fun UIModifier.maxHeight(h: Float): UIModifier = then(MaxSizeModifier(maxW = -1f, maxH = h))
+fun UIModifier.maxHeight(maxHeight: Float): UIModifier = then(MaxSizeModifier(maxWidth = -1f, maxHeight = maxHeight))
 
 /** Fills container slot in specified directions. */
-fun UIModifier.fill(h: Boolean = true, v: Boolean = true): UIModifier = then(FillModifier(h, v))
+fun UIModifier.fill(horizontal: Boolean = true, vertical: Boolean = true): UIModifier =
+    then(FillModifier(horizontal, vertical))
 
 /** Fills horizontal allocated slot. */
-fun UIModifier.fillMaxWidth(): UIModifier = then(FillModifier(h = true, v = false))
+fun UIModifier.fillMaxWidth(): UIModifier = then(FillModifier(horizontal = true, vertical = false))
 
 /** Fills vertical allocated slot. */
-fun UIModifier.fillMaxHeight(): UIModifier = then(FillModifier(h = false, v = true))
+fun UIModifier.fillMaxHeight(): UIModifier = then(FillModifier(horizontal = false, vertical = true))
 
 /** Fills both horizontal and vertical allocated slot. */
-fun UIModifier.fillMaxSize(): UIModifier = then(FillModifier(h = true, v = true))
+fun UIModifier.fillMaxSize(): UIModifier = then(FillModifier(horizontal = true, vertical = true))
 
 /** Expands to consume available free space in container. */
-fun UIModifier.expand(h: Boolean = true, v: Boolean = true, ratio: Float = 1f): UIModifier =
-    then(ExpandModifier(h, v, ratio))
+fun UIModifier.expand(horizontal: Boolean = true, vertical: Boolean = true, ratio: Float = 1f): UIModifier =
+    then(ExpandModifier(horizontal, vertical, ratio))
 
 /** Flex weight ratio allocating available space proportionally in [Row] or [Column]. */
 fun UIModifier.weight(ratio: Float): UIModifier = then(WeightModifier(ratio))
@@ -384,8 +392,8 @@ fun UIModifier.radius(all: Float): UIModifier = then(RadiusModifier(all, all, al
 fun UIModifier.cornerRadius(all: Float): UIModifier = radius(all)
 
 /** Sets corner radius individually for each corner (pixels). */
-fun UIModifier.radius(tl: Float, tr: Float, br: Float, bl: Float): UIModifier =
-    then(RadiusModifier(tl, tr, br, bl))
+fun UIModifier.radius(topLeft: Float, topRight: Float, bottomRight: Float, bottomLeft: Float): UIModifier =
+    then(RadiusModifier(topLeft, topRight, bottomRight, bottomLeft))
 
 /** Sets border stroke styling. */
 fun UIModifier.border(

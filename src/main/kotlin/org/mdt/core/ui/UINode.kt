@@ -1,6 +1,8 @@
 package org.mdt.core.ui
 
 import arc.math.geom.Vec2
+import org.mdt.core.ui.input.PointerEvent
+import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.layout.AnchorData
 import org.mdt.core.ui.layout.SizeFlags
 import org.mdt.core.ui.render.EngineRenderer

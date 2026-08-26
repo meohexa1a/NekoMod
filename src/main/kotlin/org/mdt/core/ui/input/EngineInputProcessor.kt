@@ -4,8 +4,6 @@ import arc.input.InputProcessor
 import arc.input.KeyCode
 import arc.util.Time
 import org.mdt.core.ui.CanvasNode
-import org.mdt.core.ui.PointerEvent
-import org.mdt.core.ui.ScrollEvent
 import org.mdt.core.ui.UINode
 
 class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {

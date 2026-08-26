@@ -1,20 +1,23 @@
-package org.mdt.core.ui.layout.policy
+package org.mdt.core.ui.layout
 
 import org.mdt.ui.components.layout.LayoutNode
-import org.mdt.core.ui.layout.Alignment
-import org.mdt.core.ui.layout.Arrangement
-import org.mdt.core.ui.layout.GodotLayout
 
 /**
  * ## MeasurePolicy
  *
- * Defines the measurement and positioning strategy for a [LayoutNode] and its children.
+ * Defines the intrinsic measurement and positioning strategy for a [LayoutNode] and its children.
  *
  * See: docs/layout-engine/layout_engine_en.md
  */
 interface MeasurePolicy {
+
+    /** Computes preferred width of the [node] factoring in inward padding and children constraints. */
     fun measureWidth(node: LayoutNode): Float
+
+    /** Computes preferred height of the [node] factoring in inward padding and children constraints. */
     fun measureHeight(node: LayoutNode): Float
+
+    /** Computes and applies spatial layouts onto [node] children inside the available inner box. */
     fun layout(node: LayoutNode, innerX: Float, innerY: Float, availW: Float, availH: Float)
 }
 
@@ -137,16 +140,6 @@ data class RowMeasurePolicy(
         return sum
     }
 
-    override fun measureHeight(node: LayoutNode): Float {
-        val visibleChildren = node.children.filter { it.visible }
-        if (visibleChildren.isEmpty()) return 0f
-        var maxH = 0f
-        for (child in visibleChildren) {
-            maxH = maxOf(maxH, GodotLayout.getChildMinHeight(child))
-        }
-        return maxH
-    }
-
     override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availW: Float, availH: Float) {
         GodotLayout.layoutBox(
             children = node.children,
@@ -156,6 +149,16 @@ data class RowMeasurePolicy(
             isVertical = false,
             arrangement = effectiveArrangement
         )
+    }
+
+    override fun measureHeight(node: LayoutNode): Float {
+        val visibleChildren = node.children.filter { it.visible }
+        if (visibleChildren.isEmpty()) return 0f
+        var maxH = 0f
+        for (child in visibleChildren) {
+            maxH = maxOf(maxH, GodotLayout.getChildMinHeight(child))
+        }
+        return maxH
     }
 }
 
