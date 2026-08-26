@@ -24,17 +24,19 @@ class NekoMod : Mod() {
             Core.app.post { setup() }
         }
 
-        // Completely turn off Mindustry's legacy Arc menuGroup
+        // Hide vanilla Arc menuGroup cleanly every frame while in menu
         Events.run(Trigger.update) {
-            if (Vars.state == null || Vars.state.isMenu) disableLegacyMenuGroup()
+            if (Vars.state == null || Vars.state.isMenu) {
+                disableLegacyMenuGroup()
+            }
         }
     }
 
     private fun setup() {
         disableLegacyMenuGroup()
 
-        // Launch NekoMod Declarative UI Engine with MainMenuScreen
-        EngineRuntime.setContent { MainMenuScreen() }
+        // Launch NekoMod Declarative UI Engine with root NekoApp container
+        EngineRuntime.setContent { org.mdt.ui.NekoApp() }
     }
 
     private fun disableLegacyMenuGroup() {
