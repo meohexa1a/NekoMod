@@ -1,68 +1,43 @@
 package org.mdt.ui.screens
 
 import androidx.compose.runtime.*
+import arc.Core
 import arc.graphics.Color
+import arc.input.KeyCode
 import mindustry.gen.Icon
-import org.mdt.core.nxml.NxmlCanvas
 import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.layout.LayoutPreset
 import org.mdt.ui.components.display.image.Image
-import org.mdt.ui.components.layout.Box
-import org.mdt.ui.components.layout.Column
-import org.mdt.ui.components.layout.Row
+import org.mdt.ui.components.layout.*
+import org.mdt.ui.components.text.TextNode
 import org.mdt.ui.screens.editor.*
+import org.mdt.ui.theme.StudioIcons
 import org.mdt.ui.theme.Theme
 
 /**
  * ## EditorScreen
  *
- * Highly modular, clean-architecture Figma Studio Workspace styled with Apple Design tokens.
- * Features:
- * - Dynamic [EditorMode] tab switching from the top navbar.
- * - Collapsible & Draggable Resizable Left Sidebar ([isSidebarCollapsed], [sidebarWidth]).
- * - Live [NxmlCanvas] mounting dynamic NXML DOM trees parsed by dom4j.
- * - Dedicated Top-Level Docked [EditorToolDock] floating at the master workspace bottom.
- * - Seamless zero-gap edge resize handle with luminous highlight feedback (Rule 11).
+ * Professional next-generation UI Visual Designer and Layout Composer for NekoMod.
+ *
+ * Driven 100% by pure In-Memory Virtual Node Scene Graph ([EditorDocumentState])
+ * with zero-GC runtime performance, Artboard Frame presets, and instant 60 FPS Gizmo manipulation.
  *
  * See: docs/design-system/design_system_en.md
  */
 @Composable
 fun EditorScreen() {
-    var selectedTool by remember { mutableStateOf("select") }
-    var selectedMode by remember { mutableStateOf(EditorMode.LAYERS) }
-    var selectedItem by remember { mutableStateOf("App Root Scene") }
+    // Top-Level Studio Mode
+    var selectedMode by remember { mutableStateOf(EditorMode.SCENE) }
 
-    // Dynamic Live NXML Content String
-    var activeNxml by remember {
-        mutableStateOf(
-            """
-            <Scene name="MainScene">
-              <Card anchor="center" width="400" pad="22" radius="16" blur="24">
-                <Column gap="14">
-                  <Row gap="12" align="center_start">
-                    <Box width="36" height="36" radius="8" background="#0a84ff" pad="8">
-                      <Image src="icon:tree" tint="#ffffff" />
-                    </Box>
-                    <Column gap="4">
-                      <Text text="Apple HIG NXML Studio" color="#ffffff" font="mono" />
-                      <Text text="Real-time GPU Gaussian Blur &amp; SDF" color="#8f8f8f" />
-                    </Column>
-                  </Row>
-                  
-                  <Box height="1" background="#ffffff14" />
-                  
-                  <Text text="Toan bo studio va NXML hien tai da duoc quy chuan hoa theo Apple Design System (8pt Grid, Acrylic Materials, Continuous Radii)!" color="#ebebf5b2" wrap="true" />
-                  
-                  <Row gap="8">
-                    <Button text="Kham pha ngay" radius="8" background="#0a84ff" />
-                    <Button text="NXML Code" radius="8" background="#2c3e55" />
-                  </Row>
-                </Column>
-              </Card>
-            </Scene>
-            """.trimIndent()
-        )
-    }
+    // Canvas Tools & Viewport States
+    var selectedTool by remember { mutableStateOf("select") }
+    var panX by remember { mutableStateOf(0f) }
+    var panY by remember { mutableStateOf(0f) }
+    var zoomScale by remember { mutableStateOf(1.0f) }
+    var selectedComponent by remember { mutableStateOf("PrimaryButton") }
+
+    // Single Source of Truth: In-Memory Virtual Node Scene Graph
+    val docState = remember { EditorDocumentState() }
 
     // Sidebar Resizing & Collapse States
     var sidebarWidth by remember { mutableStateOf(280f) }
@@ -70,14 +45,63 @@ fun EditorScreen() {
     var isHoveringHandle by remember { mutableStateOf(false) }
     var isDraggingHandle by remember { mutableStateOf(false) }
 
+    // Right Inspector Resizing & Collapse States
+    var inspectorWidth by remember { mutableStateOf(280f) }
+    var isInspectorCollapsed by remember { mutableStateOf(false) }
+    var isHoveringInspectorHandle by remember { mutableStateOf(false) }
+    var isDraggingInspectorHandle by remember { mutableStateOf(false) }
+
     val colors = Theme.colors
     val shapes = Theme.shapes
     val spacing = Theme.spacing
 
-    // Full-Screen Master Auto-Layout Container
-    Box(modifier = Modifier.anchor(LayoutPreset.FULL_RECT).background(colors.canvasVoid)) {
+    // Full-Screen Master Auto-Layout Container with Global Hotkeys
+    Box(
+        modifier = Modifier
+            .anchor(LayoutPreset.FULL_RECT)
+            .background(colors.canvasVoid)
+            .focusable()
+            .onKeyDown { key ->
+                val isCtrl = Core.input != null && Core.input.ctrl()
+                val isShift = Core.input != null && Core.input.shift()
+
+                when {
+                    isCtrl && key == KeyCode.z -> {
+                        if (isShift) docState.redo() else docState.undo()
+                        true
+                    }
+                    isCtrl && key == KeyCode.y -> {
+                        docState.redo()
+                        true
+                    }
+                    isCtrl && (key == KeyCode.num0 || key == KeyCode.numpad0) -> {
+                        zoomScale = 1.0f
+                        panX = 0f
+                        panY = 0f
+                        true
+                    }
+                    key == KeyCode.del || key == KeyCode.forwardDel -> {
+                        docState.removeSelectedNode()
+                        true
+                    }
+                    !isCtrl && key == KeyCode.v -> {
+                        selectedTool = "select"
+                        true
+                    }
+                    !isCtrl && key == KeyCode.r -> {
+                        selectedTool = "rect"
+                        true
+                    }
+                    !isCtrl && key == KeyCode.t -> {
+                        selectedTool = "text"
+                        true
+                    }
+                    else -> false
+                }
+            }
+    ) {
         // =====================================================================
-        // I. Master Structural Layout (TopBar + 3-Panel Body)
+        // I. Master Structural Layout (TopBar + 3-Panel Body + Bottom StatusBar)
         // =====================================================================
         Column(modifier = Modifier.fillMaxSize()) {
 
@@ -87,13 +111,18 @@ fun EditorScreen() {
                 onSelectMode = {
                     selectedMode = it
                     if (isSidebarCollapsed) isSidebarCollapsed = false
+                    if (isInspectorCollapsed) isInspectorCollapsed = false
                 },
                 onPreview = {},
-                onReload = {}
+                onReload = {
+                    docState.rootScene = EditorDocumentState.createDefaultScene()
+                    docState.expandAll(docState.rootScene)
+                    docState.selectedNodeId = null
+                }
             )
 
-            // 2. Main Workspace Body (Left Resizable Sidebar + Center Canvas + Right Inspector)
-            Row(modifier = Modifier.weight(1.0f).fillMaxWidth()) {
+            // 2. Main Workspace Body (Left Resizable Sidebar + Center Viewport + Right Inspector)
+            Row(modifier = Modifier.weight(1.0f).fillMaxWidth().clip(true)) {
 
                 // A. Left Resizable Sidebar (Zero-Gap Layout with Overlay Resize Seam)
                 if (!isSidebarCollapsed) {
@@ -105,16 +134,17 @@ fun EditorScreen() {
                         // Sidebar Content
                         EditorLeftSidebar(
                             mode = selectedMode,
-                            selectedItem = selectedItem,
-                            onSelectItem = { selectedItem = it },
+                            docState = docState,
+                            selectedComponent = selectedComponent,
+                            onSelectComponent = { selectedComponent = it },
                             onCollapse = { isSidebarCollapsed = true }
                         )
 
-                        // Interactive Seamless Edge Drag Seam (Overlay on right border, width: 6px)
+                        // Interactive Seamless Edge Drag Seam
                         Box(
                             modifier = Modifier
                                 .anchor(LayoutPreset.RIGHT_WIDE)
-                                .width(6f)
+                                .width(10f)
                                 .cursor(arc.Graphics.Cursor.SystemCursor.horizontalResize)
                                 .hoverable { isHoveringHandle = it }
                                 .onPointerDown { isDraggingHandle = true }
@@ -123,39 +153,77 @@ fun EditorScreen() {
                                     sidebarWidth = event.x.coerceIn(180f, 600f)
                                 }
                         ) {
-                            val isHighlighted = isHoveringHandle || isDraggingHandle
-
-                            // Precision 1px Border (Expands to 2px luminous Apple Blue on hover/drag)
-                            Box(
-                                modifier = Modifier
-                                    .anchor(LayoutPreset.RIGHT_WIDE)
-                                    .width(if (isHighlighted) 2f else 1f)
-                                    .background(if (isHighlighted) colors.blue else colors.borderHairline)
-                                    .then(
-                                        if (isHighlighted) Modifier.glow(colors.blue, blur = 4f) else UIModifier
-                                    )
-                            )
+                            if (isHoveringHandle || isDraggingHandle) {
+                                Box(
+                                    modifier = Modifier
+                                        .anchor(LayoutPreset.FULL_RECT)
+                                        .width(4f)
+                                        .background(colors.blue)
+                                )
+                            }
                         }
                     }
                 }
 
-                // B. Center Canvas Viewport (Infinite Pan & 25px Checkerboard Grid)
+                // B. Center Viewport (ComponentCanvas in COMPONENTS Mode, EditorCenterCanvas in SCENE Mode)
                 Box(
                     modifier = Modifier
                         .weight(1.0f)
                         .fillMaxHeight()
                 ) {
-                    EditorCenterCanvas(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        // Live NXML Runtime Canvas Slot
-                        NxmlCanvas(
-                            nxmlContent = activeNxml,
-                            modifier = Modifier.anchor(LayoutPreset.FULL_RECT)
+                    if (selectedMode == EditorMode.COMPONENTS) {
+                        // Dedicated Isolated Component Workspace
+                        ComponentCanvas(
+                            componentName = selectedComponent,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        // Full Scene Canvas with Direct Virtual Node Manipulation & Transform Gizmo
+                        EditorCenterCanvas(
+                            panX = panX,
+                            panY = panY,
+                            zoomScale = zoomScale,
+                            selectedTool = selectedTool,
+                            docState = docState,
+                            onPanChange = { px, py ->
+                                panX = px
+                                panY = py
+                            },
+                            onZoomChange = { zoomScale = it },
+                            onCreateRect = { x, y, w, h, isCard ->
+                                val targetParent = (docState.selectedNode as? LayoutNode) ?: docState.rootScene
+                                val box = LayoutNode().apply {
+                                    id = "box_${System.currentTimeMillis() % 100000}"
+                                    name = if (isCard) "Frame" else "Box"
+                                    width = w
+                                    height = h
+                                    anchorData.offsetLeft = x
+                                    anchorData.offsetTop = y
+                                    val vis = ensureVisuals()
+                                    vis.background.mode = BackgroundFill.Mode.COLOR
+                                    vis.background.color.set(if (isCard) Color.valueOf("bf5af2") else Color.valueOf("0a84ff"))
+                                    vis.radii.set(8f)
+                                }
+                                docState.addNode(targetParent, box)
+                                selectedTool = "select"
+                            },
+                            onCreateText = { x, y ->
+                                val targetParent = (docState.selectedNode as? LayoutNode) ?: docState.rootScene
+                                val text = TextNode(text = "New Text").apply {
+                                    id = "text_${System.currentTimeMillis() % 100000}"
+                                    name = "Text Node"
+                                    anchorData.offsetLeft = x
+                                    anchorData.offsetTop = y
+                                    textVisuals.color = Color.white
+                                }
+                                docState.addNode(targetParent, text)
+                                selectedTool = "select"
+                            },
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
 
-                    // Floating Expand Button (Appears when sidebar is collapsed)
+                    // Floating Left Expand Button (Appears when left sidebar is collapsed)
                     if (isSidebarCollapsed) {
                         Box(
                             modifier = Modifier
@@ -165,12 +233,32 @@ fun EditorScreen() {
                                 .radius(shapes.md)
                                 .background(colors.surfaceElevated)
                                 .border(1f, colors.borderHairline)
-                                .shadow(colors.shadowKey, blur = 12f)
                                 .clickable { isSidebarCollapsed = false }
-                                .pad(spacing.sm)
+                                .pad(8f)
                         ) {
                             Image(
-                                region = Icon.right.region,
+                                source = StudioIcons.CHEVRON_RIGHT,
+                                modifier = Modifier.fillMaxSize(),
+                                tint = colors.blue
+                            )
+                        }
+                    }
+
+                    // Floating Right Expand Button (Appears when right inspector is collapsed)
+                    if (isInspectorCollapsed) {
+                        Box(
+                            modifier = Modifier
+                                .anchor(LayoutPreset.TOP_RIGHT)
+                                .margin(right = spacing.md, top = spacing.md)
+                                .size(36f, 36f)
+                                .radius(shapes.md)
+                                .background(colors.surfaceElevated)
+                                .border(1f, colors.borderHairline)
+                                .clickable { isInspectorCollapsed = false }
+                                .pad(8f)
+                        ) {
+                            Image(
+                                source = StudioIcons.CHEVRON_LEFT,
                                 modifier = Modifier.fillMaxSize(),
                                 tint = colors.blue
                             )
@@ -178,25 +266,77 @@ fun EditorScreen() {
                     }
                 }
 
-                // C. Right Inspector Panel
-                EditorRightInspector(
-                    selectedNode = selectedItem
-                )
+                // C. Right Inspector & Resource Panel (Zero-Gap Layout with Left Overlay Resize Seam)
+                if (!isInspectorCollapsed) {
+                    Box(
+                        modifier = Modifier
+                            .width(inspectorWidth)
+                            .fillMaxHeight()
+                    ) {
+                        // Right Inspector Content
+                        EditorRightInspector(
+                            docState = docState,
+                            selectedComponent = selectedComponent,
+                            isComponentMode = selectedMode == EditorMode.COMPONENTS,
+                            onCollapse = { isInspectorCollapsed = true }
+                        )
+
+                        // Interactive Seamless Left Edge Drag Seam
+                        Box(
+                            modifier = Modifier
+                                .anchor(LayoutPreset.LEFT_WIDE)
+                                .width(10f)
+                                .cursor(arc.Graphics.Cursor.SystemCursor.horizontalResize)
+                                .hoverable { isHoveringInspectorHandle = it }
+                                .onPointerDown { isDraggingInspectorHandle = true }
+                                .onPointerUp { isDraggingInspectorHandle = false }
+                                .onPointerDrag { event ->
+                                    val screenWidth = Core.graphics.width.toFloat()
+                                    inspectorWidth = (screenWidth - event.x).coerceIn(180f, 600f)
+                                }
+                        ) {
+                            if (isHoveringInspectorHandle || isDraggingInspectorHandle) {
+                                Box(
+                                    modifier = Modifier
+                                        .anchor(LayoutPreset.FULL_RECT)
+                                        .width(4f)
+                                        .background(colors.blue)
+                                )
+                            }
+                        }
+                    }
+                }
             }
+
+            // 3. Bottom Pro Status Bar (VSCode / Xcode Style, Full Width Edge-to-Edge)
+            val activeItemName = docState.selectedNode?.name
+                ?: docState.selectedNode?.javaClass?.simpleName
+                ?: docState.rootScene.name
+
+            EditorStatusBar(
+                selectedItem = activeItemName,
+                selectedComponent = selectedComponent,
+                isComponentMode = selectedMode == EditorMode.COMPONENTS,
+                panX = panX,
+                panY = panY,
+                zoom = zoomScale
+            )
         }
 
         // =====================================================================
-        // II. Master Top-Level Floating Tool Dock (Docked at EditorScreen Bottom)
+        // II. Master Top-Level Floating Tool Dock (Shown in Scene Assembly Mode)
         // =====================================================================
-        Box(
-            modifier = Modifier
-                .anchor(LayoutPreset.CENTER_BOTTOM)
-                .margin(bottom = spacing.xl)
-        ) {
-            EditorToolDock(
-                selectedTool = selectedTool,
-                onSelectTool = { selectedTool = it }
-            )
+        if (selectedMode == EditorMode.SCENE) {
+            Box(
+                modifier = Modifier
+                    .anchor(LayoutPreset.CENTER_BOTTOM)
+                    .margin(bottom = 38f)
+            ) {
+                EditorToolDock(
+                    selectedTool = selectedTool,
+                    onSelectTool = { selectedTool = it }
+                )
+            }
         }
     }
 }
