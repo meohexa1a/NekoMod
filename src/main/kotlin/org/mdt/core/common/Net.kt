@@ -122,8 +122,13 @@ class HttpRequest(
     suspend fun awaitString(): String {
         val request = buildOkHttpRequest()
         val response = Net.execute(request)
-        if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
-        return response.body?.string() ?: ""
+        return response.use { res ->
+            if (!res.isSuccessful) {
+                throw IOException("HTTP ${res.code}: ${res.message}")
+            }
+
+            res.body?.string() ?: ""
+        }
     }
 
     /**
@@ -132,8 +137,13 @@ class HttpRequest(
     suspend fun awaitBytes(): ByteArray {
         val request = buildOkHttpRequest()
         val response = Net.execute(request)
-        if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
-        return response.body?.bytes() ?: ByteArray(0)
+        return response.use { res ->
+            if (!res.isSuccessful) {
+                throw IOException("HTTP ${res.code}: ${res.message}")
+            }
+
+            res.body?.bytes() ?: ByteArray(0)
+        }
     }
 
     /**
@@ -142,8 +152,18 @@ class HttpRequest(
     suspend fun awaitSource(): BufferedSource {
         val request = buildOkHttpRequest()
         val response = Net.execute(request)
-        if (!response.isSuccessful) throw IOException("HTTP ${response.code}: ${response.message}")
-        return response.body?.source() ?: throw IOException("Empty response body")
+        if (!response.isSuccessful) {
+            response.close()
+            throw IOException("HTTP ${response.code}: ${response.message}")
+        }
+
+        val body = response.body
+        if (body == null) {
+            response.close()
+            throw IOException("Empty response body")
+        }
+
+        return body.source()
     }
 
     // =========================================================================

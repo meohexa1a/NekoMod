@@ -80,7 +80,11 @@ class AnchorData {
 
     // --- PRESETS & CONFIGURATION ---
 
+    /** Active preset configuration. */
+    var activePreset: LayoutPreset = LayoutPreset.TOP_LEFT
+
     fun setPreset(preset: LayoutPreset) {
+        this.activePreset = preset
         isEnabled = true
         when (preset) {
             LayoutPreset.TOP_LEFT -> setAnchors(0f, 0f, 0f, 0f)

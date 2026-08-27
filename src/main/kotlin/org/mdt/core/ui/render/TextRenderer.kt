@@ -63,7 +63,11 @@ class TextRenderer {
         // In BMFont bottom-up OpenGL, baseline is at bottom of box + vertical centering padding + capHeight + baselineOffset
         val baselineY = bounds.y + (bounds.height - textH) * 0.5f + f.data.capHeight + visuals.baselineOffset
 
-        f.draw(text, bounds.x, baselineY, bounds.width, visuals.labelAlign, visuals.wrap)
+        if (visuals.wrap && visuals.ellipsis == null) {
+            f.draw(text, bounds.x, baselineY, bounds.width, visuals.labelAlign, true)
+        } else {
+            f.draw(text, bounds.x, baselineY, 0, text.length, bounds.width, visuals.labelAlign, false, visuals.ellipsis)
+        }
 
         if (scaled) f.data.setScale(oldSX, oldSY)
     }

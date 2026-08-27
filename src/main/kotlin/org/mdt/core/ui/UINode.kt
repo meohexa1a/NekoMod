@@ -21,6 +21,12 @@ import org.mdt.core.ui.render.ScissorStack
  */
 open class UINode {
 
+    /** Unique query identifier in the Virtual DOM tree. */
+    var id: String = ""
+
+    /** Human-readable display label (e.g. "HeroCard", "Action Row"). */
+    var name: String = ""
+
     /** Parent node owning this node in the UI hierarchy. */
     var parent: UINode? = null
         internal set
@@ -147,6 +153,9 @@ open class UINode {
 
     /** Dirty flag indicating layout recalculation is required. */
     var isLayoutDirty: Boolean = true
+
+    /** Generic user payload or AST DOM Element tag attached to this node. */
+    var tag: Any? = null
 
     // ==========================================
     // EVENT LISTENERS
@@ -411,6 +420,15 @@ open class UINode {
         }
         children.addAll(safeDest, moved)
         invalidateLayout()
+    }
+
+    fun findNodeById(targetId: String): UINode? {
+        if (this.id == targetId || this.name == targetId) return this
+        for (child in children) {
+            val found = child.findNodeById(targetId)
+            if (found != null) return found
+        }
+        return null
     }
 
     fun dumpTree(indent: String = ""): String {

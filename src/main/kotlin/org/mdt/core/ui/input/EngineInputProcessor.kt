@@ -213,9 +213,65 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
     // V. Keyboard Events
     // =========================================================================
 
-    override fun keyDown(keyCode: KeyCode): Boolean = focusedNode?.onKeyDown?.invoke(keyCode) ?: false
+    override fun keyDown(keyCode: KeyCode): Boolean {
+        // 1. Try bubbling up from focused node
+        focusedNode?.let { start ->
+            var current: UINode? = start
+            while (current != null) {
+                if (current.onKeyDown?.invoke(keyCode) == true) return true
+                current = current.parent
+            }
+        }
 
-    override fun keyUp(keyCode: KeyCode): Boolean = focusedNode?.onKeyUp?.invoke(keyCode) ?: false
+        // 2. Try bubbling up from hovered node
+        hoveredNode?.let { start ->
+            var current: UINode? = start
+            while (current != null) {
+                if (current.onKeyDown?.invoke(keyCode) == true) return true
+                current = current.parent
+            }
+        }
 
-    override fun keyTyped(character: Char): Boolean = focusedNode?.onKeyTyped?.invoke(character) ?: false
+        // 3. Universal Fallback: Dispatch to canvas root and its direct tree
+        return dispatchKeyDownRecursive(canvas, keyCode)
+    }
+
+    private fun dispatchKeyDownRecursive(node: UINode, keyCode: KeyCode): Boolean {
+        if (node.onKeyDown?.invoke(keyCode) == true) return true
+        for (child in node.children) {
+            if (dispatchKeyDownRecursive(child, keyCode)) return true
+        }
+        return false
+    }
+
+    override fun keyUp(keyCode: KeyCode): Boolean {
+        focusedNode?.let { start ->
+            var current: UINode? = start
+            while (current != null) {
+                if (current.onKeyUp?.invoke(keyCode) == true) return true
+                current = current.parent
+            }
+        }
+
+        hoveredNode?.let { start ->
+            var current: UINode? = start
+            while (current != null) {
+                if (current.onKeyUp?.invoke(keyCode) == true) return true
+                current = current.parent
+            }
+        }
+
+        return false
+    }
+
+    override fun keyTyped(character: Char): Boolean {
+        focusedNode?.let { start ->
+            var current: UINode? = start
+            while (current != null) {
+                if (current.onKeyTyped?.invoke(character) == true) return true
+                current = current.parent
+            }
+        }
+        return false
+    }
 }

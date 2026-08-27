@@ -7,6 +7,7 @@ import arc.graphics.g2d.TextureRegion
 import mindustry.graphics.Pal
 import org.mdt.core.ui.UINode
 import org.mdt.core.ui.input.PointerEvent
+import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.layout.LayoutPreset
 import org.mdt.core.ui.layout.SizeFlags
 import org.mdt.ui.components.display.image.ScaleMode
@@ -274,9 +275,28 @@ data class PointerDragModifier(val onDrag: (PointerEvent) -> Unit) : UIModifier.
     }
 }
 
+data class ScrollModifier(val onScroll: (ScrollEvent) -> Unit) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        node.onScroll = onScroll
+    }
+}
+
 data class TouchableModifier(val touchable: Boolean) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         node.touchable = touchable
+    }
+}
+
+data class KeyDownModifier(val onKeyDown: (arc.input.KeyCode) -> Boolean) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        node.isFocusable = true
+        node.onKeyDown = onKeyDown
+    }
+}
+
+data class FocusableModifier(val focusable: Boolean) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        node.isFocusable = focusable
     }
 }
 
@@ -471,6 +491,9 @@ fun UIModifier.onPointerUp(block: (PointerEvent) -> Unit): UIModifier = then(Poi
 /** Attaches pointer drag listener. */
 fun UIModifier.onPointerDrag(block: (PointerEvent) -> Unit): UIModifier = then(PointerDragModifier(block))
 
+/** Attaches scroll wheel listener. */
+fun UIModifier.onScroll(block: (ScrollEvent) -> Unit): UIModifier = then(ScrollModifier(block))
+
 /** Toggles touchability/hit-testability of the node. */
 fun UIModifier.touchable(touchable: Boolean): UIModifier = then(TouchableModifier(touchable))
 
@@ -479,6 +502,12 @@ fun UIModifier.style(block: BoxVisuals.() -> Unit): UIModifier = then(StyleModif
 
 /** Inline typography style block allowing direct configuration of [TextVisuals] properties. */
 fun UIModifier.textStyle(block: TextVisuals.() -> Unit): UIModifier = then(TextStyleModifier(block))
+
+/** Attaches keyboard key down listener. */
+fun UIModifier.onKeyDown(block: (arc.input.KeyCode) -> Boolean): UIModifier = then(KeyDownModifier(block))
+
+/** Toggles focusability of the node. */
+fun UIModifier.focusable(focusable: Boolean = true): UIModifier = then(FocusableModifier(focusable))
 
 /** Sets custom system mouse cursor on hover. */
 fun UIModifier.cursor(cursor: arc.Graphics.Cursor): UIModifier = then(CursorModifier(cursor))

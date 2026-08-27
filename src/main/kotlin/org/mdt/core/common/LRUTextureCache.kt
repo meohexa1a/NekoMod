@@ -33,6 +33,12 @@ class LRUTextureCache(
     /** Total VRAM in bytes consumed by idle textures. */
     val idleVramBytes: Long get() = _idleVramBytes.get()
 
+    /** Total VRAM in bytes consumed by all cached textures. */
+    val totalVramBytes: Long get() = cache.values.sumOf { if (!it.isDisposed) it.byteSize else 0L }
+
+    /** Total VRAM in bytes consumed by dynamic managed textures (excluding shared game atlas). */
+    val dynamicVramBytes: Long get() = cache.values.sumOf { if (!it.isDisposed && it.kind == TextureKind.MANAGED) it.byteSize else 0L }
+
     /** Total number of textures currently tracked in the cache. */
     val size: Int get() = cache.size
 
