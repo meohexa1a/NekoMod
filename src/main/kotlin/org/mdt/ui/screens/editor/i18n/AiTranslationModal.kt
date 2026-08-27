@@ -139,7 +139,8 @@ fun AiTranslationModal(
                     ) {
                         Row(
                             arrangement = Arrangement.spacedBy(spacing.sm),
-                            alignment = Alignment.CenterStart
+                            alignment = Alignment.CenterStart,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = "1. Export Prompt to Clipboard",
@@ -169,7 +170,9 @@ fun AiTranslationModal(
                         Text(
                             text = "Paste prompt into ChatGPT / Claude / Gemini, then paste the AI's JSON output below:",
                             font = typography.caption,
-                            color = colors.textSecondary
+                            color = colors.textSecondary,
+                            wrap = true,
+                            modifier = Modifier.fillMaxWidth()
                         )
 
                         // AI Output Text Input Area
@@ -186,6 +189,7 @@ fun AiTranslationModal(
                                 value = pastedResponse,
                                 onValueChange = { pastedResponse = it },
                                 placeholder = "Paste AI JSON response here (e.g. {\"ui.btn.save\": \"Lưu\"})...",
+                                isMultiline = true,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
@@ -236,7 +240,8 @@ fun AiTranslationModal(
                     ) {
                         Row(
                             arrangement = Arrangement.spacedBy(spacing.sm),
-                            alignment = Alignment.CenterStart
+                            alignment = Alignment.CenterStart,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = "2. Review Proposed Translations (${proposedEntries.size} entries)",
