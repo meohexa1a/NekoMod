@@ -1,12 +1,12 @@
 package org.mdt.core.ui.render
 
 import arc.Core
-import arc.graphics.Color
 import arc.graphics.Gl
 import arc.graphics.Texture
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.gl.Shader
+import org.mdt.core.ui.graphics.Color
 import org.mdt.ui.components.layout.BoxVisuals
 
 /**
@@ -74,7 +74,7 @@ object BoxRenderer {
         val u1 = 1f + margin / safeW
         val v1 = 1f + margin / safeH
 
-        Draw.color(Color.white)
+        Draw.color()
         Fill.quad(
             Core.atlas.white().texture,
             qx, qy, Draw.getColor().toFloatBits(), u0, v0,

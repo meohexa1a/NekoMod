@@ -108,10 +108,10 @@ data class ColumnMeasurePolicy(
     override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availableWidth: Float, availableHeight: Float) {
         GodotLayout.layoutBox(
             children = node.children,
-            parentX = node.bounds.x,
-            parentY = node.bounds.y,
-            parentWidth = node.bounds.width,
-            parentHeight = node.bounds.height,
+            parentX = innerX - node.padL,
+            parentY = innerY - node.padB,
+            parentWidth = availableWidth + node.padL + node.padR,
+            parentHeight = availableHeight + node.padT + node.padB,
             padLeft = node.padL,
             padTop = node.padT,
             padRight = node.padR,
@@ -151,10 +151,10 @@ data class RowMeasurePolicy(
     override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availableWidth: Float, availableHeight: Float) {
         GodotLayout.layoutBox(
             children = node.children,
-            parentX = node.bounds.x,
-            parentY = node.bounds.y,
-            parentWidth = node.bounds.width,
-            parentHeight = node.bounds.height,
+            parentX = innerX - node.padL,
+            parentY = innerY - node.padB,
+            parentWidth = availableWidth + node.padL + node.padR,
+            parentHeight = availableHeight + node.padT + node.padB,
             padLeft = node.padL,
             padTop = node.padT,
             padRight = node.padR,
@@ -221,10 +221,10 @@ data class GridMeasurePolicy(
     override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availableWidth: Float, availableHeight: Float) {
         GodotLayout.layoutGrid(
             children = node.children,
-            parentX = node.bounds.x,
-            parentY = node.bounds.y,
-            parentWidth = node.bounds.width,
-            parentHeight = node.bounds.height,
+            parentX = innerX - node.padL,
+            parentY = innerY - node.padB,
+            parentWidth = availableWidth + node.padL + node.padR,
+            parentHeight = availableHeight + node.padT + node.padB,
             padLeft = node.padL,
             padTop = node.padT,
             padRight = node.padR,

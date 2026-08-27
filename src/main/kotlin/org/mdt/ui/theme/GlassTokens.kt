@@ -1,7 +1,7 @@
 package org.mdt.ui.theme
 
-import arc.graphics.Color
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.ui.components.layout.BoxVisuals
 
 /**

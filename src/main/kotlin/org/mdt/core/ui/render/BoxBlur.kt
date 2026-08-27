@@ -1,7 +1,6 @@
 package org.mdt.core.ui.render
 
 import arc.Core
-import arc.graphics.Color
 import arc.graphics.Gl
 import arc.graphics.Texture
 import arc.graphics.g2d.Draw
@@ -83,7 +82,7 @@ object BoxBlur {
         // 1. Copy captured screen into pingPongA with dedicated FBO projection (pure white color)
         dstA.begin()
         Draw.proj(0f, 0f, fbW.toFloat(), fbH.toFloat())
-        Draw.color(Color.white)
+        Draw.color()
         Fill.quad(
             capture,
             0f, 0f, Draw.getColor().toFloatBits(), 0f, 0f,
@@ -107,7 +106,7 @@ object BoxBlur {
 
         // Restore camera/canvas projection matrix
         Draw.proj(scratchMat)
-        Draw.color(Color.white)
+        Draw.color()
         lastFrameId = currentFrame
         blurredTexture = dstA.texture
         return blurredTexture
@@ -151,7 +150,7 @@ object BoxBlur {
             s.setUniformf("u_texelSize", 1f / fbW.toFloat(), 1f / fbH.toFloat())
             s.setUniformf("u_radius", radius)
             s.setUniformf("u_dir", dx, dy)
-            Draw.color(Color.white)
+            Draw.color()
 
             Fill.quad(
                 src.texture,

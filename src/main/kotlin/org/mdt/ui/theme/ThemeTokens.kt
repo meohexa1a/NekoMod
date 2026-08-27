@@ -1,8 +1,8 @@
 package org.mdt.ui.theme
 
-import arc.graphics.Color
 import arc.graphics.g2d.Font
 import mindustry.ui.Fonts
+import org.mdt.core.ui.graphics.Color
 
 /**
  * ## SpacingTokens

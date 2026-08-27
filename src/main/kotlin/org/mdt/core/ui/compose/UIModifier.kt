@@ -2,15 +2,15 @@
 
 package org.mdt.core.ui.compose
 
-import arc.graphics.Color
 import arc.graphics.g2d.TextureRegion
 import mindustry.graphics.Pal
 import org.mdt.core.ui.UINode
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.layout.LayoutPreset
 import org.mdt.core.ui.layout.SizeFlags
-import org.mdt.ui.components.display.image.ScaleMode
+import org.mdt.ui.components.display.ScaleMode
 import org.mdt.ui.components.layout.BoxVisuals
 import org.mdt.ui.components.layout.LayoutNode
 import org.mdt.ui.components.text.TextNode
@@ -141,7 +141,7 @@ data class AnchorSpanModifier(val left: Float, val top: Float, val right: Float,
 data class BackgroundModifier(val color: Color) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         (node as? LayoutNode)?.ensureVisuals()?.let {
-            it.background.color.set(color)
+            it.background.color = color
             it.background.mode = org.mdt.ui.components.layout.BackgroundFill.Mode.COLOR
         }
     }
@@ -192,7 +192,7 @@ data class BackdropModifier(
     val blurRadius: Float = 12f,
     val weight: Float = 0.8f,
     val blend: Float = 0.8f,
-    val tint: Color = Color.white,
+    val tint: Color = Color.White,
     val iterations: Int = 2
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
@@ -201,7 +201,7 @@ data class BackdropModifier(
             vis.backdrop.blurRadius = blurRadius
             vis.backdrop.weight = weight
             vis.backdrop.blend = blend
-            vis.backdrop.tint.set(tint)
+            vis.backdrop.tint = tint
             vis.backdrop.iterations = iterations
             vis.background.mode = org.mdt.ui.components.layout.BackgroundFill.Mode.BACKDROP
         }
@@ -211,7 +211,7 @@ data class BackdropModifier(
 data class TextureModifier(
     val region: TextureRegion,
     val scaleMode: ScaleMode = ScaleMode.FIT,
-    val tint: Color = Color.white
+    val tint: Color = Color.White
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         (node as? LayoutNode)?.ensureVisuals()?.texture(region, scaleMode, tint)
@@ -424,13 +424,13 @@ fun UIModifier.radius(topLeft: Float, topRight: Float, bottomRight: Float, botto
 /** Sets border stroke styling. */
 fun UIModifier.border(
     width: Float,
-    color: Color = Color.white,
+    color: Color = Color.White,
     style: org.mdt.ui.components.layout.Border.Style = org.mdt.ui.components.layout.Border.Style.SOLID
 ): UIModifier = then(BorderModifier(width, color, style))
 
 /** Sets outer drop shadow. */
 fun UIModifier.shadow(
-    color: Color = Pal.shadow,
+    color: Color = Color(0f, 0f, 0f, 0.4f),
     offsetX: Float = 0f,
     offsetY: Float = 0f,
     blur: Float = 8f,
@@ -447,7 +447,7 @@ fun UIModifier.backdrop(
     blurRadius: Float = 12f,
     weight: Float = 0.8f,
     blend: Float = 0.8f,
-    tint: Color = Color.white,
+    tint: Color = Color.White,
     iterations: Int = 2
 ): UIModifier = then(BackdropModifier(blur, blurRadius, weight, blend, tint, iterations))
 
@@ -455,7 +455,7 @@ fun UIModifier.backdrop(
 fun UIModifier.texture(
     region: TextureRegion,
     scaleMode: ScaleMode = ScaleMode.FIT,
-    tint: Color = Color.white
+    tint: Color = Color.White
 ): UIModifier = then(TextureModifier(region, scaleMode, tint))
 
 /** Sets visual opacity (0.0f = fully transparent, 1.0f = fully opaque). */

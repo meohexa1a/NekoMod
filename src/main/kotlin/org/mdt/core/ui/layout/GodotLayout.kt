@@ -214,13 +214,11 @@ object GodotLayout {
                 val horizontalFlags = child.sizeFlagsHorizontal
                 val ratio = child.stretchRatio
 
-                val rawSlotWidth = if ((horizontalFlags and SizeFlags.EXPAND) != 0 && totalStretchRatio > 0f) {
+                val slotWidth = if ((horizontalFlags and SizeFlags.EXPAND) != 0 && totalStretchRatio > 0f) {
                     spaceForExpanding * (ratio / totalStretchRatio)
                 } else {
                     slotTotalWidth
                 }
-                val maxAllowedWidth = maxOf(0f, parentX + parentWidth - padRight - currentLeftX)
-                val slotWidth = if (parentWidth > 0f && totalStretchRatio == 0f) minOf(rawSlotWidth, maxAllowedWidth) else rawSlotWidth
 
                 fitChildInRect(child, currentLeftX, parentY + padBottom, slotWidth, availableHeight, horizontalFlags, child.sizeFlagsVertical)
                 currentLeftX += slotWidth + actualGap

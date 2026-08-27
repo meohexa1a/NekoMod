@@ -1,6 +1,5 @@
 package org.mdt.core.ui.render
 
-import arc.graphics.Color
 import arc.graphics.Gl
 import arc.graphics.g2d.Draw
 import arc.math.Mat
@@ -29,7 +28,7 @@ class EngineRenderer {
         prevProj.set(Draw.proj())
 
         Draw.proj(0f, 0f, canvas.screenWidth, canvas.screenHeight)
-        Draw.color(Color.white)
+        Draw.color()
 
         // 2. Render Virtual DOM UI tree
         canvas.draw(this)

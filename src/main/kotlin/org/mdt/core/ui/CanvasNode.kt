@@ -3,7 +3,7 @@ package org.mdt.core.ui
 import org.mdt.core.ui.layout.GodotLayout
 import org.mdt.core.ui.layout.SizeFlags
 import org.mdt.core.ui.render.EngineRenderer
-import org.mdt.ui.components.display.tooltip.TooltipManager
+import org.mdt.ui.components.display.TooltipManager
 
 /**
  * ## CanvasNode
