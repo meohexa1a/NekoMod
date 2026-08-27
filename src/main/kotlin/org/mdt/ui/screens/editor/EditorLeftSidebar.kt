@@ -11,25 +11,12 @@ import org.mdt.ui.components.scroll.ScrollView
 import org.mdt.ui.components.surface.Divider
 import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.screens.editor.model.EditorMode
+import org.mdt.ui.screens.editor.model.TreeItemData
 import org.mdt.ui.screens.editor.sidebar.*
+import org.mdt.ui.screens.editor.state.EditorDocumentState
 import org.mdt.ui.theme.StudioIcons
 import org.mdt.ui.theme.Theme
-
-/**
- * ## TreeItemData
- *
- * Data model for hierarchical tree items in the editor sidebar.
- */
-data class TreeItemData(
-    val id: String,
-    val name: String,
-    val type: String,
-    val iconUrl: String,
-    val iconTint: Color,
-    val depth: Int = 0,
-    val isExpandable: Boolean = false,
-    val isExpanded: Boolean = true
-)
 
 /**
  * ## EditorLeftSidebar
@@ -58,8 +45,10 @@ fun EditorLeftSidebar(
     val headerTitle = when (mode) {
         EditorMode.SCENE -> "Scene Layers"
         EditorMode.COMPONENTS -> "Components"
+        EditorMode.ASSETS -> "Project Assets"
         EditorMode.I18N -> "Localization"
-        EditorMode.CODE -> "NXML Code"
+        EditorMode.CODE -> "Virtual DOM Code"
+        EditorMode.SETTINGS -> "Editor Settings"
     }
 
     Box(
@@ -154,7 +143,7 @@ fun EditorLeftSidebar(
                             selectedComponent = selectedComponent,
                             onSelectComponent = onSelectComponent
                         )
-                        EditorMode.I18N -> SidebarAssetsTab()
+                        EditorMode.ASSETS, EditorMode.I18N, EditorMode.SETTINGS -> SidebarAssetsTab()
                         EditorMode.CODE -> SidebarCodeTab(docState = docState)
                     }
                 }

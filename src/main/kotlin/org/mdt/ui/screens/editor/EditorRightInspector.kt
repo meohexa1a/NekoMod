@@ -11,6 +11,7 @@ import org.mdt.ui.components.surface.Divider
 import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.text.Text
 import org.mdt.ui.screens.editor.inspector.*
+import org.mdt.ui.screens.editor.state.EditorDocumentState
 import org.mdt.ui.theme.StudioIcons
 import org.mdt.ui.theme.Theme
 

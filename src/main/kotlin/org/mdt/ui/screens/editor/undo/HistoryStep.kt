@@ -3,7 +3,7 @@ package org.mdt.ui.screens.editor.undo
 import org.mdt.core.ui.UINode
 import org.mdt.ui.components.layout.LayoutNode
 import org.mdt.ui.components.text.TextNode
-import org.mdt.ui.screens.editor.EditorDocumentState
+import org.mdt.ui.screens.editor.state.EditorDocumentState
 
 /**
  * ## HistoryStep

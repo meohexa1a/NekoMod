@@ -3,7 +3,7 @@ package org.mdt.ui.screens.editor.undo
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import org.mdt.ui.screens.editor.EditorDocumentState
+import org.mdt.ui.screens.editor.state.EditorDocumentState
 
 /**
  * ## UndoRedoManager

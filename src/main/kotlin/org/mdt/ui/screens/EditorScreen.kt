@@ -11,6 +11,11 @@ import org.mdt.ui.components.display.image.Image
 import org.mdt.ui.components.layout.*
 import org.mdt.ui.components.text.TextNode
 import org.mdt.ui.screens.editor.*
+import org.mdt.ui.screens.editor.canvas.ComponentCanvas
+import org.mdt.ui.screens.editor.canvas.EditorCenterCanvas
+import org.mdt.ui.screens.editor.model.EditorMode
+import org.mdt.ui.screens.editor.state.EditorDocumentState
+import org.mdt.ui.screens.editor.state.SceneGraphFactory
 import org.mdt.ui.theme.StudioIcons
 import org.mdt.ui.theme.Theme
 
@@ -115,7 +120,7 @@ fun EditorScreen() {
                 },
                 onPreview = {},
                 onReload = {
-                    docState.rootScene = EditorDocumentState.createDefaultScene()
+                    docState.rootScene = SceneGraphFactory.createDefaultScene()
                     docState.expandAll(docState.rootScene)
                     docState.selectedNodeId = null
                 }

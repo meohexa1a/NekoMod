@@ -1,21 +1,18 @@
-package org.mdt.ui.screens.editor
+package org.mdt.ui.screens.editor.canvas
 
 import androidx.compose.runtime.*
 import arc.Core
-import arc.graphics.Color
-import arc.graphics.g2d.Draw
-import arc.graphics.g2d.Fill
-import arc.graphics.g2d.Lines
-import mindustry.ui.Fonts
+import arc.Graphics.Cursor.SystemCursor
 import org.mdt.core.ui.Rect
 import org.mdt.core.ui.UINode
 import org.mdt.core.ui.compose.*
-import org.mdt.core.ui.layout.LayoutPreset
 import org.mdt.ui.components.display.canvas.Canvas
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.LayoutNode
 import org.mdt.ui.components.layout.SceneNode
 import org.mdt.ui.components.text.TextNode
+import org.mdt.ui.screens.editor.model.GizmoHandle
+import org.mdt.ui.screens.editor.state.EditorDocumentState
 import org.mdt.ui.screens.editor.undo.NodeTransformStep
 import org.mdt.ui.theme.Theme
 import kotlin.math.abs
@@ -23,29 +20,13 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * ## GizmoHandle
- *
- * 8 interactive resize handles + body handle for 2D transform manipulation.
- */
-enum class GizmoHandle {
-    NONE, BODY,
-    TOP_LEFT, TOP_CENTER, TOP_RIGHT,
-    LEFT_CENTER, RIGHT_CENTER,
-    BOTTOM_LEFT, BOTTOM_CENTER, BOTTOM_RIGHT
-}
-
-/**
  * ## EditorCenterCanvas
  *
- * Interactive 2D Studio Viewport featuring:
- * 1. Infinite Canvas Zoom Engine (25% - 400%) with cursor-anchored focal math.
- * 2. 100% Direct Virtual Node Scene Graph manipulation (0-GC, 60 FPS).
- * 3. Artboard Scene Frame with header pill, custom dimensions, and device presets.
- * 4. 8-Point Transform Gizmo with live resize handles (W, H) and drag-to-move (X, Y).
- * 5. Direct Reverse-DFS Hit-Testing on live in-memory [UINode] tree.
- * 6. Multi-tool state machine (`select`, `rect`, `frame`, `text`).
- * 7. Event-driven 2D pan tracking with mouse drag ([onPointerDrag], Rule 11).
- * 8. In-Memory Drag Coalescing with [org.mdt.ui.screens.editor.undo.UndoRedoManager].
+ * Interactive 2D Studio Viewport coordinating tool interactions, focal pan/zoom math,
+ * and delegating rendering to modular sub-systems:
+ * - [CanvasCheckerboard] for infinite void grid
+ * - [CanvasArtboardFrame] for Scene Artboard bounds and headers
+ * - [CanvasGizmoOverlay] for 8-point transform handles and badges
  *
  * See: docs/design-system/design_system_en.md
  */
@@ -79,25 +60,23 @@ fun EditorCenterCanvas(
 
     // Drag Coalescing: captures transform values before interaction starts
     var dragBeforeTransform by remember { mutableStateOf<FloatArray?>(null) }
-
     val startBounds = remember { Rect() }
 
     val colors = Theme.colors
-
     val rootScene = docState?.rootScene
     val selectedNode = docState?.selectedNode
 
     // Determine cursor based on tool and active gizmo handle
     val activeCursor = when (selectedTool) {
-        "rect", "frame" -> arc.Graphics.Cursor.SystemCursor.crosshair
-        "text" -> arc.Graphics.Cursor.SystemCursor.ibeam
+        "rect", "frame" -> SystemCursor.crosshair
+        "text" -> SystemCursor.ibeam
         else -> when (activeGizmoHandle) {
             GizmoHandle.TOP_LEFT, GizmoHandle.BOTTOM_RIGHT,
-            GizmoHandle.TOP_RIGHT, GizmoHandle.BOTTOM_LEFT -> arc.Graphics.Cursor.SystemCursor.crosshair
-            GizmoHandle.LEFT_CENTER, GizmoHandle.RIGHT_CENTER -> arc.Graphics.Cursor.SystemCursor.horizontalResize
-            GizmoHandle.TOP_CENTER, GizmoHandle.BOTTOM_CENTER -> arc.Graphics.Cursor.SystemCursor.verticalResize
-            GizmoHandle.BODY -> arc.Graphics.Cursor.SystemCursor.hand
-            else -> if (isDraggingCanvas) arc.Graphics.Cursor.SystemCursor.hand else arc.Graphics.Cursor.SystemCursor.arrow
+            GizmoHandle.TOP_RIGHT, GizmoHandle.BOTTOM_LEFT -> SystemCursor.crosshair
+            GizmoHandle.LEFT_CENTER, GizmoHandle.RIGHT_CENTER -> SystemCursor.horizontalResize
+            GizmoHandle.TOP_CENTER, GizmoHandle.BOTTOM_CENTER -> SystemCursor.verticalResize
+            GizmoHandle.BODY -> SystemCursor.hand
+            else -> if (isDraggingCanvas) SystemCursor.hand else SystemCursor.arrow
         }
     }
 
@@ -144,17 +123,15 @@ fun EditorCenterCanvas(
                         dragCurrentY = event.y
                     }
                     "text" -> {
-                        // Click to place text at exact scene coordinates (Top-Left Origin)
                         val worldX = (event.x - sceneOriginX) / zoomScale
                         val worldY = (sceneTopY - event.y) / zoomScale
                         onCreateText(worldX, worldY)
                     }
                     else -> {
-                        // 1. Check if clicking specifically on one of the 8 resize handles
                         val bounds = selectedNode?.bounds
                         val isRootScene = selectedNode === rootScene
                         val resizeHandle = if (bounds != null && !isRootScene) {
-                            testResizeHandle(event.x, event.y, bounds)
+                            GizmoHandle.testHit(event.x, event.y, bounds)
                         } else {
                             GizmoHandle.NONE
                         }
@@ -169,13 +146,11 @@ fun EditorCenterCanvas(
                             elementStartY = selectedNode.anchorData.offsetTop
                             dragBeforeTransform = floatArrayOf(elementStartX, elementStartY, selectedNode.width, selectedNode.height)
                         } else {
-                            // 2. Perform Reverse-DFS Hit-Testing directly on live Virtual Node tree
                             val hit = rootScene?.hitTest(event.x, event.y)
                             val clickedNode = findActionableNode(hit, rootScene)
 
                             if (clickedNode != null && clickedNode !== rootScene) {
                                 if (clickedNode === selectedNode) {
-                                    // Clicking the already-selected element's body -> Start Drag-to-Move
                                     activeGizmoHandle = GizmoHandle.BODY
                                     val safeBounds = bounds ?: Rect()
                                     startBounds.set(safeBounds)
@@ -185,12 +160,10 @@ fun EditorCenterCanvas(
                                     elementStartY = selectedNode.anchorData.offsetTop
                                     dragBeforeTransform = floatArrayOf(elementStartX, elementStartY, selectedNode.width, selectedNode.height)
                                 } else {
-                                    // Clicked on a child or different element -> Select it!
                                     docState?.selectedNodeId = clickedNode.id
                                     activeGizmoHandle = GizmoHandle.NONE
                                 }
                             } else {
-                                // Clicked on empty background -> Deselect and start Canvas Pan
                                 docState?.selectedNodeId = null
                                 activeGizmoHandle = GizmoHandle.NONE
                                 isDraggingCanvas = true
@@ -216,7 +189,6 @@ fun EditorCenterCanvas(
                             val minScreenX = min(dragStartX, dragCurrentX)
                             val maxScreenY = max(dragStartY, dragCurrentY)
 
-                            // Convert to Scene Top-Left Coordinates
                             val worldX = (minScreenX - sceneOriginX) / zoomScale
                             val worldY = (sceneTopY - maxScreenY) / zoomScale
 
@@ -225,7 +197,6 @@ fun EditorCenterCanvas(
                     }
                     "text" -> {}
                     else -> {
-                        // Drag Coalescing: Push 1 discrete mutation step to Undo/Redo history
                         if (dragBeforeTransform != null && selectedNode != null) {
                             val before = dragBeforeTransform!!
                             val newX = selectedNode.anchorData.offsetLeft
@@ -258,7 +229,6 @@ fun EditorCenterCanvas(
                     }
                     else -> {
                         if (activeGizmoHandle != GizmoHandle.NONE && activeGizmoHandle != GizmoHandle.BODY && selectedNode != null) {
-                            // --- RESIZING W, H & PINNING OPPOSITE EDGES (Top-Left Origin Math) ---
                             val deltaX = (event.x - dragStartX) / zoomScale
                             val deltaY = -((event.y - dragStartY) / zoomScale)
 
@@ -295,7 +265,6 @@ fun EditorCenterCanvas(
                             if (newY != elementStartY) selectedNode.anchorData.offsetTop = newY
                             selectedNode.invalidateLayout()
                         } else if (activeGizmoHandle == GizmoHandle.BODY && selectedNode != null) {
-                            // --- MOVING X, Y (Top-Left Origin Math) ---
                             val deltaX = (event.x - dragStartX) / zoomScale
                             val deltaY = (dragStartY - event.y) / zoomScale
 
@@ -303,7 +272,6 @@ fun EditorCenterCanvas(
                             selectedNode.anchorData.offsetTop = elementStartY + deltaY
                             selectedNode.invalidateLayout()
                         } else if (isDraggingCanvas) {
-                            // --- PANNING THE CANVAS VIEWPORT ---
                             val deltaX = event.x - lastTouchX
                             val deltaY = event.y - lastTouchY
                             lastTouchX = event.x
@@ -315,187 +283,31 @@ fun EditorCenterCanvas(
                 }
             }
     ) {
-        // =====================================================================
-        // 1. Procedural Scaled Checkerboard Background
-        // =====================================================================
+        // 1. Scaled Checkerboard Grid
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val cellSize = 25f * zoomScale
-            val screenW = Core.graphics?.width?.toFloat() ?: 1920f
-            val screenH = Core.graphics?.height?.toFloat() ?: 1080f
-
-            val startCol = (-panX / cellSize).toInt() - 2
-            val endCol = ((screenW - panX) / cellSize).toInt() + 2
-            val startRow = (-panY / cellSize).toInt() - 2
-            val endRow = ((screenH - panY) / cellSize).toInt() + 2
-
-            for (row in startRow..endRow) {
-                val cellY = row * cellSize + panY
-                for (col in startCol..endCol) {
-                    val cellX = col * cellSize + panX
-                    val isEven = ((row + col) % 2 + 2) % 2 == 0
-                    Draw.color(if (isEven) colors.canvasGridDark else colors.canvasGridLight)
-                    Fill.rect(cellX + cellSize * 0.5f, cellY + cellSize * 0.5f, cellSize, cellSize)
-                }
-            }
-            Draw.color(Color.white)
+            CanvasCheckerboard.draw(panX, panY, zoomScale, colors)
         }
 
-        // =====================================================================
-        // 2. Direct Virtual Node Scene Render Pass (Drawing live scene in-memory)
-        // =====================================================================
+        // 2. Scene Artboard Frame & Virtual Node Rendering
         if (rootScene != null) {
             Canvas(modifier = Modifier.fillMaxSize()) { renderer ->
-                val screenW = Core.graphics?.width?.toFloat() ?: 1920f
-                val screenH = Core.graphics?.height?.toFloat() ?: 1080f
-
-                val artW = rootScene.artboardWidth * zoomScale
-                val artH = rootScene.artboardHeight * zoomScale
-
-                val sceneX = (screenW - artW) * 0.5f + panX
-                val sceneY = (screenH - artH) * 0.5f + panY
-
-                // Layout and positioning for Scene Artboard
-                rootScene.setBounds(sceneX, sceneY, artW, artH)
-                rootScene.layout()
-
-                // Draw Artboard Frame Background & Shadow
-                Draw.color(Color(0f, 0f, 0f, 0.40f))
-                Fill.rect(sceneX + artW * 0.5f, sceneY + artH * 0.5f - 4f, artW + 8f, artH + 8f)
-
-                // Render the complete in-memory Virtual Node tree!
-                rootScene.draw(renderer)
-
-                // Artboard Header Label Pill
-                val font = Fonts.def
-                val headerText = "${rootScene.name} • ${rootScene.artboardWidth.toInt()} × ${rootScene.artboardHeight.toInt()} px"
-                val badgeX = sceneX + 60f
-                val badgeY = sceneY + artH + 16f
-
-                Draw.color(Color(0.08f, 0.08f, 0.12f, 0.85f))
-                Fill.rect(badgeX, badgeY, 140f, 20f)
-                Draw.color(Color(0.2f, 0.5f, 1.0f, 0.4f))
-                Lines.stroke(1f)
-                Lines.rect(badgeX - 70f, badgeY - 10f, 140f, 20f)
-
-                Draw.color(Color.white)
-                font.draw(headerText, badgeX - 64f, badgeY + 4f)
-                Draw.color(Color.white)
+                CanvasArtboardFrame.draw(rootScene, renderer, panX, panY, zoomScale)
             }
         }
 
-        // =====================================================================
-        // 3. Interactive Transform Gizmo & Dimension Overlay Pass
-        // =====================================================================
+        // 3. Transform Gizmo Overlay
         if (selectedTool == "select" && selectedNode != null && selectedNode !== rootScene) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val bounds = selectedNode.bounds
-                val bx = bounds.x
-                val by = bounds.y
-                val bw = bounds.width
-                val bh = bounds.height
-
-                if (bw > 0f && bh > 0f) {
-                    val blue = Color.valueOf("0a84ff")
-                    val handleSize = 8f
-
-                    // 1. Bounding Outline
-                    Draw.color(blue)
-                    Lines.stroke(2f)
-                    Lines.rect(bx, by, bw, bh)
-
-                    // 2. 8-Point Transform Handles
-                    val handles = listOf(
-                        bx to by + bh,                 // Top-Left
-                        bx + bw * 0.5f to by + bh,     // Top-Center
-                        bx + bw to by + bh,            // Top-Right
-                        bx to by + bh * 0.5f,          // Left-Center
-                        bx + bw to by + bh * 0.5f,     // Right-Center
-                        bx to by,                      // Bottom-Left
-                        bx + bw * 0.5f to by,          // Bottom-Center
-                        bx + bw to by                  // Bottom-Right
-                    )
-
-                    for ((hx, hy) in handles) {
-                        Draw.color(Color.white)
-                        Fill.rect(hx, hy, handleSize, handleSize)
-
-                        Draw.color(blue)
-                        Lines.stroke(1.5f)
-                        Lines.rect(hx - handleSize * 0.5f, hy - handleSize * 0.5f, handleSize, handleSize)
-                    }
-
-                    // 3. Dimension & Position Tooltip Badge
-                    val curX = selectedNode.anchorData.offsetLeft.toInt()
-                    val curY = selectedNode.anchorData.offsetTop.toInt()
-                    val tagLabel = "${selectedNode.name.ifEmpty { selectedNode.javaClass.simpleName }}  ${(bw / zoomScale).toInt()} × ${(bh / zoomScale).toInt()} px  (x:$curX, y:$curY)"
-                    val font = Fonts.def
-                    val badgeW = 240f
-                    val badgeH = 22f
-                    val badgeX = bx + bw * 0.5f
-                    val badgeY = by - 16f
-
-                    Draw.color(Color(0.08f, 0.08f, 0.10f, 0.85f))
-                    Fill.rect(badgeX, badgeY, badgeW, badgeH)
-
-                    Draw.color(blue)
-                    Lines.stroke(1f)
-                    Lines.rect(badgeX - badgeW * 0.5f, badgeY - badgeH * 0.5f, badgeW, badgeH)
-
-                    Draw.color(Color.white)
-                    font.draw(tagLabel, badgeX - badgeW * 0.46f, badgeY + 5f)
-                }
-                Draw.color(Color.white)
+                CanvasGizmoOverlay.drawSelectionGizmo(selectedNode, zoomScale)
             }
         }
 
-        // =====================================================================
-        // 4. Real-time Live Bounding Box Overlay Pass (Draws creation preview)
-        // =====================================================================
+        // 4. Creation Preview Overlay
         if (isDrawingRect) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val left = min(dragStartX, dragCurrentX)
-                val bottom = min(dragStartY, dragCurrentY)
-                val w = max(4f, abs(dragCurrentX - dragStartX))
-                val h = max(4f, abs(dragCurrentY - dragStartY))
-
-                val strokeColor = if (selectedTool == "frame") Color.valueOf("bf5af2") else Color.valueOf("0a84ff")
-                val fillColor = Color(strokeColor.r, strokeColor.g, strokeColor.b, 0.12f)
-
-                Draw.color(fillColor)
-                Fill.rect(left + w * 0.5f, bottom + h * 0.5f, w, h)
-
-                Draw.color(strokeColor)
-                Lines.stroke(2f)
-                Lines.rect(left, bottom, w, h)
-                Draw.color(Color.white)
+                CanvasGizmoOverlay.drawCreationPreview(dragStartX, dragStartY, dragCurrentX, dragCurrentY, selectedTool == "frame")
             }
         }
-    }
-}
-
-// =============================================================================
-// Helper Functions for Gizmo Hit-Testing and Node Search
-// =============================================================================
-
-private fun testResizeHandle(px: Float, py: Float, bounds: Rect, hitTolerance: Float = 10f): GizmoHandle {
-    val bx = bounds.x
-    val by = bounds.y
-    val bw = bounds.width
-    val bh = bounds.height
-
-    fun hit(hx: Float, hy: Float): Boolean =
-        px in (hx - hitTolerance)..(hx + hitTolerance) && py in (hy - hitTolerance)..(hy + hitTolerance)
-
-    return when {
-        hit(bx, by + bh) -> GizmoHandle.TOP_LEFT
-        hit(bx + bw * 0.5f, by + bh) -> GizmoHandle.TOP_CENTER
-        hit(bx + bw, by + bh) -> GizmoHandle.TOP_RIGHT
-        hit(bx, by + bh * 0.5f) -> GizmoHandle.LEFT_CENTER
-        hit(bx + bw, by + bh * 0.5f) -> GizmoHandle.RIGHT_CENTER
-        hit(bx, by) -> GizmoHandle.BOTTOM_LEFT
-        hit(bx + bw * 0.5f, by) -> GizmoHandle.BOTTOM_CENTER
-        hit(bx + bw, by) -> GizmoHandle.BOTTOM_RIGHT
-        else -> GizmoHandle.NONE
     }
 }
 

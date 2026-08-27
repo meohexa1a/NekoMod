@@ -1,4 +1,4 @@
-package org.mdt.ui.screens.editor
+package org.mdt.ui.screens.editor.canvas
 
 import androidx.compose.runtime.*
 import arc.graphics.Color
@@ -153,11 +153,12 @@ fun ComponentCanvas(
             .fillMaxSize()
             .background(colors.canvasVoid)
     ) {
-        // =====================================================================
-        // 1. Procedural 25px Checkerboard Grid Background
-        // =====================================================================
+        // 1. Procedural Checkerboard Grid Background
         Canvas(modifier = Modifier.fillMaxSize()) {
             val tileSize = 25f
+            val darkGrid = colors.canvasGridDark
+            val lightGrid = colors.canvasGridLight
+
             val screenW = arc.Core.graphics?.width?.toFloat() ?: 1920f
             val screenH = arc.Core.graphics?.height?.toFloat() ?: 1080f
 
@@ -169,16 +170,19 @@ fun ComponentCanvas(
                 for (col in 0..cols) {
                     val cellX = col * tileSize
                     val isEven = ((col + row) % 2 + 2) % 2 == 0
-                    Draw.color(if (isEven) colors.canvasGridDark else colors.canvasGridLight)
-                    Fill.rect(cellX + tileSize * 0.5f, cellY + tileSize * 0.5f, tileSize, tileSize)
+                    Draw.color(if (isEven) darkGrid else lightGrid)
+                    Fill.rect(
+                        cellX + tileSize * 0.5f,
+                        cellY + tileSize * 0.5f,
+                        tileSize,
+                        tileSize
+                    )
                 }
             }
             Draw.color(Color.white)
         }
 
-        // =====================================================================
         // 2. Direct Virtual Node Component Render Pass
-        // =====================================================================
         Canvas(modifier = Modifier.fillMaxSize()) { renderer ->
             val screenW = arc.Core.graphics?.width?.toFloat() ?: 1920f
             val screenH = arc.Core.graphics?.height?.toFloat() ?: 1080f
@@ -188,9 +192,7 @@ fun ComponentCanvas(
             componentNode.draw(renderer)
         }
 
-        // =====================================================================
         // 3. Top Floating State Switcher Bar
-        // =====================================================================
         Box(
             modifier = Modifier
                 .anchor(LayoutPreset.CENTER_TOP)
@@ -232,9 +234,7 @@ fun ComponentCanvas(
             }
         }
 
-        // =====================================================================
         // 4. Bottom HUD: Component Tag & Size Variant Toggles
-        // =====================================================================
         Box(
             modifier = Modifier
                 .anchor(LayoutPreset.CENTER_BOTTOM)

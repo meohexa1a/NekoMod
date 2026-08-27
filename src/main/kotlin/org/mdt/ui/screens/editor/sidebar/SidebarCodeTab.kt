@@ -7,7 +7,7 @@ import org.mdt.core.ui.layout.Arrangement
 import org.mdt.ui.components.layout.*
 import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.text.Text
-import org.mdt.ui.screens.editor.EditorDocumentState
+import org.mdt.ui.screens.editor.state.EditorDocumentState
 import org.mdt.ui.theme.Theme
 
 /**

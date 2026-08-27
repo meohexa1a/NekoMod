@@ -13,20 +13,9 @@ import org.mdt.ui.components.surface.Button
 import org.mdt.ui.components.surface.ButtonVariant
 import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.screens.editor.model.EditorMode
 import org.mdt.ui.theme.StudioIcons
 import org.mdt.ui.theme.Theme
-
-/**
- * ## EditorMode
- *
- * Primary navigation modes for the NXML Studio workspace.
- */
-enum class EditorMode(val title: String, val iconUrl: String) {
-    SCENE("Scene", StudioIcons.SCENE),
-    COMPONENTS("Components", StudioIcons.COMPONENTS),
-    I18N("i18n", StudioIcons.I18N),
-    CODE("NXML", StudioIcons.CODE)
-}
 
 /**
  * ## EditorTopBar
