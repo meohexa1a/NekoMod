@@ -17,6 +17,11 @@ data class CornerRadii(
     var bottomEnd: Float = 0f,
     var bottomStart: Float = 0f
 ) {
+    val topLeft: Float get() = topStart
+    val topRight: Float get() = topEnd
+    val bottomRight: Float get() = bottomEnd
+    val bottomLeft: Float get() = bottomStart
+
     val isZero: Boolean get() = topStart <= 0.001f && topEnd <= 0.001f && bottomEnd <= 0.001f && bottomStart <= 0.001f
 
     fun set(uniform: Float) {

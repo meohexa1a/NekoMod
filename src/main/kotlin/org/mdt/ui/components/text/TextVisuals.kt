@@ -21,7 +21,7 @@ class TextVisuals {
     var labelAlign: Int = Align.left
     var lineAlign: Int = Align.left
     var wrap: Boolean = false
-    var ellipsis: String? = null
+    var ellipsis: String? = "..."
     var baselineOffset: Float = 0f
 
     var fontScale: Float
@@ -60,6 +60,11 @@ class TextVisuals {
 
     fun wrap(wrap: Boolean): TextVisuals {
         this.wrap = wrap
+        return this
+    }
+
+    fun ellipsis(ellipsis: String?): TextVisuals {
+        this.ellipsis = ellipsis
         return this
     }
 }

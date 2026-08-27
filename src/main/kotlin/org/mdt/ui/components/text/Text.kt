@@ -23,6 +23,7 @@ import org.mdt.core.ui.compose.UIModifier
  * @param scale Font scale multiplier (default 1.0f for pixel-perfect clarity).
  * @param align Horizontal text alignment ([Align.left], [Align.center], [Align.right]).
  * @param wrap Whether to enable multi-line text wrapping.
+ * @param ellipsis Truncation string for single-line text (defaults to "..."). Set to null to disable truncation.
  */
 @Composable
 fun Text(
@@ -32,7 +33,8 @@ fun Text(
     font: Font = Fonts.def,
     scale: Float = 1.0f,
     align: Int = Align.left,
-    wrap: Boolean = false
+    wrap: Boolean = false,
+    ellipsis: String? = "..."
 ) {
     ComposeNode<TextNode, NodeApplier>(
         factory = {
@@ -42,6 +44,7 @@ fun Text(
             node.textVisuals.fontScale = scale
             node.textVisuals.align = align
             node.textVisuals.wrap = wrap
+            node.textVisuals.ellipsis = ellipsis
             modifier.applyTo(node)
             node
         },
@@ -59,6 +62,10 @@ fun Text(
             set(align) { this.textVisuals.align = it }
             set(wrap) {
                 this.textVisuals.wrap = it
+                invalidateLayout()
+            }
+            set(ellipsis) {
+                this.textVisuals.ellipsis = it
                 invalidateLayout()
             }
             set(modifier) {
@@ -81,6 +88,7 @@ fun Text(
  * @param scale Font scale multiplier (default 1.0f).
  * @param align Horizontal text alignment ([Align.left], [Align.center], [Align.right]).
  * @param wrap Whether to enable multi-line text wrapping.
+ * @param ellipsis Truncation string for single-line text (defaults to "..."). Set to null to disable truncation.
  */
 @Composable
 fun MonoText(
@@ -89,7 +97,8 @@ fun MonoText(
     color: Color = Color.white,
     scale: Float = 1.0f,
     align: Int = Align.left,
-    wrap: Boolean = false
+    wrap: Boolean = false,
+    ellipsis: String? = "..."
 ) {
     val cleanFont = Fonts.monospace ?: Fonts.def
     Text(
@@ -99,6 +108,7 @@ fun MonoText(
         font = cleanFont,
         scale = scale,
         align = align,
-        wrap = wrap
+        wrap = wrap,
+        ellipsis = ellipsis
     )
 }

@@ -29,6 +29,15 @@ open class TextNode(
             }
         }
 
+    var ellipsis: String?
+        get() = textVisuals.ellipsis
+        set(value) {
+            if (textVisuals.ellipsis != value) {
+                textVisuals.ellipsis = value
+                invalidateLayout()
+            }
+        }
+
     init {
         this.text = text
     }
@@ -98,7 +107,11 @@ open class TextNode(
             f.draw(text, innerX, drawY, innerW, textVisuals.align, true)
         } else {
             val drawY = innerY + (innerH + capH) * 0.5f
-            f.draw(text, innerX, drawY)
+            if (innerW > 0f) {
+                f.draw(text, innerX, drawY, 0, text.length, innerW, textVisuals.align, false, textVisuals.ellipsis)
+            } else {
+                f.draw(text, innerX, drawY)
+            }
         }
 
         if (isScaled) f.data.setScale(oldSX, oldSY)
