@@ -79,7 +79,7 @@ fun EditorSettingsScreen(
 
                     Divider(modifier = Modifier.fillMaxWidth().height(1f))
 
-                    for (section in SettingsSection.values()) {
+                    for (section in SettingsSection.entries) {
                         val isSelected = section == activeSection
                         Box(
                             modifier = Modifier

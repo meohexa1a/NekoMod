@@ -73,14 +73,14 @@ fun EditorTopBar(
         // =====================================================================
         // 2. Center: Segmented Mode Switcher (True Screen Mathematical Dead-Center)
         // =====================================================================
-        val dynamicTabWidth = remember(EditorMode.values()) {
+        val dynamicTabWidth = remember(EditorMode.entries) {
+            val font = typography.mono
             val layout = arc.graphics.g2d.GlyphLayout()
-            val font = mindustry.ui.Fonts.def
-            val maxContentWidth = EditorMode.values().maxOf { mode ->
-                layout.setText(font, mode.title)
-                16f + (spacing.xs + 2f) + layout.width
+            val maxContentWidth = EditorMode.entries.maxOf { mode ->
+                layout.setText(font, mode.title.uppercase())
+                layout.width
             }
-            maxContentWidth + (spacing.md * 2f)
+            maxOf(80f, maxContentWidth + spacing.md * 2f + 16f)
         }
 
         Box(
@@ -95,7 +95,7 @@ fun EditorTopBar(
                 arrangement = Arrangement.spacedBy(spacing.xs),
                 alignment = Alignment.CenterStart
             ) {
-                for (mode in EditorMode.values()) {
+                for (mode in EditorMode.entries) {
                     val isSelected = mode == currentMode
                     Box(
                         modifier = Modifier

@@ -35,23 +35,23 @@ fun InspectorVisualsSection(node: UINode) {
     val spacing = Theme.spacing
 
     if (node is LayoutNode) {
-        val vis = node.ensureVisuals()
+        val visuals = node.ensureVisuals()
 
         // 1. Background Fill Palette
         EditorPropertyRow(label = "Background Fill") {
             Row(arrangement = Arrangement.spacedBy(4f), modifier = Modifier.fillMaxWidth()) {
                 listOf("#0a84ff", "#30d158", "#bf5af2", "#ff9f0a", "#1c1d22", "#ffffff").forEach { hex ->
-                    val col = Color.valueOf(hex)
-                    val isSel = vis.background.color == col
+                    val fillColor = Color.valueOf(hex)
+                    val isSelected = visuals.background.color == fillColor
                     Box(
                         modifier = Modifier
                             .size(24f, 24f)
                             .radius(shapes.xs)
-                            .background(col)
-                            .border(if (isSel) 2f else 1f, if (isSel) colors.blue else colors.borderHairline)
+                            .background(fillColor)
+                            .border(if (isSelected) 2f else 1f, if (isSelected) colors.blue else colors.borderHairline)
                             .clickable {
-                                vis.background.mode = BackgroundFill.Mode.COLOR
-                                vis.background.color = col
+                                visuals.background.mode = BackgroundFill.Mode.COLOR
+                                visuals.background.color = fillColor
                                 node.invalidateLayout()
                             }
                     )
@@ -62,13 +62,13 @@ fun InspectorVisualsSection(node: UINode) {
         // 2. Corner Radii
         EditorPropertyRow(
             label = "Corner Radius",
-            subtitle = "${vis.radii.topLeft.toInt()}px"
+            subtitle = "${visuals.radii.topLeft.toInt()}px"
         ) {
             EditorOptionGroup(
                 options = listOf(0f, 4f, 8f, 12f, 16f, 999f),
-                selected = vis.radii.topLeft,
-                onSelect = {
-                    vis.radii.set(it)
+                selected = visuals.radii.topLeft,
+                onSelect = { radiusValue ->
+                    visuals.radii.set(radiusValue)
                     node.invalidateLayout()
                 },
                 labelSelector = { if (it >= 999f) "Pill" else "${it.toInt()}" }
@@ -78,18 +78,18 @@ fun InspectorVisualsSection(node: UINode) {
         // 3. Apple Frosted Glass Blur
         EditorPropertyRow(
             label = "Frosted Glass Blur",
-            subtitle = if (vis.backdrop.enabled) "${vis.backdrop.blurRadius.toInt()}px" else "Off"
+            subtitle = if (visuals.backdrop.enabled) "${visuals.backdrop.blurRadius.toInt()}px" else "Off"
         ) {
             EditorOptionGroup(
                 options = listOf(0f, 12f, 20f, 24f, 32f),
-                selected = if (vis.backdrop.enabled) vis.backdrop.blurRadius else 0f,
-                onSelect = { b ->
-                    vis.backdrop.enabled = b > 0f
-                    vis.backdrop.blurRadius = b
-                    if (b > 0f) {
-                        vis.background.mode = BackgroundFill.Mode.BACKDROP
-                        vis.background.color = Color(0.10f, 0.10f, 0.16f, 0.75f)
-                        vis.backdrop.tint = Color(0.10f, 0.10f, 0.16f, 0.75f)
+                selected = if (visuals.backdrop.enabled) visuals.backdrop.blurRadius else 0f,
+                onSelect = { blurRadius ->
+                    visuals.backdrop.enabled = blurRadius > 0f
+                    visuals.backdrop.blurRadius = blurRadius
+                    if (blurRadius > 0f) {
+                        visuals.background.mode = BackgroundFill.Mode.BACKDROP
+                        visuals.background.color = Color(0.10f, 0.10f, 0.16f, 0.75f)
+                        visuals.backdrop.tint = Color(0.10f, 0.10f, 0.16f, 0.75f)
                     }
                     node.invalidateLayout()
                 },

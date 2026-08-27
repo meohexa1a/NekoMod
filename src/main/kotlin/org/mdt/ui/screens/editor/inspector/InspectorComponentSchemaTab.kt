@@ -56,7 +56,7 @@ fun InspectorComponentSchemaTab(
             )
             Text(text = selectedComponent, color = colors.textPrimary, font = typography.body)
             Spacer(modifier = Modifier.weight(1.0f))
-            MonoText(text = "<Component>", color = colors.textTertiary, scale = 0.85f)
+            MonoText(text = "<Component>", color = colors.textTertiary)
         }
 
         Divider(modifier = Modifier.fillMaxWidth().height(1f))
@@ -80,9 +80,9 @@ fun InspectorComponentSchemaTab(
                     .border(1f, colors.borderHairline)
                     .pad(spacing.sm)
             ) {
-                MonoText(text = "@${prop.name}", color = colors.blue, scale = 0.9f)
+                MonoText(text = "@${prop.name}", color = colors.blue)
                 Spacer(modifier = Modifier.weight(1.0f))
-                MonoText(text = "${prop.type} = \"${prop.defaultValue}\"", color = colors.textTertiary, scale = 0.85f)
+                MonoText(text = "${prop.type} = \"${prop.defaultValue}\"", color = colors.textTertiary)
             }
         }
     }

@@ -95,6 +95,7 @@ class EditorDocumentState(
         if (recordHistory) {
             undoRedoManager.record(NodeAddStep(node, parent, index))
         }
+        hierarchyVersion++
     }
 
     /**
@@ -113,6 +114,7 @@ class EditorDocumentState(
             if (recordHistory && index >= 0) {
                 undoRedoManager.record(NodeDeleteStep(node, parent, index))
             }
+            hierarchyVersion++
         }
         return removed
     }
@@ -146,31 +148,57 @@ class EditorDocumentState(
                 NodeHierarchyStep(node, oldParent, oldIndex, newParent, targetIndex)
             )
         }
+        hierarchyVersion++
     }
 
     /**
      * Performs an Undo operation.
      */
-    fun undo(): Boolean = undoRedoManager.undo(this)
+    fun undo(): Boolean {
+        val success = undoRedoManager.undo(this)
+        if (success) hierarchyVersion++
+        return success
+    }
 
     /**
      * Performs a Redo operation.
      */
-    fun redo(): Boolean = undoRedoManager.redo(this)
+    fun redo(): Boolean {
+        val success = undoRedoManager.redo(this)
+        if (success) hierarchyVersion++
+        return success
+    }
 
     // =========================================================================
-    // II. Live Hierarchy Generation (Walking Virtual Node Graph Directly)
+    // II. Live Hierarchy Generation (Cached 0-GC Layer Tree)
     // =========================================================================
+
+    /** Monotonically increasing version counter for tree structure mutations. */
+    var hierarchyVersion by mutableStateOf(0)
+        private set
+
+    private var cachedHierarchyVersion = -1
+    private var cachedLayerTree: List<TreeItemData> = emptyList()
+
+    /** Explicitly marks the hierarchy cache as dirty. */
+    fun invalidateHierarchy() {
+        hierarchyVersion++
+    }
 
     /**
-     * Builds the hierarchy tree directly from the in-memory [rootScene] and [masterComponents].
+     * Builds or returns the cached hierarchy tree directly from [rootScene] and [masterComponents].
      */
     fun buildLayerTree(): List<TreeItemData> {
+        if (cachedHierarchyVersion == hierarchyVersion) {
+            return cachedLayerTree
+        }
         val result = mutableListOf<TreeItemData>()
         buildNodeLayerTree(rootScene, result, 0)
         for (master in masterComponents) {
             buildNodeLayerTree(master, result, 0)
         }
+        cachedLayerTree = result
+        cachedHierarchyVersion = hierarchyVersion
         return result
     }
 
@@ -206,5 +234,6 @@ class EditorDocumentState(
         } else {
             expandedNodeIds.add(nodeId)
         }
+        hierarchyVersion++
     }
 }

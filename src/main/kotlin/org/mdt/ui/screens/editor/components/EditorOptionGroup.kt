@@ -8,17 +8,20 @@ import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.theme.Theme
+import kotlin.math.abs
 
 /**
  * ## EditorOptionGroup
  *
  * Generic, type-safe option button group for Studio Inspector and Settings panels.
  * Renders compact tactile chips with dynamic selection highlighting and border accents.
+ * Includes built-in fuzzy float tolerance to maintain active highlights during live canvas dragging.
  *
  * @param options List of candidate values.
  * @param selected Currently selected candidate value.
  * @param onSelect Callback invoked on click.
  * @param labelSelector Custom string mapper for rendering each option's label.
+ * @param isSelectedMatcher Optional custom matcher lambda for complex equality checks.
  * @param modifier Chainable [UIModifier].
  *
  * See: docs/design-system/design_system_en.md
@@ -29,6 +32,7 @@ fun <T> EditorOptionGroup(
     selected: T,
     onSelect: (T) -> Unit,
     labelSelector: (T) -> String = { it.toString() },
+    isSelectedMatcher: ((option: T, selected: T) -> Boolean)? = null,
     modifier: UIModifier = UIModifier
 ) {
     val colors = Theme.colors
@@ -40,7 +44,13 @@ fun <T> EditorOptionGroup(
         modifier = modifier
     ) {
         for (option in options) {
-            val isSelected = option == selected
+            val isSelected = when {
+                isSelectedMatcher != null -> isSelectedMatcher(option, selected)
+                option is Float && selected is Float -> abs(option - selected) < 1.0f
+                option is Double && selected is Double -> abs(option - selected) < 1.0
+                else -> option == selected
+            }
+
             Box(
                 modifier = Modifier
                     .radius(shapes.xs)
@@ -57,3 +67,4 @@ fun <T> EditorOptionGroup(
         }
     }
 }
+

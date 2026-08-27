@@ -100,7 +100,7 @@ fun SidebarComponentsTab(
                         color = if (isSelected) colors.blue else colors.textPrimary
                     )
                     Spacer(modifier = Modifier.weight(1.0f))
-                    Text(text = "Parametric", color = colors.textTertiary, scale = 0.9f)
+                    Text(text = "Parametric", color = colors.textTertiary)
                 }
                 Text(
                     text = desc,
