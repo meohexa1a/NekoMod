@@ -51,6 +51,7 @@ This document establishes the mandatory programming standards, naming convention
 ### 10. Composable Parameter Ordering & UIModifier Chaining
 * Parameter order: (1) Data/State $\rightarrow$ (2) Callbacks $\rightarrow$ (3) `modifier: UIModifier = UIModifier` $\rightarrow$ (4) Visual Options $\rightarrow$ (5) Content Slot.
 * Every built-in composable applying default visual styles must conclude with `.then(modifier)`.
+* See full specification: [UI Component Standards](../compose-dsl/ui_component_standards_en.md).
 
 ### 11. Concise Inline Lambdas
 * Format trivial, single-statement callbacks/lambdas on a single line (e.g. `AsyncDispatcher.onMainThread { onResult(null, e) }`) to maximize readability and reduce visual clutter.

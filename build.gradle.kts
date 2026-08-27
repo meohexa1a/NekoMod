@@ -56,6 +56,8 @@ dependencies {
     implementation("org.jetbrains.compose.runtime:runtime-desktop:1.7.1")
     implementation("org.jetbrains.compose.animation:animation-core-desktop:1.7.1")
     implementation("org.dom4j:dom4j:2.1.4")
+
+    testImplementation(kotlin("test"))
 }
 
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {

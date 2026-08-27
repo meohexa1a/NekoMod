@@ -51,6 +51,7 @@ Tài liệu này xác lập toàn bộ các quy chuẩn lập trình, quy ước
 ### 10. Thứ tự tham số Composable & UIModifier Chaining
 * Thứ tự chuẩn: (1) Dữ liệu/State $\rightarrow$ (2) Callbacks $\rightarrow$ (3) `modifier: UIModifier = UIModifier` $\rightarrow$ (4) Visual Options $\rightarrow$ (5) Content Slot.
 * Mọi component áp dụng style mặc định phải kết thúc bằng `.then(modifier)`.
+* Xem tài liệu đặc tả đầy đủ: [Quy Chuẩn UI Component](../compose-dsl/ui_component_standards_vi.md).
 
 ### 11. Chuẩn hóa Inline Lambda Đơn giản
 * Các callback, listener hoặc lambda 1 dòng đơn giản (ví dụ: `AsyncDispatcher.onMainThread { onResult(null, e) }`) phải được viết gọn gàng trên cùng 1 dòng inline.
