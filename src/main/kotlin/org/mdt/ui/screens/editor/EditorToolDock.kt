@@ -2,19 +2,19 @@ package org.mdt.ui.screens.editor
 
 import androidx.compose.runtime.*
 import arc.graphics.Color
-import mindustry.gen.Icon
 import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
 import org.mdt.ui.components.display.image.Image
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Row
+import org.mdt.ui.theme.StudioIcons
 import org.mdt.ui.theme.Theme
 
 /**
  * ## EditorToolDock
  *
- * Apple macOS-inspired floating tool dock with frosted glass styling and continuous curvature.
+ * Apple macOS-inspired floating tool dock with frosted glass styling and high-definition internet studio glyphs.
  *
  * See: docs/design-system/design_system_en.md
  */
@@ -28,13 +28,13 @@ fun EditorToolDock(
     val spacing = Theme.spacing
 
     val tools = listOf(
-        "select" to Icon.move,
-        "frame" to Icon.resize,
-        "rect" to Icon.box,
-        "text" to Icon.fileText,
-        "pen" to Icon.pencil,
-        "component" to Icon.tree,
-        "comment" to Icon.chat
+        "select" to StudioIcons.SELECT,
+        "frame" to StudioIcons.FRAME,
+        "rect" to StudioIcons.RECT,
+        "text" to StudioIcons.TEXT,
+        "pen" to StudioIcons.PEN,
+        "component" to StudioIcons.COMPONENT,
+        "comment" to StudioIcons.COMMENT
     )
 
     Box(
@@ -49,7 +49,7 @@ fun EditorToolDock(
             arrangement = Arrangement.spacedBy(spacing.xs),
             alignment = Alignment.CenterStart
         ) {
-            for ((toolId, icon) in tools) {
+            for ((toolId, iconUrl) in tools) {
                 val isSelected = toolId == selectedTool
                 Box(
                     modifier = Modifier
@@ -60,7 +60,7 @@ fun EditorToolDock(
                         .pad(spacing.sm)
                 ) {
                     Image(
-                        region = icon.region,
+                        source = iconUrl,
                         modifier = Modifier.fillMaxSize(),
                         tint = if (isSelected) Color.white else colors.textSecondary
                     )

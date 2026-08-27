@@ -2,8 +2,6 @@ package org.mdt.ui.screens.editor
 
 import androidx.compose.runtime.Composable
 import arc.graphics.Color
-import arc.scene.style.TextureRegionDrawable
-import mindustry.gen.Icon
 import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
@@ -13,7 +11,9 @@ import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.surface.Button
 import org.mdt.ui.components.surface.ButtonVariant
+import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.theme.StudioIcons
 import org.mdt.ui.theme.Theme
 
 /**
@@ -21,24 +21,24 @@ import org.mdt.ui.theme.Theme
  *
  * Primary navigation modes for the NXML Studio workspace.
  */
-enum class EditorMode(val title: String, val icon: TextureRegionDrawable) {
-    LAYERS("Layers", Icon.tree),
-    COMPONENTS("Components", Icon.box),
-    I18N("i18n", Icon.book),
-    CODE("NXML", Icon.fileText)
+enum class EditorMode(val title: String, val iconUrl: String) {
+    SCENE("Scene", StudioIcons.SCENE),
+    COMPONENTS("Components", StudioIcons.COMPONENTS),
+    I18N("i18n", StudioIcons.I18N),
+    CODE("NXML", StudioIcons.CODE)
 }
 
 /**
  * ## EditorTopBar
  *
  * Apple macOS-inspired top navigation bar featuring centered [EditorMode] segmented switcher,
- * frosted glass styling, and unified design tokens.
+ * frosted glass styling, and high-definition internet studio glyphs.
  *
  * See: docs/design-system/design_system_en.md
  */
 @Composable
 fun EditorTopBar(
-    currentMode: EditorMode = EditorMode.LAYERS,
+    currentMode: EditorMode = EditorMode.SCENE,
     onSelectMode: (EditorMode) -> Unit = {},
     onPreview: () -> Unit = {},
     onReload: () -> Unit = {}
@@ -68,14 +68,13 @@ fun EditorTopBar(
                 alignment = Alignment.CenterStart
             ) {
                 Image(
-                    region = Icon.hammer.region,
+                    source = StudioIcons.STUDIO_LOGO,
                     modifier = Modifier.size(20f),
                     tint = colors.blue
                 )
-                Text(
+                MonoText(
                     text = "Neko Studio",
-                    color = colors.textPrimary,
-                    font = typography.title
+                    color = colors.textPrimary
                 )
             }
         }
@@ -109,15 +108,13 @@ fun EditorTopBar(
                             alignment = Alignment.CenterStart
                         ) {
                             Image(
-                                region = mode.icon.region,
+                                source = mode.iconUrl,
                                 modifier = Modifier.size(16f),
                                 tint = if (isSelected) colors.blue else colors.textTertiary
                             )
-                            Text(
+                            MonoText(
                                 text = mode.title,
-                                color = if (isSelected) colors.textPrimary else colors.textSecondary,
-                                font = typography.body,
-                                scale = 1.0f
+                                color = if (isSelected) colors.textPrimary else colors.textSecondary
                             )
                         }
                     }
@@ -139,7 +136,7 @@ fun EditorTopBar(
             ) {
                 Button(
                     text = "Reload",
-                    icon = Icon.refresh,
+                    icon = StudioIcons.REFRESH,
                     variant = ButtonVariant.PLAIN,
                     paddingH = spacing.md,
                     paddingV = spacing.xs + 1f,
@@ -148,7 +145,7 @@ fun EditorTopBar(
 
                 Button(
                     text = "Preview",
-                    icon = Icon.play,
+                    icon = StudioIcons.PLAY,
                     variant = ButtonVariant.FILLED,
                     radius = shapes.sm,
                     paddingH = spacing.lg,
