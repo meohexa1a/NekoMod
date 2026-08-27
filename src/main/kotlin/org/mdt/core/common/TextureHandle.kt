@@ -1,53 +1,48 @@
 package org.mdt.core.common
 
-import arc.graphics.Pixmap
 import arc.graphics.Texture
 import arc.graphics.g2d.TextureRegion
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicLong
-import java.util.concurrent.atomic.AtomicReference
 
 /**
- * ## TextureKind
+ * ## TextureOwnership
  *
- * Defines the lifecycle and ownership model of a cached OpenGL texture.
+ * Defines whether the underlying OpenGL [Texture] is owned and disposable by this handle.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
-enum class TextureKind {
-    /** Dynamic texture allocated by the engine -> Eligible for GPU disposal upon cache eviction. */
+enum class TextureOwnership {
+    /** Owned by the engine -> Eligible for GPU disposal upon release/eviction. */
     MANAGED,
 
-    /** External shared texture (e.g. Mindustry Game Atlas) -> Never disposed by the cache. */
-    SHARED,
-
-    /** Error placeholder texture (e.g. iconic 'ohno') -> Never disposed, marks loading failure. */
-    FALLBACK
+    /** Externally owned (e.g. Game Atlas, static textures) -> Never disposed. */
+    SHARED
 }
+
+typealias TextureKind = TextureOwnership
 
 /**
  * ## TextureHandle
  *
- * Thread-safe, lock-free reference-counted wrapper around an unmanaged OpenGL [Texture].
- * Uses atomic Compare-And-Swap (CAS) state transitions for coroutine compatibility without blocking locks.
+ * Lean, thread-safe reference-counted handle wrapping an unmanaged OpenGL [Texture].
+ * Manages atomic reference counting and GPU texture disposal without coupling to cache or loader logic.
  *
  * ### Invariants:
- * - Textures marked [TextureKind.SHARED] or [TextureKind.FALLBACK] are never destroyed on the GPU.
+ * - Textures marked [TextureOwnership.SHARED] are never destroyed on the GPU.
  * - Negative reference count underflows from redundant [release] calls are strictly prevented.
  * - Disposals are automatically dispatched to the OpenGL main render thread.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
 class TextureHandle(
-    val key: String,
     val texture: Texture,
-    val byteSize: Long = computeByteSize(texture),
-    val kind: TextureKind = TextureKind.MANAGED,
-    onZeroRefs: (TextureHandle) -> Unit = {}
+    val ownership: TextureOwnership = TextureOwnership.MANAGED,
+    val key: String = "",
+    val byteSize: Long = computeByteSize(texture)
 ) {
     /** TextureRegion wrapping the underlying OpenGL texture. */
-    val region = TextureRegion(texture)
+    val region: TextureRegion = TextureRegion(texture)
 
     /** Width in pixels of the underlying texture. */
     val width: Int get() = texture.width
@@ -55,35 +50,24 @@ class TextureHandle(
     /** Height in pixels of the underlying texture. */
     val height: Int get() = texture.height
 
-    /** Whether this texture is managed by the engine and eligible for GPU disposal upon eviction. */
-    val isDisposable: Boolean get() = kind == TextureKind.MANAGED
+    /** Backward compatible alias for [ownership]. */
+    val kind: TextureOwnership get() = ownership
 
-    /** Whether this handle represents a failed load fallback texture. */
-    val isFailed: Boolean get() = kind == TextureKind.FALLBACK
-
-    /** Timestamp in nanoseconds of the most recent retention or release. */
-    val lastAccessTimeNano = AtomicLong(System.nanoTime())
+    /** Whether this texture is managed and eligible for GPU disposal. */
+    val isDisposable: Boolean get() = ownership == TextureOwnership.MANAGED
 
     private val refCount = AtomicInteger(1)
     private val _isDisposed = AtomicBoolean(false)
-    private val onZeroRefsCallback = AtomicReference<(TextureHandle) -> Unit>(onZeroRefs)
 
     /** Whether the underlying OpenGL texture has been disposed from GPU memory. */
     val isDisposed: Boolean get() = _isDisposed.get()
 
-    /** Current number of active references holding this texture. Returns 0 if dead or disposed. */
+    /** Current number of active references holding this texture. Returns 0 if unreferenced or disposed. */
     val activeRefCount: Int get() = maxOf(0, refCount.get())
 
     // =========================================================================
     // I. Atomic Reference Counting & Lifecycle Operations
     // =========================================================================
-
-    /**
-     * Updates the callback invoked when the reference count drops to zero.
-     */
-    fun setOnZeroRefs(callback: (TextureHandle) -> Unit) {
-        onZeroRefsCallback.set(callback)
-    }
 
     /**
      * Atomically increments the reference count using a lock-free CAS loop.
@@ -96,7 +80,6 @@ class TextureHandle(
             val current = refCount.get()
             if (current < 0) return false
             if (refCount.compareAndSet(current, current + 1)) {
-                lastAccessTimeNano.set(System.nanoTime())
                 return true
             }
         }
@@ -104,7 +87,6 @@ class TextureHandle(
 
     /**
      * Atomically decrements the reference count using a lock-free CAS loop.
-     * Triggers [onZeroRefsCallback] exactly once upon transitioning from 1 to 0.
      *
      * @return `true` if released successfully, or `false` if the handle was already disposed or at 0.
      */
@@ -113,12 +95,7 @@ class TextureHandle(
             if (_isDisposed.get()) return false
             val current = refCount.get()
             if (current <= 0) return false
-
             if (refCount.compareAndSet(current, current - 1)) {
-                lastAccessTimeNano.set(System.nanoTime())
-                if (current - 1 == 0) {
-                    onZeroRefsCallback.get()?.invoke(this)
-                }
                 return true
             }
         }
@@ -154,67 +131,31 @@ class TextureHandle(
             texture.width.toLong() * texture.height.toLong() * 4L
 
         /**
-         * Factory creating a [TextureHandle] from a raw [Texture].
+         * Factory creating a managed [TextureHandle] from a raw [Texture].
          */
-        fun of(
-            key: String,
-            texture: Texture,
-            kind: TextureKind = TextureKind.MANAGED,
-            onZeroRefs: (TextureHandle) -> Unit = {}
-        ): TextureHandle = TextureHandle(
-            key = key,
-            texture = texture,
-            byteSize = computeByteSize(texture),
-            kind = kind,
-            onZeroRefs = onZeroRefs
-        )
+        fun managed(texture: Texture, key: String = ""): TextureHandle =
+            TextureHandle(texture, TextureOwnership.MANAGED, key)
 
         /**
          * Factory creating an unmanaged, shared [TextureHandle] (e.g. from an atlas).
          */
-        fun shared(key: String, texture: Texture): TextureHandle =
-            of(key, texture, TextureKind.SHARED)
+        fun shared(texture: Texture, key: String = ""): TextureHandle =
+            TextureHandle(texture, TextureOwnership.SHARED, key)
 
         /**
          * Factory creating an unmanaged, shared [TextureHandle] from a [TextureRegion].
          */
-        fun shared(key: String, region: TextureRegion): TextureHandle =
-            of(key, region.texture, TextureKind.SHARED)
+        fun shared(region: TextureRegion, key: String = ""): TextureHandle =
+            TextureHandle(region.texture, TextureOwnership.SHARED, key)
 
         /**
-         * Factory creating a fallback/placeholder [TextureHandle].
+         * Generic factory constructor helper.
          */
-        fun fallback(key: String = "fallback:placeholder", texture: Texture): TextureHandle =
-            of(key, texture, TextureKind.FALLBACK)
-
-        /**
-         * Factory creating a fallback/placeholder [TextureHandle] from a [TextureRegion].
-         */
-        fun fallback(key: String = "fallback:placeholder", region: TextureRegion): TextureHandle =
-            of(key, region.texture, TextureKind.FALLBACK)
-
-        /**
-         * Factory uploading a decoded [Pixmap] to a new managed [Texture] and disposing the pixmap.
-         *
-         * @param key Unique cache key identifier.
-         * @param pixmap Decoded in-memory pixmap.
-         * @param filter Texture filtering mode (default linear).
-         * @param kind Lifecycle classification (default MANAGED).
-         * @return Retained [TextureHandle].
-         */
-        fun fromPixmap(
+        fun of(
             key: String,
-            pixmap: Pixmap,
-            filter: Texture.TextureFilter = Texture.TextureFilter.linear,
-            kind: TextureKind = TextureKind.MANAGED,
-            onZeroRefs: (TextureHandle) -> Unit = {}
-        ): TextureHandle {
-            val texture = Texture(pixmap).apply {
-                setFilter(filter)
-            }
-            pixmap.dispose()
-            return of(key, texture, kind, onZeroRefs)
-        }
+            texture: Texture,
+            ownership: TextureOwnership = TextureOwnership.MANAGED
+        ): TextureHandle = TextureHandle(texture, ownership, key)
     }
 }
 

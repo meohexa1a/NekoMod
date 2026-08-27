@@ -95,7 +95,7 @@ open class ImageService(val context: EngineContext) {
      * Resolves and caches the platform-specific fallback placeholder [TextureHandle].
      */
     fun fallbackHandle(): TextureHandle = cache.getOrPut("fallback:placeholder") {
-        TextureHandle.fallback("fallback:placeholder", fallbackRegion())
+        TextureHandle.shared(fallbackRegion(), "fallback:placeholder")
     }
 
     // =========================================================================
@@ -106,7 +106,7 @@ open class ImageService(val context: EngineContext) {
         val resolvedRegion = context.host.resolveAtlasRegion(source.name)
         if (resolvedRegion != null) {
             val handle = cache.getOrPut("atlas:${source.name}") {
-                TextureHandle.shared("atlas:${source.name}", resolvedRegion)
+                TextureHandle.shared(resolvedRegion, "atlas:${source.name}")
             }
             callback(resolvedRegion, handle, null)
         } else {
@@ -118,7 +118,7 @@ open class ImageService(val context: EngineContext) {
     private fun loadRegionSource(source: ImageSource.Region, callback: ImageLoadCallback) {
         val key = "region:" + source.region.texture.hashCode()
         val handle = cache.getOrPut(key) {
-            TextureHandle.shared(key, source.region)
+            TextureHandle.shared(source.region, key)
         }
         callback(source.region, handle, null)
     }
@@ -293,7 +293,11 @@ open class ImageService(val context: EngineContext) {
             val task = pendingUploadQueue.poll() ?: break
             processedCount++
             try {
-                val handle = TextureHandle.fromPixmap(task.cacheKey, task.pixmap)
+                val uploadedTexture = Texture(task.pixmap).apply {
+                    setFilter(Texture.TextureFilter.linear)
+                }
+                task.pixmap.dispose()
+                val handle = TextureHandle.managed(uploadedTexture, task.cacheKey)
                 val cachedHandle = cache.put(handle)
                 for (callback in task.pendingCallbacks) {
                     callback(cachedHandle.region, cachedHandle, null)

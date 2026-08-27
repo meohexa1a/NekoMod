@@ -9,35 +9,47 @@ import kotlin.collections.iterator
 /**
  * ## LRUTextureCache
  *
- * High-performance, lock-free, coroutine-friendly Least-Recently-Used (LRU) texture cache.
- * Designed for asynchronous game engines with zero blocking monitor locks (`synchronized`).
+ * Lock-free, coroutine-friendly Least-Recently-Used (LRU) texture cache.
+ * Tracks cached [TextureHandle] instances and evicts unreferenced textures when exceeding [maxIdleVramBytes].
  *
- * ### Architectural Features:
- * 1. **TextureHandle-Centric:** All operations are managed strictly through [TextureHandle] lifecycle primitives.
- * 2. **Lock-Free Atomic Retrieval:** Atomic CAS increments pin textures in memory without thread blocking.
- * 3. **Zero VRAM Leak on Duplicate Put:** Redundant handles submitted to [put] are safely disposed immediately.
- * 4. **Non-Blocking Eviction:** High-resolution nanosecond timestamps order evictable idle handles (`refCount == 0`).
- * 5. **Protected Atlas Textures:** Textures marked [TextureKind.SHARED] or [TextureKind.FALLBACK] are never destroyed.
+ * ### Invariants:
+ * 1. **TextureHandle Decoupling:** [TextureHandle] remains a pure leaf resource without cache baggage.
+ * 2. **Zero VRAM Leak on Duplicate Put:** Redundant handles submitted to [put] are safely disposed immediately.
+ * 3. **Non-Blocking Eviction:** High-resolution nanosecond timestamps order evictable idle handles (`refCount == 0`).
+ * 4. **Protected Atlas Textures:** Textures marked [TextureOwnership.SHARED] are never destroyed.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
 class LRUTextureCache(
     val maxIdleVramBytes: Long = 64L * 1024L * 1024L // 64 MB default idle budget
 ) {
-    /** Lock-free concurrent texture registry mapping unique keys to their handles. */
-    private val cache = ConcurrentHashMap<String, TextureHandle>()
+    /** Internal cache entry tracking LRU access timestamps independently of TextureHandle. */
+    class CacheEntry(
+        val handle: TextureHandle,
+        val lastAccessNano: AtomicLong = AtomicLong(System.nanoTime())
+    ) {
+        fun touch() {
+            lastAccessNano.set(System.nanoTime())
+        }
+    }
 
-    /** Total VRAM currently consumed by idle (unreferenced, refCount == 0) textures. */
-    private val _idleVramBytes = AtomicLong(0L)
+    /** Lock-free concurrent texture registry mapping unique keys to their entries. */
+    private val cache = ConcurrentHashMap<String, CacheEntry>()
 
-    /** Total VRAM in bytes consumed by idle textures. */
-    val idleVramBytes: Long get() = _idleVramBytes.get()
+    /** Total VRAM in bytes consumed by idle (unreferenced, refCount == 0) textures. */
+    val idleVramBytes: Long
+        get() = cache.values.sumOf { entry ->
+            val h = entry.handle
+            if (!h.isDisposed && h.activeRefCount == 0) h.byteSize else 0L
+        }
 
     /** Total VRAM in bytes consumed by all cached textures. */
-    val totalVramBytes: Long get() = cache.values.sumOf { if (!it.isDisposed) it.byteSize else 0L }
+    val totalVramBytes: Long
+        get() = cache.values.sumOf { if (!it.handle.isDisposed) it.handle.byteSize else 0L }
 
     /** Total VRAM in bytes consumed by dynamic managed textures (excluding shared game atlas). */
-    val dynamicVramBytes: Long get() = cache.values.sumOf { if (!it.isDisposed && it.kind == TextureKind.MANAGED) it.byteSize else 0L }
+    val dynamicVramBytes: Long
+        get() = cache.values.sumOf { if (!it.handle.isDisposed && it.handle.isDisposable) it.handle.byteSize else 0L }
 
     /** Total number of textures currently tracked in the cache. */
     val size: Int get() = cache.size
@@ -57,15 +69,19 @@ class LRUTextureCache(
      * @return Retained [TextureHandle], or `null` if absent or disposed.
      */
     fun get(key: String): TextureHandle? {
-        val handle = cache[key] ?: return null
+        val entry = cache[key] ?: return null
+        val handle = entry.handle
         if (handle.isDisposed) {
-            cache.remove(key, handle)
+            cache.remove(key, entry)
             return null
         }
 
-        if (handle.retain()) return handle
+        if (handle.retain()) {
+            entry.touch()
+            return handle
+        }
 
-        cache.remove(key, handle)
+        cache.remove(key, entry)
         return null
     }
 
@@ -82,26 +98,32 @@ class LRUTextureCache(
      * If an entry with the same key already exists, disposes [handle] if it differs to prevent VRAM leaks.
      *
      * @param handle [TextureHandle] instance.
+     * @param key Optional cache key identifier (defaults to handle.key).
      * @return Retained [TextureHandle].
      */
-    fun put(handle: TextureHandle): TextureHandle {
-        val key = handle.key
+    fun put(handle: TextureHandle, key: String = handle.key): TextureHandle {
+        val cacheKey = if (key.isNotEmpty()) key else handle.key
+        require(cacheKey.isNotEmpty()) { "Cache key must not be empty" }
         if (handle.isDisposed) return handle
 
-        val existing = get(key)
+        val existing = get(cacheKey)
         if (existing != null) {
             if (handle != existing) handle.dispose()
             return existing
         }
 
-        handle.setOnZeroRefs { deadHandle -> onHandleZeroRefs(deadHandle) }
-
-        val previous = cache.putIfAbsent(key, handle)
-        if (previous != null && !previous.isDisposed && previous.retain()) {
-            if (handle != previous) handle.dispose()
-            return previous
+        val newEntry = CacheEntry(handle)
+        val previous = cache.putIfAbsent(cacheKey, newEntry)
+        if (previous != null) {
+            val prevHandle = previous.handle
+            if (!prevHandle.isDisposed && prevHandle.retain()) {
+                previous.touch()
+                if (handle != prevHandle) handle.dispose()
+                return prevHandle
+            }
         }
 
+        trimIdlePool()
         return handle
     }
 
@@ -111,8 +133,8 @@ class LRUTextureCache(
     fun put(
         key: String,
         texture: Texture,
-        kind: TextureKind = TextureKind.MANAGED
-    ): TextureHandle = put(TextureHandle.of(key, texture, kind))
+        ownership: TextureOwnership = TextureOwnership.MANAGED
+    ): TextureHandle = put(TextureHandle(texture, ownership, key), key)
 
     /**
      * Retrieves a cached [TextureHandle], or computes and stores a new one via [factory] atomically.
@@ -125,7 +147,7 @@ class LRUTextureCache(
         val cached = get(key)
         if (cached != null) return cached
         val created = factory()
-        return put(created)
+        return put(created, key)
     }
 
     // =========================================================================
@@ -136,9 +158,9 @@ class LRUTextureCache(
      * Clears all idle (unreferenced, refCount == 0) textures from cache and frees GPU memory.
      */
     fun clearIdle() {
-        for ((key, handle) in cache) {
-            if (handle.activeRefCount == 0 && cache.remove(key, handle)) {
-                _idleVramBytes.addAndGet(-handle.byteSize)
+        for ((key, entry) in cache) {
+            val handle = entry.handle
+            if (handle.activeRefCount == 0 && cache.remove(key, entry)) {
                 handle.dispose()
             }
         }
@@ -148,11 +170,10 @@ class LRUTextureCache(
      * Clears the entire cache (both active and idle textures), disposing all managed resources.
      */
     fun clear() {
-        for ((key, handle) in cache) {
-            cache.remove(key, handle)
-            handle.dispose()
+        for ((key, entry) in cache) {
+            cache.remove(key, entry)
+            entry.handle.dispose()
         }
-        _idleVramBytes.set(0L)
     }
 
     // =========================================================================
@@ -160,33 +181,23 @@ class LRUTextureCache(
     // =========================================================================
 
     /**
-     * Invoked atomically when all active UI references to a [TextureHandle] reach 0.
-     * Updates idle VRAM tracking and triggers lock-free eviction.
-     */
-    private fun onHandleZeroRefs(handle: TextureHandle) {
-        if (handle.isDisposed) return
-        _idleVramBytes.addAndGet(handle.byteSize)
-        trimIdlePool()
-    }
-
-    /**
      * Trims idle textures down to [maxIdleVramBytes] in a lock-free, single-runner pass.
      */
-    private fun trimIdlePool() {
+    fun trimIdlePool() {
         if (!isTrimming.compareAndSet(false, true)) return
 
         try {
-            if (_idleVramBytes.get() <= maxIdleVramBytes) return
+            if (idleVramBytes <= maxIdleVramBytes) return
 
             // Collect all unreferenced handles sorted by least-recently accessed
-            val idleHandles = cache.values.filter { it.activeRefCount == 0 && !it.isDisposed }
-                .sortedBy { it.lastAccessTimeNano.get() }
+            val idleEntries = cache.entries
+                .filter { it.value.handle.activeRefCount == 0 && !it.value.handle.isDisposed }
+                .sortedBy { it.value.lastAccessNano.get() }
 
-            for (handle in idleHandles) {
-                if (_idleVramBytes.get() <= maxIdleVramBytes) break
-                if (handle.activeRefCount == 0 && cache.remove(handle.key, handle)) {
-                    _idleVramBytes.addAndGet(-handle.byteSize)
-                    handle.dispose()
+            for ((key, entry) in idleEntries) {
+                if (idleVramBytes <= maxIdleVramBytes) break
+                if (entry.handle.activeRefCount == 0 && cache.remove(key, entry)) {
+                    entry.handle.dispose()
                 }
             }
         } finally {
