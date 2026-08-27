@@ -13,11 +13,11 @@ import kotlin.collections.iterator
  * Designed for asynchronous game engines with zero blocking monitor locks (`synchronized`).
  *
  * ### Architectural Features:
- * 1. **Lock-Free Atomic Retrieval:** Atomic CAS increments pin textures in memory without thread blocking.
- * 2. **Zero VRAM Leak on Duplicate Put:** Redundant dynamic textures submitted to [put] are safely disposed immediately.
- * 3. **Non-Blocking Eviction:** High-resolution nanosecond timestamps order evictable idle handles (`refCount == 0`).
- * 4. **Protected Atlas Textures:** Game atlas and external textures marked [TextureKind.SHARED] are never destroyed.
- * 5. **Diagnostic Failure Tracking:** Handles can report [TextureHandle.isFailed] fallback status.
+ * 1. **TextureHandle-Centric:** All operations are managed strictly through [TextureHandle] lifecycle primitives.
+ * 2. **Lock-Free Atomic Retrieval:** Atomic CAS increments pin textures in memory without thread blocking.
+ * 3. **Zero VRAM Leak on Duplicate Put:** Redundant handles submitted to [put] are safely disposed immediately.
+ * 4. **Non-Blocking Eviction:** High-resolution nanosecond timestamps order evictable idle handles (`refCount == 0`).
+ * 5. **Protected Atlas Textures:** Textures marked [TextureKind.SHARED] or [TextureKind.FALLBACK] are never destroyed.
  *
  * See: docs/core-subsystems/core_subsystems_en.md
  */
@@ -78,37 +78,54 @@ class LRUTextureCache(
     fun contains(key: String): Boolean = cache.containsKey(key)
 
     /**
-     * Stores a new texture in the cache and returns a retained [TextureHandle].
-     * If the key already exists, safely disposes the redundant [texture] if [TextureKind.MANAGED] to prevent VRAM leaks.
+     * Stores a [TextureHandle] in the cache and returns a retained reference.
+     * If an entry with the same key already exists, disposes [handle] if it differs to prevent VRAM leaks.
      *
-     * @param key Unique texture key identifier.
-     * @param texture Unmanaged OpenGL [Texture] instance.
-     * @param kind Lifecycle classification of the texture.
+     * @param handle [TextureHandle] instance.
      * @return Retained [TextureHandle].
+     */
+    fun put(handle: TextureHandle): TextureHandle {
+        val key = handle.key
+        if (handle.isDisposed) return handle
+
+        val existing = get(key)
+        if (existing != null) {
+            if (handle != existing) handle.dispose()
+            return existing
+        }
+
+        handle.setOnZeroRefs { deadHandle -> onHandleZeroRefs(deadHandle) }
+
+        val previous = cache.putIfAbsent(key, handle)
+        if (previous != null && !previous.isDisposed && previous.retain()) {
+            if (handle != previous) handle.dispose()
+            return previous
+        }
+
+        return handle
+    }
+
+    /**
+     * Convenience overload storing a new raw [Texture] wrapped into a [TextureHandle].
      */
     fun put(
         key: String,
         texture: Texture,
         kind: TextureKind = TextureKind.MANAGED
-    ): TextureHandle {
-        val isDisposable = kind == TextureKind.MANAGED
+    ): TextureHandle = put(TextureHandle.of(key, texture, kind))
 
-        val existing = get(key)
-        if (existing != null) {
-            if (isDisposable && texture != existing.texture) AsyncDispatcher.onMainThread { texture.dispose() }
-            return existing
-        }
-
-        val byteSize = texture.width.toLong() * texture.height.toLong() * 4L
-        val handle = TextureHandle(key, texture, byteSize, kind) { deadHandle -> onHandleZeroRefs(deadHandle) }
-
-        val previous = cache.putIfAbsent(key, handle)
-        if (previous != null && !previous.isDisposed && previous.retain()) {
-            if (isDisposable && texture != previous.texture) AsyncDispatcher.onMainThread { texture.dispose() }
-            return previous
-        }
-
-        return handle
+    /**
+     * Retrieves a cached [TextureHandle], or computes and stores a new one via [factory] atomically.
+     *
+     * @param key Unique texture key identifier.
+     * @param factory Producer lambda creating the [TextureHandle] on cache miss.
+     * @return Retained [TextureHandle].
+     */
+    inline fun getOrPut(key: String, factory: () -> TextureHandle): TextureHandle {
+        val cached = get(key)
+        if (cached != null) return cached
+        val created = factory()
+        return put(created)
     }
 
     // =========================================================================
@@ -122,7 +139,7 @@ class LRUTextureCache(
         for ((key, handle) in cache) {
             if (handle.activeRefCount == 0 && cache.remove(key, handle)) {
                 _idleVramBytes.addAndGet(-handle.byteSize)
-                AsyncDispatcher.onMainThread { handle.dispose() }
+                handle.dispose()
             }
         }
     }
@@ -133,7 +150,7 @@ class LRUTextureCache(
     fun clear() {
         for ((key, handle) in cache) {
             cache.remove(key, handle)
-            AsyncDispatcher.onMainThread { handle.dispose() }
+            handle.dispose()
         }
         _idleVramBytes.set(0L)
     }
@@ -169,7 +186,7 @@ class LRUTextureCache(
                 if (_idleVramBytes.get() <= maxIdleVramBytes) break
                 if (handle.activeRefCount == 0 && cache.remove(handle.key, handle)) {
                     _idleVramBytes.addAndGet(-handle.byteSize)
-                    AsyncDispatcher.onMainThread { handle.dispose() }
+                    handle.dispose()
                 }
             }
         } finally {

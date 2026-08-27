@@ -91,6 +91,13 @@ open class ImageService(val context: EngineContext) {
      */
     fun fallbackRegion(): TextureRegion = context.host.resolveFallbackRegion()
 
+    /**
+     * Resolves and caches the platform-specific fallback placeholder [TextureHandle].
+     */
+    fun fallbackHandle(): TextureHandle = cache.getOrPut("fallback:placeholder") {
+        TextureHandle.fallback("fallback:placeholder", fallbackRegion())
+    }
+
     // =========================================================================
     // II. Pipeline Source Handlers
     // =========================================================================
@@ -98,21 +105,21 @@ open class ImageService(val context: EngineContext) {
     private fun loadAtlasSource(source: ImageSource.Atlas, callback: ImageLoadCallback) {
         val resolvedRegion = context.host.resolveAtlasRegion(source.name)
         if (resolvedRegion != null) {
-            val handle = cache.put("atlas:${source.name}", resolvedRegion.texture, kind = TextureKind.SHARED)
+            val handle = cache.getOrPut("atlas:${source.name}") {
+                TextureHandle.shared("atlas:${source.name}", resolvedRegion)
+            }
             callback(resolvedRegion, handle, null)
         } else {
-            val fallback = fallbackRegion()
-            val handle = cache.put("fallback:placeholder", fallback.texture, kind = TextureKind.FALLBACK)
-            callback(fallback, handle, IllegalArgumentException("Atlas sprite region not found: ${source.name}"))
+            val fallback = fallbackHandle()
+            callback(fallback.region, fallback, IllegalArgumentException("Atlas sprite region not found: ${source.name}"))
         }
     }
 
     private fun loadRegionSource(source: ImageSource.Region, callback: ImageLoadCallback) {
-        val handle = cache.put(
-            key = "region:" + source.region.texture.toString(),
-            texture = source.region.texture,
-            kind = TextureKind.SHARED
-        )
+        val key = "region:" + source.region.texture.hashCode()
+        val handle = cache.getOrPut(key) {
+            TextureHandle.shared(key, source.region)
+        }
         callback(source.region, handle, null)
     }
 
@@ -260,11 +267,10 @@ open class ImageService(val context: EngineContext) {
         targetCallbacks: List<ImageLoadCallback>,
         error: Throwable
     ) {
-        val fallback = fallbackRegion()
-        val handle = cache.put("fallback:placeholder", fallback.texture, kind = TextureKind.FALLBACK)
+        val fallback = fallbackHandle()
         AsyncDispatcher.onMainThread {
             for (callback in targetCallbacks) {
-                callback(fallback, handle, error)
+                callback(fallback.region, fallback, error)
             }
         }
     }
@@ -287,21 +293,17 @@ open class ImageService(val context: EngineContext) {
             val task = pendingUploadQueue.poll() ?: break
             processedCount++
             try {
-                val uploadedTexture = Texture(task.pixmap).apply {
-                    setFilter(Texture.TextureFilter.linear)
-                }
-                task.pixmap.dispose()
-                val textureHandle = cache.put(task.cacheKey, uploadedTexture, kind = TextureKind.MANAGED)
+                val handle = TextureHandle.fromPixmap(task.cacheKey, task.pixmap)
+                val cachedHandle = cache.put(handle)
                 for (callback in task.pendingCallbacks) {
-                    callback(textureHandle.region, textureHandle, null)
+                    callback(cachedHandle.region, cachedHandle, null)
                 }
             } catch (uploadError: Throwable) {
                 Log.err("[ImageService] Failed to upload GPU texture for key: ${task.cacheKey}", uploadError)
                 task.pixmap.dispose()
-                val fallback = fallbackRegion()
-                val textureHandle = cache.put("fallback:placeholder", fallback.texture, kind = TextureKind.FALLBACK)
+                val fallback = fallbackHandle()
                 for (callback in task.pendingCallbacks) {
-                    callback(fallback, textureHandle, uploadError)
+                    callback(fallback.region, fallback, uploadError)
                 }
             }
         }
