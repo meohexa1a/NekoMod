@@ -11,6 +11,8 @@ import org.mdt.ui.components.layout.Column
 import org.mdt.ui.components.layout.LayoutNode
 import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.text.MonoText
+import org.mdt.ui.screens.editor.components.EditorOptionGroup
+import org.mdt.ui.screens.editor.components.EditorPropertyRow
 import org.mdt.ui.theme.Theme
 
 /**
@@ -67,116 +69,79 @@ fun InspectorLayoutSection(node: UINode) {
     }
 
     // 2. Position X & Y
-    Column(arrangement = Arrangement.spacedBy(spacing.xs), modifier = Modifier.fillMaxWidth()) {
-        MonoText(text = "Position (px)", color = colors.textSecondary)
+    // 2. Position Offset X & Y
+    EditorPropertyRow(label = "Position (px)") {
         Row(arrangement = Arrangement.spacedBy(spacing.sm), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.weight(1.0f), arrangement = Arrangement.spacedBy(2f)) {
                 MonoText(text = "X: ${node.anchorData.offsetLeft.toInt()}", color = colors.textPrimary)
-                Row(arrangement = Arrangement.spacedBy(2f)) {
-                    listOf(0f, 50f, 150f, 300f).forEach { x ->
-                        Box(
-                            modifier = Modifier
-                                .radius(shapes.xs)
-                                .background(if (node.anchorData.offsetLeft == x) colors.surfaceHighlight else colors.surfaceSecondary)
-                                .clickable {
-                                    node.anchorData.offsetLeft = x
-                                    node.invalidateLayout()
-                                }
-                                .pad(horizontal = 4f, vertical = 2f)
-                        ) {
-                            MonoText(text = "${x.toInt()}", color = colors.textSecondary)
-                        }
-                    }
-                }
+                EditorOptionGroup(
+                    options = listOf(0f, 50f, 150f, 300f),
+                    selected = node.anchorData.offsetLeft,
+                    onSelect = {
+                        node.anchorData.offsetLeft = it
+                        node.invalidateLayout()
+                    },
+                    labelSelector = { "${it.toInt()}" }
+                )
             }
             Column(modifier = Modifier.weight(1.0f), arrangement = Arrangement.spacedBy(2f)) {
                 MonoText(text = "Y: ${node.anchorData.offsetTop.toInt()}", color = colors.textPrimary)
-                Row(arrangement = Arrangement.spacedBy(2f)) {
-                    listOf(0f, 50f, 150f, 300f).forEach { y ->
-                        Box(
-                            modifier = Modifier
-                                .radius(shapes.xs)
-                                .background(if (node.anchorData.offsetTop == y) colors.surfaceHighlight else colors.surfaceSecondary)
-                            .clickable {
-                                node.anchorData.offsetTop = y
-                                node.invalidateLayout()
-                            }
-                            .pad(horizontal = 4f, vertical = 2f)
-                        ) {
-                            MonoText(text = "${y.toInt()}", color = colors.textSecondary)
-                        }
-                    }
-                }
+                EditorOptionGroup(
+                    options = listOf(0f, 50f, 150f, 300f),
+                    selected = node.anchorData.offsetTop,
+                    onSelect = {
+                        node.anchorData.offsetTop = it
+                        node.invalidateLayout()
+                    },
+                    labelSelector = { "${it.toInt()}" }
+                )
             }
         }
     }
 
     // 3. Dimensions Width & Height
-    Column(arrangement = Arrangement.spacedBy(spacing.xs), modifier = Modifier.fillMaxWidth()) {
-        MonoText(text = "Dimensions (px)", color = colors.textSecondary)
+    EditorPropertyRow(label = "Dimensions (px)") {
         Row(arrangement = Arrangement.spacedBy(spacing.sm), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.weight(1.0f), arrangement = Arrangement.spacedBy(2f)) {
                 MonoText(text = "W: ${if (node.width < 0f) "Auto" else "${node.width.toInt()}"}", color = colors.textPrimary)
-                Row(arrangement = Arrangement.spacedBy(2f)) {
-                    listOf(100f, 200f, 400f, -1f).forEach { w ->
-                        Box(
-                            modifier = Modifier
-                                .radius(shapes.xs)
-                                .background(if (node.width == w) colors.surfaceHighlight else colors.surfaceSecondary)
-                                .clickable {
-                                    node.width = w
-                                    node.invalidateLayout()
-                                }
-                                .pad(horizontal = 4f, vertical = 2f)
-                        ) {
-                            MonoText(text = if (w < 0f) "Auto" else "${w.toInt()}", color = colors.textSecondary)
-                        }
-                    }
-                }
+                EditorOptionGroup(
+                    options = listOf(100f, 200f, 400f, -1f),
+                    selected = node.width,
+                    onSelect = {
+                        node.width = it
+                        node.invalidateLayout()
+                    },
+                    labelSelector = { if (it < 0f) "Auto" else "${it.toInt()}" }
+                )
             }
 
             Column(modifier = Modifier.weight(1.0f), arrangement = Arrangement.spacedBy(2f)) {
                 MonoText(text = "H: ${if (node.height < 0f) "Auto" else "${node.height.toInt()}"}", color = colors.textPrimary)
-                Row(arrangement = Arrangement.spacedBy(2f)) {
-                    listOf(40f, 80f, 140f, -1f).forEach { h ->
-                        Box(
-                            modifier = Modifier
-                                .radius(shapes.xs)
-                                .background(if (node.height == h) colors.surfaceHighlight else colors.surfaceSecondary)
-                                .clickable {
-                                    node.height = h
-                                    node.invalidateLayout()
-                                }
-                                .pad(horizontal = 4f, vertical = 2f)
-                        ) {
-                            MonoText(text = if (h < 0f) "Auto" else "${h.toInt()}", color = colors.textSecondary)
-                        }
-                    }
-                }
+                EditorOptionGroup(
+                    options = listOf(40f, 80f, 140f, -1f),
+                    selected = node.height,
+                    onSelect = {
+                        node.height = it
+                        node.invalidateLayout()
+                    },
+                    labelSelector = { if (it < 0f) "Auto" else "${it.toInt()}" }
+                )
             }
         }
     }
 
     // 4. Inward Padding (For LayoutNode)
     if (node is LayoutNode) {
-        Column(arrangement = Arrangement.spacedBy(spacing.xs), modifier = Modifier.fillMaxWidth()) {
-            MonoText(text = "Padding: ${node.padL.toInt()}px", color = colors.textSecondary)
-            Row(arrangement = Arrangement.spacedBy(4f)) {
-                listOf(0f, 8f, 16f, 22f, 32f).forEach { p ->
-                    Box(
-                        modifier = Modifier
-                            .radius(shapes.xs)
-                            .background(if (node.padL == p) colors.surfaceHighlight else colors.surfaceSecondary)
-                            .border(1f, colors.borderHairline)
-                            .clickable {
-                                node.pad(p)
-                            }
-                            .pad(horizontal = 6f, vertical = 2f)
-                    ) {
-                        MonoText(text = "${p.toInt()}px", color = colors.textPrimary)
-                    }
-                }
-            }
+        EditorPropertyRow(
+            label = "Padding",
+            subtitle = "${node.padL.toInt()}px"
+        ) {
+            EditorOptionGroup(
+                options = listOf(0f, 8f, 16f, 22f, 32f),
+                selected = node.padL,
+                onSelect = { node.pad(it) },
+                labelSelector = { "${it.toInt()}px" }
+            )
         }
     }
 }

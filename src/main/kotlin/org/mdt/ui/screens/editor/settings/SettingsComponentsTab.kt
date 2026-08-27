@@ -365,7 +365,6 @@ fun SettingsComponentsTab() {
                         ScrollView(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(130f)
                                 .radius(shapes.sm)
                                 .background(colors.surfaceSecondary)
                                 .border(1f, colors.borderHairline)
@@ -390,16 +389,15 @@ fun SettingsComponentsTab() {
                                     Box(
                                         modifier = Modifier
                                             .width(180f)
-                                            .fillMaxHeight()
                                             .radius(shapes.sm)
                                             .background(colors.surfaceElevated)
                                             .border(1f, colors.borderHairline)
                                             .pad(spacing.sm)
                                     ) {
                                         Column(
-                                            arrangement = Arrangement.spacedBy(4f),
+                                            arrangement = Arrangement.spacedBy(6f),
                                             alignment = Alignment.TopStart,
-                                            modifier = Modifier.fillMaxSize()
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Row(
                                                 arrangement = Arrangement.spacedBy(6f),
@@ -418,7 +416,6 @@ fun SettingsComponentsTab() {
                                                 MonoText(text = tier, color = tint)
                                             }
                                             Text(text = title, font = typography.title, color = colors.textPrimary)
-                                            Spacer(modifier = Modifier.weight(1.0f))
                                             Button(
                                                 text = "Select",
                                                 variant = ButtonVariant.PLAIN,

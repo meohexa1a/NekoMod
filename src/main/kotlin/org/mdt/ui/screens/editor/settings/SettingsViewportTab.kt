@@ -2,7 +2,6 @@ package org.mdt.ui.screens.editor.settings
 
 import androidx.compose.runtime.*
 import org.mdt.core.ui.compose.*
-import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
 import org.mdt.ui.components.layout.Box
@@ -11,6 +10,9 @@ import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.surface.Divider
 import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.screens.editor.components.EditorOptionGroup
+import org.mdt.ui.screens.editor.components.EditorPropertyRow
+import org.mdt.ui.screens.editor.components.EditorToggleRow
 import org.mdt.ui.theme.Theme
 
 /**
@@ -53,107 +55,65 @@ fun SettingsViewportTab() {
                 .pad(spacing.lg)
         ) {
             Column(arrangement = Arrangement.spacedBy(spacing.md), modifier = Modifier.fillMaxWidth()) {
-                // Grid Cell Size
-                Row(
-                    arrangement = Arrangement.spacedBy(spacing.md),
-                    alignment = Alignment.CenterStart,
-                    modifier = Modifier.fillMaxWidth()
+                // 1. Grid Cell Size
+                EditorPropertyRow(
+                    label = "Checkerboard Grid Cell Size",
+                    subtitle = "Procedural canvas tile base size"
                 ) {
-                    Column(modifier = Modifier.weight(1.0f), arrangement = Arrangement.spacedBy(2f)) {
-                        MonoText(text = "Checkerboard Grid Cell Size", color = colors.textPrimary)
-                        Text(text = "Base pixel dimension for procedural canvas tiles before zoom scaling.", color = colors.textSecondary)
-                    }
-                    Row(arrangement = Arrangement.spacedBy(4f)) {
-                        listOf(20f, 25f, 30f, 40f).forEach { size ->
-                            val isSel = selectedGridSize == size
-                            Box(
-                                modifier = Modifier
-                                    .radius(shapes.xs)
-                                    .background(if (isSel) colors.blue else colors.surfaceSecondary)
-                                    .border(1f, if (isSel) colors.blue else colors.borderHairline)
-                                    .clickable { selectedGridSize = size }
-                                    .pad(horizontal = spacing.md, vertical = 4f)
-                            ) {
-                                MonoText(text = "${size.toInt()}px", color = if (isSel) Color.White else colors.textPrimary)
-                            }
-                        }
-                    }
+                    EditorOptionGroup(
+                        options = listOf(20f, 25f, 30f, 40f),
+                        selected = selectedGridSize,
+                        onSelect = { selectedGridSize = it },
+                        labelSelector = { "${it.toInt()}px" }
+                    )
                 }
 
                 Divider(modifier = Modifier.fillMaxWidth().height(1f))
 
-                // Default Artboard Size
-                Row(
-                    arrangement = Arrangement.spacedBy(spacing.md),
-                    alignment = Alignment.CenterStart,
-                    modifier = Modifier.fillMaxWidth()
+                // 2. Default Artboard Size
+                EditorPropertyRow(
+                    label = "Default Scene Artboard Preset",
+                    subtitle = "Initial artboard dimensions for newly created scenes"
                 ) {
-                    Column(modifier = Modifier.weight(1.0f), arrangement = Arrangement.spacedBy(2f)) {
-                        MonoText(text = "Default Scene Artboard Preset", color = colors.textPrimary)
-                        Text(text = "Initial artboard dimensions for newly created scenes.", color = colors.textSecondary)
-                    }
-                    Row(arrangement = Arrangement.spacedBy(4f)) {
-                        listOf(
-                            "1920x1080" to "1080p FHD",
-                            "1280x720" to "720p HD",
-                            "390x844" to "Mobile"
-                        ).forEach { (preset, label) ->
-                            val isSel = selectedDefaultPreset == preset
-                            Box(
-                                modifier = Modifier
-                                    .radius(shapes.xs)
-                                    .background(if (isSel) colors.blue else colors.surfaceSecondary)
-                                    .border(1f, if (isSel) colors.blue else colors.borderHairline)
-                                    .clickable { selectedDefaultPreset = preset }
-                                    .pad(horizontal = spacing.md, vertical = 4f)
-                            ) {
-                                MonoText(text = label, color = if (isSel) Color.White else colors.textPrimary)
+                    EditorOptionGroup(
+                        options = listOf("1920x1080", "1280x720", "390x844"),
+                        selected = selectedDefaultPreset,
+                        onSelect = { selectedDefaultPreset = it },
+                        labelSelector = {
+                            when (it) {
+                                "1920x1080" -> "1080p FHD"
+                                "1280x720" -> "720p HD"
+                                else -> "Mobile (390x844)"
                             }
                         }
-                    }
+                    )
                 }
 
                 Divider(modifier = Modifier.fillMaxWidth().height(1f))
 
-                // Magnetic Snapping
-                Row(
-                    arrangement = Arrangement.spacedBy(spacing.md),
-                    alignment = Alignment.CenterStart,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.weight(1.0f), arrangement = Arrangement.spacedBy(2f)) {
-                        MonoText(text = "Magnetic Alignment Snapping", color = colors.textPrimary)
-                        Text(text = "Automatically snap node edges and centers to sibling alignment rails while dragging.", color = colors.textSecondary)
-                    }
-                    Row(arrangement = Arrangement.spacedBy(6f)) {
-                        Box(
-                            modifier = Modifier
-                                .radius(shapes.xs)
-                                .background(if (enableMagneticSnapping) colors.blue else colors.surfaceSecondary)
-                                .clickable { enableMagneticSnapping = !enableMagneticSnapping }
-                                .pad(horizontal = spacing.md, vertical = 4f)
-                        ) {
-                            MonoText(text = if (enableMagneticSnapping) "Snapping: ON" else "Snapping: OFF", color = if (enableMagneticSnapping) Color.White else colors.textSecondary)
-                        }
+                // 3. Magnetic Snapping
+                EditorToggleRow(
+                    title = "Magnetic Alignment Snapping",
+                    description = "Automatically snap node edges and centers to sibling alignment rails while dragging.",
+                    checked = enableMagneticSnapping,
+                    onToggle = { enableMagneticSnapping = it }
+                )
 
-                        if (enableMagneticSnapping) {
-                            listOf(4f, 8f, 12f).forEach { d ->
-                                val isSel = snapDistance == d
-                                Box(
-                                    modifier = Modifier
-                                        .radius(shapes.xs)
-                                        .background(if (isSel) colors.blue else colors.surfaceSecondary)
-                                        .border(1f, if (isSel) colors.blue else colors.borderHairline)
-                                        .clickable { snapDistance = d }
-                                        .pad(horizontal = spacing.sm, vertical = 4f)
-                                ) {
-                                    MonoText(text = "${d.toInt()}px", color = if (isSel) Color.White else colors.textSecondary)
-                                }
-                            }
-                        }
+                if (enableMagneticSnapping) {
+                    EditorPropertyRow(
+                        label = "Snap Distance Threshold",
+                        subtitle = "${snapDistance.toInt()}px threshold"
+                    ) {
+                        EditorOptionGroup(
+                            options = listOf(4f, 8f, 12f),
+                            selected = snapDistance,
+                            onSelect = { snapDistance = it },
+                            labelSelector = { "${it.toInt()}px" }
+                        )
                     }
                 }
             }
         }
     }
 }
+

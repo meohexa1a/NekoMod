@@ -47,7 +47,6 @@ fun EditorLeftSidebar(
         EditorMode.COMPONENTS -> "Components"
         EditorMode.ASSETS -> "Project Assets"
         EditorMode.I18N -> "Localization"
-        EditorMode.CODE -> "Virtual DOM Code"
         EditorMode.SETTINGS -> "Editor Settings"
     }
 
@@ -144,7 +143,6 @@ fun EditorLeftSidebar(
                             onSelectComponent = onSelectComponent
                         )
                         EditorMode.ASSETS, EditorMode.I18N, EditorMode.SETTINGS -> SidebarAssetsTab()
-                        EditorMode.CODE -> SidebarCodeTab(docState = docState)
                     }
                 }
             }

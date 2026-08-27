@@ -5,16 +5,15 @@ import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
-import org.mdt.core.ui.layout.LayoutPreset
 import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Column
 import org.mdt.ui.components.layout.Row
-import org.mdt.ui.components.layout.Spacer
 import org.mdt.ui.components.scroll.ScrollView
 import org.mdt.ui.components.surface.Divider
 import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.screens.editor.components.EditorSplitPane
 import org.mdt.ui.theme.StudioIcons
 import org.mdt.ui.theme.Theme
 
@@ -46,132 +45,89 @@ fun EditorSettingsScreen(
     modifier: UIModifier = UIModifier
 ) {
     var activeSection by remember { mutableStateOf(SettingsSection.GENERAL) }
-    var sidebarWidth by remember { mutableStateOf(220f) }
-    var isHoveringHandle by remember { mutableStateOf(false) }
-    var isDraggingHandle by remember { mutableStateOf(false) }
 
     val colors = Theme.colors
     val shapes = Theme.shapes
     val spacing = Theme.spacing
     val typography = Theme.typography
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(colors.canvasVoid)
-    ) {
-        Row(modifier = Modifier.fillMaxSize()) {
-
-            // =================================================================
-            // 1. Left Resizable Navigation Menu Panel
-            // =================================================================
+    EditorSplitPane(
+        initialSplit = 260f,
+        minSplit = 180f,
+        maxSplit = 500f,
+        modifier = modifier.background(colors.canvasVoid),
+        startPanel = {
+            // Sidebar Navigation Content
             Box(
                 modifier = Modifier
-                    .width(sidebarWidth)
-                    .fillMaxHeight()
+                    .fillMaxSize()
+                    .background(colors.surfacePrimary)
+                    .border(1f, colors.borderHairline)
+                    .pad(spacing.md)
             ) {
-                // Sidebar Content
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(colors.surfacePrimary)
-                        .border(1f, colors.borderHairline)
-                        .pad(spacing.md)
+                Column(
+                    arrangement = Arrangement.spacedBy(spacing.sm),
+                    alignment = Alignment.TopStart,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(
-                        arrangement = Arrangement.spacedBy(spacing.sm),
-                        alignment = Alignment.TopStart,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Preferences",
-                            font = typography.title,
-                            color = colors.textPrimary,
-                            modifier = Modifier.pad(horizontal = spacing.xs, vertical = spacing.xs)
-                        )
+                    Text(
+                        text = "Preferences",
+                        font = typography.title,
+                        color = colors.textPrimary,
+                        modifier = Modifier.pad(horizontal = spacing.xs, vertical = spacing.xs)
+                    )
 
-                        Divider(modifier = Modifier.fillMaxWidth().height(1f))
+                    Divider(modifier = Modifier.fillMaxWidth().height(1f))
 
-                        for (section in SettingsSection.values()) {
-                            val isSelected = section == activeSection
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .radius(shapes.xs)
-                                    .background(if (isSelected) colors.blue else Color.Clear)
-                                    .clickable { activeSection = section }
-                                    .pad(horizontal = spacing.sm, vertical = 6f)
+                    for (section in SettingsSection.values()) {
+                        val isSelected = section == activeSection
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .radius(shapes.xs)
+                                .background(if (isSelected) colors.blue else Color.Clear)
+                                .clickable { activeSection = section }
+                                .pad(horizontal = spacing.sm, vertical = 6f)
+                        ) {
+                            Row(
+                                arrangement = Arrangement.spacedBy(spacing.sm),
+                                alignment = Alignment.CenterStart,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
-                                    arrangement = Arrangement.spacedBy(spacing.sm),
-                                    alignment = Alignment.CenterStart,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Image(
-                                        source = section.iconUrl,
-                                        modifier = Modifier.size(16f),
-                                        tint = if (isSelected) Color.White else colors.textSecondary
-                                    )
-                                    MonoText(
-                                        text = section.label,
-                                        color = if (isSelected) Color.White else colors.textPrimary
-                                    )
-                                }
+                                Image(
+                                    source = section.iconUrl,
+                                    modifier = Modifier.size(16f),
+                                    tint = if (isSelected) Color.White else colors.textSecondary
+                                )
+                                MonoText(
+                                    text = section.label,
+                                    color = if (isSelected) Color.White else colors.textPrimary,
+                                    modifier = Modifier.weight(1.0f)
+                                )
                             }
                         }
                     }
                 }
-
-                // Interactive Seamless Edge Drag Seam
-                Box(
-                    modifier = Modifier
-                        .anchor(LayoutPreset.RIGHT_WIDE)
-                        .width(12f)
-                        .cursor(arc.Graphics.Cursor.SystemCursor.horizontalResize)
-                        .hoverable { isHoveringHandle = it }
-                        .onPointerDown { isDraggingHandle = true }
-                        .onPointerUp { isDraggingHandle = false }
-                        .onPointerDrag { event ->
-                            sidebarWidth = event.x.coerceIn(160f, 600f)
-                        }
-                ) {
-                    org.mdt.ui.components.surface.ResizeGripHandle(
-                        isHovered = isHoveringHandle,
-                        isDragging = isDraggingHandle
-                    )
-                }
             }
-
-            // =================================================================
-            // 2. Right Floating Content Area with Smooth Scroll
-            // =================================================================
-            Box(
+        },
+        endPanel = {
+            ScrollView(
                 modifier = Modifier
-                    .weight(1.0f)
-                    .fillMaxHeight()
+                    .fillMaxSize()
+                    .pad(horizontal = 48f, vertical = spacing.lg),
+                enableVertical = true
             ) {
-                ScrollView(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pad(horizontal = 48f, vertical = spacing.lg),
-                    enableVertical = true
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .pad(bottom = 60f)
-                    ) {
-                        when (activeSection) {
-                            SettingsSection.GENERAL -> SettingsGeneralTab()
-                            SettingsSection.VIEWPORT -> SettingsViewportTab()
-                            SettingsSection.GPU -> SettingsGpuTab()
-                            SettingsSection.COMPONENTS -> SettingsComponentsTab()
-                            SettingsSection.SHORTCUTS -> SettingsShortcutsTab()
-                            SettingsSection.ABOUT -> SettingsAboutTab()
-                        }
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    when (activeSection) {
+                        SettingsSection.GENERAL -> SettingsGeneralTab()
+                        SettingsSection.VIEWPORT -> SettingsViewportTab()
+                        SettingsSection.GPU -> SettingsGpuTab()
+                        SettingsSection.COMPONENTS -> SettingsComponentsTab()
+                        SettingsSection.SHORTCUTS -> SettingsShortcutsTab()
+                        SettingsSection.ABOUT -> SettingsAboutTab()
                     }
                 }
             }
         }
-    }
+    )
 }

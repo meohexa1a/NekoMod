@@ -13,6 +13,8 @@ import org.mdt.ui.components.layout.LayoutNode
 import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.text.TextNode
+import org.mdt.ui.screens.editor.components.EditorOptionGroup
+import org.mdt.ui.screens.editor.components.EditorPropertyRow
 import org.mdt.ui.theme.Theme
 
 /**
@@ -36,8 +38,7 @@ fun InspectorVisualsSection(node: UINode) {
         val vis = node.ensureVisuals()
 
         // 1. Background Fill Palette
-        Column(arrangement = Arrangement.spacedBy(spacing.xs), modifier = Modifier.fillMaxWidth()) {
-            MonoText(text = "Background Fill", color = colors.textSecondary)
+        EditorPropertyRow(label = "Background Fill") {
             Row(arrangement = Arrangement.spacedBy(4f), modifier = Modifier.fillMaxWidth()) {
                 listOf("#0a84ff", "#30d158", "#bf5af2", "#ff9f0a", "#1c1d22", "#ffffff").forEach { hex ->
                     val col = Color.valueOf(hex)
@@ -59,53 +60,41 @@ fun InspectorVisualsSection(node: UINode) {
         }
 
         // 2. Corner Radii
-        Column(arrangement = Arrangement.spacedBy(spacing.xs), modifier = Modifier.fillMaxWidth()) {
-            MonoText(text = "Corner Radius: ${vis.radii.topLeft.toInt()}px", color = colors.textSecondary)
-            Row(arrangement = Arrangement.spacedBy(4f)) {
-                listOf(0f, 4f, 8f, 12f, 16f, 999f).forEach { r ->
-                    Box(
-                        modifier = Modifier
-                            .radius(shapes.xs)
-                            .background(if (vis.radii.topLeft == r) colors.surfaceHighlight else colors.surfaceSecondary)
-                            .border(1f, colors.borderHairline)
-                            .clickable {
-                                vis.radii.set(r)
-                                node.invalidateLayout()
-                            }
-                            .pad(horizontal = 6f, vertical = 2f)
-                    ) {
-                        MonoText(text = "${r.toInt()}", color = colors.textPrimary)
-                    }
-                }
-            }
+        EditorPropertyRow(
+            label = "Corner Radius",
+            subtitle = "${vis.radii.topLeft.toInt()}px"
+        ) {
+            EditorOptionGroup(
+                options = listOf(0f, 4f, 8f, 12f, 16f, 999f),
+                selected = vis.radii.topLeft,
+                onSelect = {
+                    vis.radii.set(it)
+                    node.invalidateLayout()
+                },
+                labelSelector = { if (it >= 999f) "Pill" else "${it.toInt()}" }
+            )
         }
 
         // 3. Apple Frosted Glass Blur
-        Column(arrangement = Arrangement.spacedBy(spacing.xs), modifier = Modifier.fillMaxWidth()) {
-            MonoText(text = "Frosted Glass Blur: ${if (vis.backdrop.enabled) "${vis.backdrop.blurRadius.toInt()}px" else "Off"}", color = colors.textSecondary)
-            Row(arrangement = Arrangement.spacedBy(4f)) {
-                listOf(0f, 12f, 20f, 24f, 32f).forEach { b ->
-                    Box(
-                        modifier = Modifier
-                            .radius(shapes.xs)
-                            .background(if (vis.backdrop.enabled && vis.backdrop.blurRadius == b) colors.surfaceHighlight else colors.surfaceSecondary)
-                            .border(1f, colors.borderHairline)
-                            .clickable {
-                                vis.backdrop.enabled = b > 0f
-                                vis.backdrop.blurRadius = b
-                                if (b > 0f) {
-                                    vis.background.mode = BackgroundFill.Mode.BACKDROP
-                                    vis.background.color = Color(0.10f, 0.10f, 0.16f, 0.75f)
-                                    vis.backdrop.tint = Color(0.10f, 0.10f, 0.16f, 0.75f)
-                                }
-                                node.invalidateLayout()
-                            }
-                            .pad(horizontal = 6f, vertical = 2f)
-                    ) {
-                        MonoText(text = if (b == 0f) "Off" else "${b.toInt()}px", color = colors.textPrimary)
+        EditorPropertyRow(
+            label = "Frosted Glass Blur",
+            subtitle = if (vis.backdrop.enabled) "${vis.backdrop.blurRadius.toInt()}px" else "Off"
+        ) {
+            EditorOptionGroup(
+                options = listOf(0f, 12f, 20f, 24f, 32f),
+                selected = if (vis.backdrop.enabled) vis.backdrop.blurRadius else 0f,
+                onSelect = { b ->
+                    vis.backdrop.enabled = b > 0f
+                    vis.backdrop.blurRadius = b
+                    if (b > 0f) {
+                        vis.background.mode = BackgroundFill.Mode.BACKDROP
+                        vis.background.color = Color(0.10f, 0.10f, 0.16f, 0.75f)
+                        vis.backdrop.tint = Color(0.10f, 0.10f, 0.16f, 0.75f)
                     }
-                }
-            }
+                    node.invalidateLayout()
+                },
+                labelSelector = { if (it == 0f) "Off" else "${it.toInt()}px" }
+            )
         }
     }
 

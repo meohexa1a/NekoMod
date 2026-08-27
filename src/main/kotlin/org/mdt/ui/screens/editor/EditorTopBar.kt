@@ -1,6 +1,7 @@
 package org.mdt.ui.screens.editor
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
@@ -9,6 +10,7 @@ import org.mdt.core.ui.layout.LayoutPreset
 import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Row
+import org.mdt.ui.components.layout.Spacer
 import org.mdt.ui.components.surface.Button
 import org.mdt.ui.components.surface.ButtonVariant
 import org.mdt.ui.components.text.MonoText
@@ -71,6 +73,16 @@ fun EditorTopBar(
         // =====================================================================
         // 2. Center: Segmented Mode Switcher (True Screen Mathematical Dead-Center)
         // =====================================================================
+        val dynamicTabWidth = remember(EditorMode.values()) {
+            val layout = arc.graphics.g2d.GlyphLayout()
+            val font = mindustry.ui.Fonts.def
+            val maxContentWidth = EditorMode.values().maxOf { mode ->
+                layout.setText(font, mode.title)
+                16f + (spacing.xs + 2f) + layout.width
+            }
+            maxContentWidth + (spacing.md * 2f)
+        }
+
         Box(
             modifier = Modifier
                 .anchor(LayoutPreset.CENTER)
@@ -87,20 +99,23 @@ fun EditorTopBar(
                     val isSelected = mode == currentMode
                     Box(
                         modifier = Modifier
+                            .width(dynamicTabWidth)
                             .radius(shapes.sm)
                             .background(if (isSelected) colors.surfaceHighlight else Color.Clear)
                             .clickable { onSelectMode(mode) }
-                            .pad(horizontal = spacing.md, vertical = spacing.xs + 1f)
+                            .pad(vertical = spacing.xs + 2f)
                     ) {
                         Row(
-                            arrangement = Arrangement.spacedBy(spacing.sm),
-                            alignment = Alignment.CenterStart
+                            arrangement = Arrangement.Center,
+                            alignment = Alignment.Center,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Image(
                                 source = mode.iconUrl,
                                 modifier = Modifier.size(16f),
                                 tint = if (isSelected) colors.blue else colors.textTertiary
                             )
+                            Spacer(modifier = Modifier.width(spacing.xs + 2f))
                             MonoText(
                                 text = mode.title,
                                 color = if (isSelected) colors.textPrimary else colors.textSecondary

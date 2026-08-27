@@ -12,6 +12,7 @@ import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.surface.Divider
 import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.screens.editor.components.EditorToggleRow
 import org.mdt.ui.theme.StudioIcons
 import org.mdt.ui.theme.Theme
 
@@ -90,37 +91,19 @@ fun SettingsGeneralTab() {
                 Divider(modifier = Modifier.fillMaxWidth().height(1f))
 
                 // Telemetry & Monitoring
-                Row(
-                    arrangement = Arrangement.spacedBy(spacing.md),
-                    alignment = Alignment.CenterStart,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.weight(1.0f), arrangement = Arrangement.spacedBy(2f)) {
-                        MonoText(text = "Status Bar Telemetry Display", color = colors.textPrimary)
-                        Text(text = "Display real-time FPS counter and VRAM usage on the bottom status bar.", color = colors.textSecondary)
-                    }
-                    Row(arrangement = Arrangement.spacedBy(8f)) {
-                        Box(
-                            modifier = Modifier
-                                .radius(shapes.xs)
-                                .background(if (enableFpsCounter) colors.blue else colors.surfaceSecondary)
-                                .clickable { enableFpsCounter = !enableFpsCounter }
-                                .pad(horizontal = spacing.md, vertical = 4f)
-                        ) {
-                            MonoText(text = if (enableFpsCounter) "FPS: ON" else "FPS: OFF", color = if (enableFpsCounter) Color.White else colors.textSecondary)
-                        }
+                EditorToggleRow(
+                    title = "Real-Time FPS Telemetry",
+                    description = "Display live frames-per-second monitor on the bottom status bar.",
+                    checked = enableFpsCounter,
+                    onToggle = { enableFpsCounter = it }
+                )
 
-                        Box(
-                            modifier = Modifier
-                                .radius(shapes.xs)
-                                .background(if (enableVramMonitor) colors.blue else colors.surfaceSecondary)
-                                .clickable { enableVramMonitor = !enableVramMonitor }
-                                .pad(horizontal = spacing.md, vertical = 4f)
-                        ) {
-                            MonoText(text = if (enableVramMonitor) "VRAM: ON" else "VRAM: OFF", color = if (enableVramMonitor) Color.White else colors.textSecondary)
-                        }
-                    }
-                }
+                EditorToggleRow(
+                    title = "VRAM Memory Telemetry",
+                    description = "Display GPU VRAM and texture memory allocations on the bottom status bar.",
+                    checked = enableVramMonitor,
+                    onToggle = { enableVramMonitor = it }
+                )
             }
         }
     }
