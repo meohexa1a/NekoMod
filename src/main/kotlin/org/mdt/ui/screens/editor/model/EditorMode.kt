@@ -15,6 +15,5 @@ enum class EditorMode(val title: String, val iconUrl: String) {
     COMPONENTS("Components", StudioIcons.COMPONENTS),
     ASSETS("Assets", StudioIcons.IMAGE),
     I18N("i18n", StudioIcons.I18N),
-    CODE("Code", StudioIcons.CODE),
     SETTINGS("Settings", StudioIcons.SETTINGS)
 }
