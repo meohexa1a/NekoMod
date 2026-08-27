@@ -20,8 +20,6 @@ enum class TextureOwnership {
     SHARED
 }
 
-typealias TextureKind = TextureOwnership
-
 /**
  * ## TextureHandle
  *

@@ -1,7 +1,7 @@
 package org.mdt.ui.screens.editor.state
 
-import arc.graphics.Color
 import org.mdt.core.ui.UINode
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.ColumnMeasurePolicy
 import org.mdt.core.ui.layout.LayoutPreset
@@ -47,11 +47,11 @@ object SceneGraphFactory {
             vis.background.mode = BackgroundFill.Mode.BACKDROP
             vis.backdrop.enabled = true
             vis.backdrop.blurRadius = 24f
-            vis.backdrop.tint.set(Color(0.10f, 0.10f, 0.16f, 0.75f))
-            vis.background.color.set(Color(0.10f, 0.10f, 0.16f, 0.75f))
+            vis.backdrop.tint = Color(0.10f, 0.10f, 0.16f, 0.75f)
+            vis.background.color = Color(0.10f, 0.10f, 0.16f, 0.75f)
             vis.radii.set(16f)
             vis.border.width = 1f
-            vis.border.color.set(Color(1f, 1f, 1f, 0.14f))
+            vis.border.color = Color(1f, 1f, 1f, 0.14f)
 
             measurePolicy = ColumnMeasurePolicy(gap = 14f, alignment = Alignment.TopStart)
         }
@@ -70,7 +70,7 @@ object SceneGraphFactory {
             height = 36f
             val vis = ensureVisuals()
             vis.background.mode = BackgroundFill.Mode.COLOR
-            vis.background.color.set(Color.valueOf("0a84ff"))
+            vis.background.color = Color.valueOf("0a84ff")
             vis.radii.set(8f)
         }
 
@@ -83,7 +83,7 @@ object SceneGraphFactory {
         val titleText = TextNode(text = "Apple HIG Virtual Studio").apply {
             id = "title_text"
             name = "Studio Title"
-            textVisuals.color = Color.white
+            textVisuals.color = Color.White
         }
 
         val subtitleText = TextNode(text = "Real-time GPU Gaussian Blur & SDF").apply {
@@ -106,7 +106,7 @@ object SceneGraphFactory {
             sizeFlagsHorizontal = org.mdt.core.ui.layout.SizeFlags.FILL
             val vis = ensureVisuals()
             vis.background.mode = BackgroundFill.Mode.COLOR
-            vis.background.color.set(Color(1f, 1f, 1f, 0.08f))
+            vis.background.color = Color(1f, 1f, 1f, 0.08f)
         }
 
         // Body Description
@@ -132,11 +132,11 @@ object SceneGraphFactory {
             pad(horizontal = 18f, vertical = 10f)
             val vis = ensureVisuals()
             vis.background.mode = BackgroundFill.Mode.COLOR
-            vis.background.color.set(Color.valueOf("0a84ff"))
+            vis.background.color = Color.valueOf("0a84ff")
             vis.radii.set(8f)
             addChild(TextNode(text = "Get Started").apply {
                 id = "btn_txt_1"
-                textVisuals.color = Color.white
+                textVisuals.color = Color.White
             })
         }
 
@@ -146,11 +146,11 @@ object SceneGraphFactory {
             pad(horizontal = 18f, vertical = 10f)
             val vis = ensureVisuals()
             vis.background.mode = BackgroundFill.Mode.COLOR
-            vis.background.color.set(Color.valueOf("2c3e55"))
+            vis.background.color = Color.valueOf("2c3e55")
             vis.radii.set(8f)
             addChild(TextNode(text = "Docs").apply {
                 id = "btn_txt_2"
-                textVisuals.color = Color.white
+                textVisuals.color = Color.White
             })
         }
 

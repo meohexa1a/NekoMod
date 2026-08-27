@@ -1,11 +1,11 @@
 package org.mdt.ui.screens.editor.sidebar
 
 import androidx.compose.runtime.Composable
-import arc.graphics.Color
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
-import org.mdt.ui.components.display.image.Image
+import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.*
 import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.text.Text
@@ -58,7 +58,7 @@ fun SidebarComponentsTab(
                     }
                     .pad(horizontal = spacing.sm, vertical = 2f)
             ) {
-                Text(text = "+ New", color = Color.white, scale = 1.0f)
+                Text(text = "+ New", color = Color.White, scale = 1.0f)
             }
         }
 

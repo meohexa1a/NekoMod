@@ -1,9 +1,9 @@
 package org.mdt.ui.screens.editor.inspector
 
 import androidx.compose.runtime.Composable
-import arc.graphics.Color
 import org.mdt.core.ui.UINode
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Arrangement
 import org.mdt.core.ui.layout.LayoutPreset
 import org.mdt.ui.components.layout.Box
@@ -57,7 +57,7 @@ fun InspectorLayoutSection(node: UINode) {
                         ) {
                             MonoText(
                                 text = label,
-                                color = if (isSel) Color.white else colors.textSecondary
+                                color = if (isSel) Color.White else colors.textSecondary
                             )
                         }
                     }
@@ -97,11 +97,11 @@ fun InspectorLayoutSection(node: UINode) {
                             modifier = Modifier
                                 .radius(shapes.xs)
                                 .background(if (node.anchorData.offsetTop == y) colors.surfaceHighlight else colors.surfaceSecondary)
-                                .clickable {
-                                    node.anchorData.offsetTop = y
-                                    node.invalidateLayout()
-                                }
-                                .pad(horizontal = 4f, vertical = 2f)
+                            .clickable {
+                                node.anchorData.offsetTop = y
+                                node.invalidateLayout()
+                            }
+                            .pad(horizontal = 4f, vertical = 2f)
                         ) {
                             MonoText(text = "${y.toInt()}", color = colors.textSecondary)
                         }

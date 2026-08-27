@@ -1,9 +1,9 @@
 package org.mdt.ui.screens.editor.inspector
 
 import androidx.compose.runtime.Composable
-import arc.graphics.Color
 import org.mdt.core.ui.UINode
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
 import org.mdt.ui.components.layout.BackgroundFill
@@ -50,7 +50,7 @@ fun InspectorVisualsSection(node: UINode) {
                             .border(if (isSel) 2f else 1f, if (isSel) colors.blue else colors.borderHairline)
                             .clickable {
                                 vis.background.mode = BackgroundFill.Mode.COLOR
-                                vis.background.color.set(col)
+                                vis.background.color = col
                                 node.invalidateLayout()
                             }
                     )
@@ -95,8 +95,8 @@ fun InspectorVisualsSection(node: UINode) {
                                 vis.backdrop.blurRadius = b
                                 if (b > 0f) {
                                     vis.background.mode = BackgroundFill.Mode.BACKDROP
-                                    vis.background.color.set(Color(0.10f, 0.10f, 0.16f, 0.75f))
-                                    vis.backdrop.tint.set(Color(0.10f, 0.10f, 0.16f, 0.75f))
+                                    vis.background.color = Color(0.10f, 0.10f, 0.16f, 0.75f)
+                                    vis.backdrop.tint = Color(0.10f, 0.10f, 0.16f, 0.75f)
                                 }
                                 node.invalidateLayout()
                             }

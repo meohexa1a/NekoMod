@@ -1,11 +1,11 @@
 package org.mdt.ui.screens.editor
 
 import androidx.compose.runtime.*
-import arc.graphics.Color
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
-import org.mdt.ui.components.display.image.Image
+import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.*
 import org.mdt.ui.components.scroll.ScrollView
 import org.mdt.ui.components.surface.Divider
@@ -87,7 +87,7 @@ fun EditorLeftSidebar(
                         Image(
                             source = StudioIcons.PLUS,
                             modifier = Modifier.fillMaxSize(),
-                            tint = if (showAddMenu) Color.white else colors.textSecondary
+                            tint = if (showAddMenu) Color.White else colors.textSecondary
                         )
                     }
                 } else if (mode == EditorMode.COMPONENTS) {
@@ -102,7 +102,7 @@ fun EditorLeftSidebar(
                             }
                             .pad(horizontal = spacing.xs + 2f, vertical = 2f)
                     ) {
-                        Text(text = "+ New", color = Color.white, scale = 1.0f)
+                        Text(text = "+ New", color = Color.White, scale = 1.0f)
                     }
                 }
 

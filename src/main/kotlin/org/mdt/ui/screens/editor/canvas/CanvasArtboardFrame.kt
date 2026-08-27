@@ -1,11 +1,12 @@
 package org.mdt.ui.screens.editor.canvas
 
 import arc.Core
-import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
+import arc.util.Tmp
 import mindustry.ui.Fonts
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.render.EngineRenderer
 import org.mdt.ui.components.layout.SceneNode
 
@@ -43,7 +44,7 @@ object CanvasArtboardFrame {
         rootScene.layout()
 
         // 2. Artboard Frame Drop Shadow
-        Draw.color(Color(0f, 0f, 0f, 0.40f))
+        Draw.color(Color(0f, 0f, 0f, 0.40f).toArcColor(Tmp.c1))
         Fill.rect(sceneX + artW * 0.5f, sceneY + artH * 0.5f - 4f, artW + 8f, artH + 8f)
 
         // 3. Render Virtual Node Scene Graph
@@ -55,14 +56,14 @@ object CanvasArtboardFrame {
         val badgeX = sceneX + 60f
         val badgeY = sceneY + artH + 16f
 
-        Draw.color(Color(0.08f, 0.08f, 0.12f, 0.85f))
+        Draw.color(Color(0.08f, 0.08f, 0.12f, 0.85f).toArcColor(Tmp.c1))
         Fill.rect(badgeX, badgeY, 140f, 20f)
-        Draw.color(Color(0.2f, 0.5f, 1.0f, 0.4f))
+        Draw.color(Color(0.2f, 0.5f, 1.0f, 0.4f).toArcColor(Tmp.c1))
         Lines.stroke(1f)
         Lines.rect(badgeX - 70f, badgeY - 10f, 140f, 20f)
 
-        Draw.color(Color.white)
+        Draw.color()
         font.draw(headerText, badgeX - 64f, badgeY + 4f)
-        Draw.color(Color.white)
+        Draw.color()
     }
 }

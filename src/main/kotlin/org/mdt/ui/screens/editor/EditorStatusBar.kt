@@ -2,12 +2,12 @@ package org.mdt.ui.screens.editor
 
 import androidx.compose.runtime.*
 import arc.Core
-import arc.graphics.Color
 import org.mdt.core.engine.EngineContext
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
-import org.mdt.ui.components.display.image.Image
+import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.layout.Spacer

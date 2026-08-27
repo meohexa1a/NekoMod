@@ -1,11 +1,12 @@
 package org.mdt.ui.screens.editor.canvas
 
-import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.g2d.Lines
+import arc.util.Tmp
 import mindustry.ui.Fonts
 import org.mdt.core.ui.UINode
+import org.mdt.core.ui.graphics.Color
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -36,7 +37,7 @@ object CanvasGizmoOverlay {
         val handleSize = 8f
 
         // 1. Bounding Outline
-        Draw.color(blue)
+        Draw.color(blue.toArcColor(Tmp.c1))
         Lines.stroke(2f)
         Lines.rect(bx, by, bw, bh)
 
@@ -53,10 +54,10 @@ object CanvasGizmoOverlay {
         )
 
         for ((hx, hy) in handles) {
-            Draw.color(Color.white)
+            Draw.color(Color.White.toArcColor(Tmp.c1))
             Fill.rect(hx, hy, handleSize, handleSize)
 
-            Draw.color(blue)
+            Draw.color(blue.toArcColor(Tmp.c1))
             Lines.stroke(1.5f)
             Lines.rect(hx - handleSize * 0.5f, hy - handleSize * 0.5f, handleSize, handleSize)
         }
@@ -71,16 +72,16 @@ object CanvasGizmoOverlay {
         val badgeX = bx + bw * 0.5f
         val badgeY = by - 16f
 
-        Draw.color(Color(0.08f, 0.08f, 0.10f, 0.85f))
+        Draw.color(Color(0.08f, 0.08f, 0.10f, 0.85f).toArcColor(Tmp.c1))
         Fill.rect(badgeX, badgeY, badgeW, badgeH)
 
-        Draw.color(blue)
+        Draw.color(blue.toArcColor(Tmp.c1))
         Lines.stroke(1f)
         Lines.rect(badgeX - badgeW * 0.5f, badgeY - badgeH * 0.5f, badgeW, badgeH)
 
-        Draw.color(Color.white)
+        Draw.color()
         font.draw(tagLabel, badgeX - badgeW * 0.46f, badgeY + 5f)
-        Draw.color(Color.white)
+        Draw.color()
     }
 
     /**
@@ -101,12 +102,12 @@ object CanvasGizmoOverlay {
         val strokeColor = if (isFrame) Color.valueOf("bf5af2") else Color.valueOf("0a84ff")
         val fillColor = Color(strokeColor.r, strokeColor.g, strokeColor.b, 0.12f)
 
-        Draw.color(fillColor)
+        Draw.color(fillColor.toArcColor(Tmp.c1))
         Fill.rect(left + w * 0.5f, bottom + h * 0.5f, w, h)
 
-        Draw.color(strokeColor)
+        Draw.color(strokeColor.toArcColor(Tmp.c1))
         Lines.stroke(2f)
         Lines.rect(left, bottom, w, h)
-        Draw.color(Color.white)
+        Draw.color()
     }
 }

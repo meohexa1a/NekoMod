@@ -38,14 +38,7 @@ class LRUTextureCache(
 
     /** Total VRAM in bytes consumed by idle (unreferenced, refCount == 0) textures. */
     val idleVramBytes: Long
-        get() = cache.values.sumOf { entry ->
-            val h = entry.handle
-            if (!h.isDisposed && h.activeRefCount == 0) h.byteSize else 0L
-        }
-
-    /** Total VRAM in bytes consumed by all cached textures. */
-    val totalVramBytes: Long
-        get() = cache.values.sumOf { if (!it.handle.isDisposed) it.handle.byteSize else 0L }
+        get() = cache.values.sumOf { if (!it.handle.isDisposed && it.handle.isDisposable && it.handle.activeRefCount == 0) it.handle.byteSize else 0L }
 
     /** Total VRAM in bytes consumed by dynamic managed textures (excluding shared game atlas). */
     val dynamicVramBytes: Long
@@ -102,7 +95,7 @@ class LRUTextureCache(
      * @return Retained [TextureHandle].
      */
     fun put(handle: TextureHandle, key: String = handle.key): TextureHandle {
-        val cacheKey = if (key.isNotEmpty()) key else handle.key
+        val cacheKey = key.ifEmpty { handle.key }
         require(cacheKey.isNotEmpty()) { "Cache key must not be empty" }
         if (handle.isDisposed) return handle
 

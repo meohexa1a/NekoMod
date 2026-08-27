@@ -6,7 +6,7 @@ import arc.Graphics.Cursor.SystemCursor
 import org.mdt.core.ui.Rect
 import org.mdt.core.ui.UINode
 import org.mdt.core.ui.compose.*
-import org.mdt.ui.components.display.canvas.Canvas
+import org.mdt.ui.components.display.Canvas
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.LayoutNode
 import org.mdt.ui.components.layout.SceneNode

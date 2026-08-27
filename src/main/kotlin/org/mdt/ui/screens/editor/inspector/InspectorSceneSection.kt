@@ -1,14 +1,14 @@
 package org.mdt.ui.screens.editor.inspector
 
 import androidx.compose.runtime.Composable
-import arc.graphics.Color
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Arrangement
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Column
 import org.mdt.ui.components.layout.Row
-import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.layout.SceneNode
+import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.theme.Theme
 
 /**
@@ -48,7 +48,7 @@ fun InspectorSceneSection(node: SceneNode) {
                 ) {
                     MonoText(
                         text = label,
-                        color = if (isSel) Color.white else colors.textSecondary
+                        color = if (isSel) Color.White else colors.textSecondary
                     )
                 }
             }
@@ -82,8 +82,8 @@ fun InspectorSceneSection(node: SceneNode) {
                         .background(col)
                         .border(if (isSel) 2f else 1f, if (isSel) colors.blue else colors.borderHairline)
                         .clickable {
-                            node.backgroundColor.set(col)
-                            node.ensureVisuals().background.color.set(col)
+                            node.backgroundColor = col
+                            node.ensureVisuals().background.color = col
                             node.invalidateLayout()
                         }
                 )

@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
-import org.mdt.ui.components.display.image.Image
+import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.*
 import org.mdt.ui.components.surface.Divider
 import org.mdt.ui.components.text.MonoText

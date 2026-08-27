@@ -1,6 +1,6 @@
 package org.mdt.ui.screens.editor.model
 
-import arc.graphics.Color
+import org.mdt.core.ui.graphics.Color
 
 /**
  * ## TreeItemData
@@ -15,7 +15,7 @@ data class TreeItemData(
     val name: String,
     val type: String,
     val iconUrl: String,
-    val iconTint: Color = Color.white,
+    val iconTint: Color = Color.White,
     val depth: Int = 0,
     val isExpandable: Boolean = false,
     val isExpanded: Boolean = false

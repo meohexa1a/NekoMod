@@ -1,17 +1,18 @@
 package org.mdt.ui.screens.editor.canvas
 
 import androidx.compose.runtime.*
-import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
+import arc.util.Tmp
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
 import org.mdt.core.ui.layout.ColumnMeasurePolicy
 import org.mdt.core.ui.layout.LayoutPreset
 import org.mdt.core.ui.layout.RowMeasurePolicy
-import org.mdt.ui.components.display.canvas.Canvas
-import org.mdt.ui.components.display.image.Image
+import org.mdt.ui.components.display.Canvas
+import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.BackgroundFill
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.LayoutNode
@@ -70,11 +71,11 @@ fun ComponentCanvas(
                     vis.background.mode = BackgroundFill.Mode.BACKDROP
                     vis.backdrop.enabled = true
                     vis.backdrop.blurRadius = blurVal
-                    vis.backdrop.tint.set(Color(0.10f, 0.10f, 0.16f, 0.75f))
-                    vis.background.color.set(Color(0.10f, 0.10f, 0.16f, 0.75f))
+                    vis.backdrop.tint = Color(0.10f, 0.10f, 0.16f, 0.75f)
+                    vis.background.color = Color(0.10f, 0.10f, 0.16f, 0.75f)
                     vis.radii.set(16f)
                     vis.border.width = 1f
-                    vis.border.color.set(Color(1f, 1f, 1f, 0.14f))
+                    vis.border.color = Color(1f, 1f, 1f, 0.14f)
                     measurePolicy = ColumnMeasurePolicy(gap = 12f)
                 }
 
@@ -85,11 +86,11 @@ fun ComponentCanvas(
                         height = 32f
                         val v = ensureVisuals()
                         v.background.mode = BackgroundFill.Mode.COLOR
-                        v.background.color.set(Color.valueOf("0a84ff"))
+                        v.background.color = Color.valueOf("0a84ff")
                         v.radii.set(8f)
                     })
                     addChild(TextNode(text = "Glass Card Component • ${activeState.label}").apply {
-                        textVisuals.color = Color.white
+                        textVisuals.color = Color.White
                     })
                 }
 
@@ -112,11 +113,11 @@ fun ComponentCanvas(
                     pad(horizontal = 14f, vertical = 6f)
                     val vis = ensureVisuals()
                     vis.background.mode = BackgroundFill.Mode.COLOR
-                    vis.background.color.set(bg)
+                    vis.background.color = bg
                     vis.radii.set(999f)
                     measurePolicy = RowMeasurePolicy(gap = 6f, alignment = Alignment.CenterStart)
                     addChild(TextNode(text = "Active • ${activeState.label}").apply {
-                        textVisuals.color = Color.white
+                        textVisuals.color = Color.White
                     })
                 }
                 root.addChild(badge)
@@ -136,10 +137,10 @@ fun ComponentCanvas(
                     pad(horizontal = padH, vertical = padV)
                     val vis = ensureVisuals()
                     vis.background.mode = BackgroundFill.Mode.COLOR
-                    vis.background.color.set(btnBg)
+                    vis.background.color = btnBg
                     vis.radii.set(8f)
                     addChild(TextNode(text = "$componentName • ${activeState.label}").apply {
-                        textVisuals.color = if (activeState == ComponentState.DISABLED) Color.valueOf("8e8e93") else Color.white
+                        textVisuals.color = if (activeState == ComponentState.DISABLED) Color.valueOf("8e8e93") else Color.White
                     })
                 }
                 root.addChild(btn)
@@ -170,7 +171,8 @@ fun ComponentCanvas(
                 for (col in 0..cols) {
                     val cellX = col * tileSize
                     val isEven = ((col + row) % 2 + 2) % 2 == 0
-                    Draw.color(if (isEven) darkGrid else lightGrid)
+                    val color = if (isEven) darkGrid else lightGrid
+                    Draw.color(color.toArcColor(Tmp.c1))
                     Fill.rect(
                         cellX + tileSize * 0.5f,
                         cellY + tileSize * 0.5f,
@@ -179,7 +181,7 @@ fun ComponentCanvas(
                     )
                 }
             }
-            Draw.color(Color.white)
+            Draw.color()
         }
 
         // 2. Direct Virtual Node Component Render Pass
@@ -211,7 +213,7 @@ fun ComponentCanvas(
                     Box(
                         modifier = Modifier
                             .radius(shapes.pill)
-                            .background(if (isSelected) colors.blue else Color.clear)
+                            .background(if (isSelected) colors.blue else Color.Clear)
                             .clickable { activeState = state }
                             .pad(horizontal = spacing.md, vertical = spacing.xs + 1f)
                     ) {
@@ -222,11 +224,11 @@ fun ComponentCanvas(
                             Image(
                                 source = state.iconUrl,
                                 modifier = Modifier.size(12f),
-                                tint = if (isSelected) Color.white else colors.textSecondary
+                                tint = if (isSelected) Color.White else colors.textSecondary
                             )
                             MonoText(
                                 text = state.label,
-                                color = if (isSelected) Color.white else colors.textSecondary
+                                color = if (isSelected) Color.White else colors.textSecondary
                             )
                         }
                     }
@@ -266,8 +268,8 @@ fun ComponentCanvas(
                         Box(
                             modifier = Modifier
                                 .radius(shapes.xs)
-                                .background(if (isSel) colors.surfaceHighlight else Color.clear)
-                                .border(if (isSel) 1f else 0f, if (isSel) colors.blue else Color.clear)
+                                .background(if (isSel) colors.surfaceHighlight else Color.Clear)
+                                .border(if (isSel) 1f else 0f, if (isSel) colors.blue else Color.Clear)
                             .clickable { activeSize = size }
                             .pad(horizontal = spacing.xs + 2f, vertical = 2f)
                         ) {

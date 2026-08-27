@@ -1,13 +1,13 @@
 package org.mdt.ui.screens.editor.sidebar
 
 import androidx.compose.runtime.Composable
-import arc.graphics.Color
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
 import org.mdt.core.ui.layout.ColumnMeasurePolicy
 import org.mdt.core.ui.layout.RowMeasurePolicy
-import org.mdt.ui.components.display.image.Image
+import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.*
 import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.components.text.TextNode
@@ -66,11 +66,11 @@ fun SidebarLayersTab(
                                 height = 100f
                                 val v = ensureVisuals()
                                 v.background.mode = BackgroundFill.Mode.COLOR
-                                v.background.color.set(Color.valueOf("0a84ff"))
+                                v.background.color = Color.valueOf("0a84ff")
                                 v.radii.set(8f)
                             }
                         },
-                        "Text" to { TextNode(text = "Sample Text").apply { textVisuals.color = Color.white } },
+                        "Text" to { TextNode(text = "Sample Text").apply { textVisuals.color = Color.White } },
                         "Column" to { LayoutNode().apply { measurePolicy = ColumnMeasurePolicy(gap = 8f) } },
                         "Row" to { LayoutNode().apply { measurePolicy = RowMeasurePolicy(gap = 8f) } },
                         "Glass" to {
@@ -81,8 +81,8 @@ fun SidebarLayersTab(
                                 v.background.mode = BackgroundFill.Mode.BACKDROP
                                 v.backdrop.enabled = true
                                 v.backdrop.blurRadius = 20f
-                                v.backdrop.tint.set(Color(0.12f, 0.13f, 0.18f, 0.70f))
-                                v.background.color.set(Color(0.12f, 0.13f, 0.18f, 0.70f))
+                                v.backdrop.tint = Color(0.12f, 0.13f, 0.18f, 0.70f)
+                                v.background.color = Color(0.12f, 0.13f, 0.18f, 0.70f)
                                 v.radii.set(16f)
                             }
                         }
@@ -151,7 +151,7 @@ fun SidebarLayersTab(
                                 Image(
                                     source = if (item.isExpanded) StudioIcons.CHEVRON_DOWN else StudioIcons.CHEVRON_RIGHT,
                                     modifier = Modifier.fillMaxSize(),
-                                    tint = if (isSelected) Color.white else colors.textTertiary
+                                    tint = if (isSelected) Color.White else colors.textTertiary
                                 )
                             }
                         } else {
@@ -161,12 +161,12 @@ fun SidebarLayersTab(
                         Image(
                             source = item.iconUrl,
                             modifier = Modifier.size(14f),
-                            tint = if (isSelected) Color.white else item.iconTint
+                            tint = if (isSelected) Color.White else item.iconTint
                         )
 
                         MonoText(
                             text = item.name,
-                            color = if (isSelected) Color.white else colors.textPrimary,
+                            color = if (isSelected) Color.White else colors.textPrimary,
                             modifier = Modifier.weight(1.0f)
                         )
                     }

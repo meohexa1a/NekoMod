@@ -2,12 +2,12 @@ package org.mdt.ui.screens
 
 import androidx.compose.runtime.*
 import arc.Core
-import arc.graphics.Color
 import arc.input.KeyCode
 import mindustry.gen.Icon
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.LayoutPreset
-import org.mdt.ui.components.display.image.Image
+import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.*
 import org.mdt.ui.components.text.TextNode
 import org.mdt.ui.screens.editor.*
@@ -130,7 +130,7 @@ fun EditorScreen() {
             Row(modifier = Modifier.weight(1.0f).fillMaxWidth().clip(true)) {
 
                 // A. Left Resizable Sidebar (Zero-Gap Layout with Overlay Resize Seam)
-                if (!isSidebarCollapsed) {
+                if (!isSidebarCollapsed && selectedMode != EditorMode.SETTINGS) {
                     Box(
                         modifier = Modifier
                             .width(sidebarWidth)
@@ -149,34 +149,35 @@ fun EditorScreen() {
                         Box(
                             modifier = Modifier
                                 .anchor(LayoutPreset.RIGHT_WIDE)
-                                .width(10f)
+                                .width(12f)
                                 .cursor(arc.Graphics.Cursor.SystemCursor.horizontalResize)
                                 .hoverable { isHoveringHandle = it }
                                 .onPointerDown { isDraggingHandle = true }
                                 .onPointerUp { isDraggingHandle = false }
                                 .onPointerDrag { event ->
-                                    sidebarWidth = event.x.coerceIn(180f, 600f)
+                                    sidebarWidth = event.x.coerceIn(160f, 900f)
                                 }
                         ) {
-                            if (isHoveringHandle || isDraggingHandle) {
-                                Box(
-                                    modifier = Modifier
-                                        .anchor(LayoutPreset.FULL_RECT)
-                                        .width(4f)
-                                        .background(colors.blue)
-                                )
-                            }
+                            org.mdt.ui.components.surface.ResizeGripHandle(
+                                isHovered = isHoveringHandle,
+                                isDragging = isDraggingHandle
+                            )
                         }
                     }
                 }
 
-                // B. Center Viewport (ComponentCanvas in COMPONENTS Mode, EditorCenterCanvas in SCENE Mode)
+                // B. Center Viewport (Settings in SETTINGS Mode, ComponentCanvas in COMPONENTS Mode, EditorCenterCanvas in SCENE Mode)
                 Box(
                     modifier = Modifier
                         .weight(1.0f)
                         .fillMaxHeight()
                 ) {
-                    if (selectedMode == EditorMode.COMPONENTS) {
+                    if (selectedMode == EditorMode.SETTINGS) {
+                        // Dedicated Full-Screen Studio Settings & Preferences
+                        org.mdt.ui.screens.editor.settings.EditorSettingsScreen(
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else if (selectedMode == EditorMode.COMPONENTS) {
                         // Dedicated Isolated Component Workspace
                         ComponentCanvas(
                             componentName = selectedComponent,
@@ -206,7 +207,7 @@ fun EditorScreen() {
                                     anchorData.offsetTop = y
                                     val vis = ensureVisuals()
                                     vis.background.mode = BackgroundFill.Mode.COLOR
-                                    vis.background.color.set(if (isCard) Color.valueOf("bf5af2") else Color.valueOf("0a84ff"))
+                                    vis.background.color = if (isCard) Color.valueOf("bf5af2") else Color.valueOf("0a84ff")
                                     vis.radii.set(8f)
                                 }
                                 docState.addNode(targetParent, box)
@@ -219,7 +220,7 @@ fun EditorScreen() {
                                     name = "Text Node"
                                     anchorData.offsetLeft = x
                                     anchorData.offsetTop = y
-                                    textVisuals.color = Color.white
+                                    textVisuals.color = Color.White
                                 }
                                 docState.addNode(targetParent, text)
                                 selectedTool = "select"
@@ -229,7 +230,7 @@ fun EditorScreen() {
                     }
 
                     // Floating Left Expand Button (Appears when left sidebar is collapsed)
-                    if (isSidebarCollapsed) {
+                    if (isSidebarCollapsed && selectedMode != EditorMode.SETTINGS) {
                         Box(
                             modifier = Modifier
                                 .anchor(LayoutPreset.TOP_LEFT)
@@ -250,7 +251,7 @@ fun EditorScreen() {
                     }
 
                     // Floating Right Expand Button (Appears when right inspector is collapsed)
-                    if (isInspectorCollapsed) {
+                    if (isInspectorCollapsed && selectedMode != EditorMode.SETTINGS) {
                         Box(
                             modifier = Modifier
                                 .anchor(LayoutPreset.TOP_RIGHT)
@@ -272,7 +273,7 @@ fun EditorScreen() {
                 }
 
                 // C. Right Inspector & Resource Panel (Zero-Gap Layout with Left Overlay Resize Seam)
-                if (!isInspectorCollapsed) {
+                if (!isInspectorCollapsed && selectedMode != EditorMode.SETTINGS) {
                     Box(
                         modifier = Modifier
                             .width(inspectorWidth)
@@ -290,24 +291,20 @@ fun EditorScreen() {
                         Box(
                             modifier = Modifier
                                 .anchor(LayoutPreset.LEFT_WIDE)
-                                .width(10f)
+                                .width(12f)
                                 .cursor(arc.Graphics.Cursor.SystemCursor.horizontalResize)
                                 .hoverable { isHoveringInspectorHandle = it }
                                 .onPointerDown { isDraggingInspectorHandle = true }
                                 .onPointerUp { isDraggingInspectorHandle = false }
                                 .onPointerDrag { event ->
                                     val screenWidth = Core.graphics.width.toFloat()
-                                    inspectorWidth = (screenWidth - event.x).coerceIn(180f, 600f)
+                                    inspectorWidth = (screenWidth - event.x).coerceIn(160f, 900f)
                                 }
                         ) {
-                            if (isHoveringInspectorHandle || isDraggingInspectorHandle) {
-                                Box(
-                                    modifier = Modifier
-                                        .anchor(LayoutPreset.FULL_RECT)
-                                        .width(4f)
-                                        .background(colors.blue)
-                                )
-                            }
+                            org.mdt.ui.components.surface.ResizeGripHandle(
+                                isHovered = isHoveringInspectorHandle,
+                                isDragging = isDraggingInspectorHandle
+                            )
                         }
                     }
                 }

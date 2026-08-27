@@ -1,9 +1,10 @@
 package org.mdt.ui.screens.editor.canvas
 
 import arc.Core
-import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
+import arc.util.Tmp
+import org.mdt.core.ui.graphics.Color
 import org.mdt.ui.theme.ColorTokens
 
 /**
@@ -33,10 +34,11 @@ object CanvasCheckerboard {
             for (col in startCol..endCol) {
                 val cellX = col * cellSize + panX
                 val isEven = ((row + col) % 2 + 2) % 2 == 0
-                Draw.color(if (isEven) colors.canvasGridDark else colors.canvasGridLight)
+                val color = if (isEven) colors.canvasGridDark else colors.canvasGridLight
+                Draw.color(color.toArcColor(Tmp.c1))
                 Fill.rect(cellX + cellSize * 0.5f, cellY + cellSize * 0.5f, cellSize, cellSize)
             }
         }
-        Draw.color(Color.white)
+        Draw.color()
     }
 }

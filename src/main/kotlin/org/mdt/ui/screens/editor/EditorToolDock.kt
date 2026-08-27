@@ -1,11 +1,11 @@
 package org.mdt.ui.screens.editor
 
 import androidx.compose.runtime.*
-import arc.graphics.Color
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
-import org.mdt.ui.components.display.image.Image
+import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Row
 import org.mdt.ui.theme.StudioIcons
@@ -55,14 +55,14 @@ fun EditorToolDock(
                     modifier = Modifier
                         .size(34f, 34f)
                         .radius(shapes.sm)
-                        .background(if (isSelected) colors.blue else Color.clear)
+                        .background(if (isSelected) colors.blue else Color.Clear)
                         .clickable { onSelectTool(toolId) }
                         .pad(spacing.sm)
                 ) {
                     Image(
                         source = iconUrl,
                         modifier = Modifier.fillMaxSize(),
-                        tint = if (isSelected) Color.white else colors.textSecondary
+                        tint = if (isSelected) Color.White else colors.textSecondary
                     )
                 }
             }

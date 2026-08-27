@@ -15,12 +15,8 @@ import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
 import org.mdt.core.ui.layout.LayoutPreset
-import org.mdt.ui.components.display.badge.Badge
-import org.mdt.ui.components.display.badge.BadgeVariant
-import org.mdt.ui.components.display.canvas.Canvas
-import org.mdt.ui.components.display.image.Image
-import org.mdt.ui.components.display.tooltip.tooltip
-import org.mdt.ui.components.input.slider.Slider
+import org.mdt.ui.components.display.*
+import org.mdt.ui.components.input.Slider
 import org.mdt.ui.components.layout.*
 import org.mdt.ui.components.surface.*
 import org.mdt.ui.components.text.Text
@@ -72,9 +68,7 @@ fun MainMenuScreen() {
             ) {
                 Card(
                     variant = CardVariant.GLASS,
-                    radius = shapes.pill,
-                    padding = 8f,
-                    modifier = Modifier.minWidth(460f)
+                    modifier = Modifier.radius(shapes.pill).pad(8f).minWidth(460f)
                 ) {
                     Row(
                         arrangement = Arrangement.spacedBy(14f),
@@ -108,8 +102,7 @@ fun MainMenuScreen() {
                             text = "Settings",
                             icon = Icon.settingsSmall,
                             variant = ButtonVariant.PLAIN,
-                            paddingH = 8f,
-                            paddingV = 4f,
+                            modifier = Modifier.pad(horizontal = 8f, vertical = 4f),
                             onClick = {
                                 Sounds.uiButton.play()
                                 Vars.ui?.settings?.show()
@@ -120,8 +113,7 @@ fun MainMenuScreen() {
                             text = "Mods",
                             icon = Icon.bookSmall,
                             variant = ButtonVariant.PLAIN,
-                            paddingH = 8f,
-                            paddingV = 4f,
+                            modifier = Modifier.pad(horizontal = 8f, vertical = 4f),
                             onClick = {
                                 Sounds.uiButton.play()
                                 Vars.ui?.mods?.show()
@@ -132,9 +124,7 @@ fun MainMenuScreen() {
                             text = "Exit",
                             icon = Icon.exitSmall,
                             variant = ButtonVariant.DESTRUCTIVE,
-                            radius = shapes.pill,
-                            paddingH = 12f,
-                            paddingV = 4f,
+                            modifier = Modifier.radius(shapes.pill).pad(horizontal = 12f, vertical = 4f),
                             onClick = {
                                 Sounds.uiButton.play()
                                 Core.app.exit()
@@ -151,9 +141,7 @@ fun MainMenuScreen() {
             ) {
                 Card(
                     variant = CardVariant.GLASS,
-                    radius = shapes.xl,
-                    padding = 28f,
-                    modifier = Modifier.minWidth(450f)
+                    modifier = Modifier.radius(shapes.xl).pad(28f).minWidth(450f)
                 ) {
                     Column(gap = 14f, modifier = Modifier.fillMaxWidth()) {
 
@@ -174,8 +162,7 @@ fun MainMenuScreen() {
                             text = "PLAY CAMPAIGN",
                             icon = Icon.play,
                             variant = ButtonVariant.FILLED,
-                            paddingV = 12f,
-                            modifier = Modifier.fillMaxWidth().tooltip("Launch planetary campaign map"),
+                            modifier = Modifier.fillMaxWidth().pad(vertical = 12f).tooltip("Launch planetary campaign map"),
                             onClick = {
                                 Sounds.uiButton.play()
                                 Vars.ui?.planet?.show()
@@ -187,8 +174,7 @@ fun MainMenuScreen() {
                             text = "CUSTOM SKIRMISH",
                             icon = Icon.hammer,
                             variant = ButtonVariant.GLASS,
-                            paddingV = 10f,
-                            modifier = Modifier.fillMaxWidth().tooltip("Play custom sandbox or skirmish game"),
+                            modifier = Modifier.fillMaxWidth().pad(vertical = 10f).tooltip("Play custom sandbox or skirmish game"),
                             onClick = {
                                 Sounds.uiButton.play()
                                 Vars.ui?.custom?.show()
@@ -199,8 +185,7 @@ fun MainMenuScreen() {
                             text = "JOIN MULTIPLAYER",
                             icon = Icon.host,
                             variant = ButtonVariant.GLASS,
-                            paddingV = 10f,
-                            modifier = Modifier.fillMaxWidth().tooltip("Browse public & community servers"),
+                            modifier = Modifier.fillMaxWidth().pad(vertical = 10f).tooltip("Browse public & community servers"),
                             onClick = {
                                 Sounds.uiButton.play()
                                 Vars.ui?.join?.show()
@@ -218,8 +203,7 @@ fun MainMenuScreen() {
                                 text = "Tech Tree",
                                 icon = Icon.treeSmall,
                                 variant = ButtonVariant.TINTED,
-                                radius = shapes.md,
-                                modifier = Modifier.weight(1f).tooltip("Inspect technology research"),
+                                modifier = Modifier.weight(1f).radius(shapes.md).tooltip("Inspect technology research"),
                                 onClick = {
                                     Sounds.uiButton.play()
                                     Vars.ui?.database?.show()
@@ -230,8 +214,7 @@ fun MainMenuScreen() {
                                 text = "Map Editor",
                                 icon = Icon.terrain,
                                 variant = ButtonVariant.TINTED,
-                                radius = shapes.md,
-                                modifier = Modifier.weight(1f).tooltip("Create & edit maps"),
+                                modifier = Modifier.weight(1f).radius(shapes.md).tooltip("Create & edit maps"),
                                 onClick = {
                                     Sounds.uiButton.play()
                                     Vars.ui?.maps?.show()
@@ -242,8 +225,7 @@ fun MainMenuScreen() {
                                 text = "Schematics",
                                 icon = Icon.pasteSmall,
                                 variant = ButtonVariant.TINTED,
-                                radius = shapes.md,
-                                modifier = Modifier.weight(1f).tooltip("Factory blueprints"),
+                                modifier = Modifier.weight(1f).radius(shapes.md).tooltip("Factory blueprints"),
                                 onClick = {
                                     Sounds.uiButton.play()
                                     Vars.ui?.schematics?.show()
@@ -262,9 +244,7 @@ fun MainMenuScreen() {
             ) {
                 Card(
                     variant = CardVariant.GLASS,
-                    radius = shapes.pill,
-                    padding = 10f,
-                    modifier = Modifier.minWidth(520f)
+                    modifier = Modifier.radius(shapes.pill).pad(10f).minWidth(520f)
                 ) {
                     Row(
                         arrangement = Arrangement.spacedBy(16f),
@@ -272,7 +252,7 @@ fun MainMenuScreen() {
                         modifier = Modifier.pad(horizontal = 14f, vertical = 2f)
                     ) {
                         // SFX Slider with inner label and % readout
-                        Slider(
+                        org.mdt.ui.components.input.LabeledSlider(
                             label = "SFX",
                             value = sfxVolume,
                             onValueChange = { v ->
@@ -288,7 +268,7 @@ fun MainMenuScreen() {
                         )
 
                         // Music Slider with inner label and % readout
-                        Slider(
+                        org.mdt.ui.components.input.LabeledSlider(
                             label = "Music",
                             value = musicVolume,
                             onValueChange = { v ->

@@ -1,12 +1,12 @@
 package org.mdt.ui.screens.editor
 
 import androidx.compose.runtime.Composable
-import arc.graphics.Color
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
 import org.mdt.core.ui.layout.LayoutPreset
-import org.mdt.ui.components.display.image.Image
+import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.surface.Button
@@ -88,7 +88,7 @@ fun EditorTopBar(
                     Box(
                         modifier = Modifier
                             .radius(shapes.sm)
-                            .background(if (isSelected) colors.surfaceHighlight else Color.clear)
+                            .background(if (isSelected) colors.surfaceHighlight else Color.Clear)
                             .clickable { onSelectMode(mode) }
                             .pad(horizontal = spacing.md, vertical = spacing.xs + 1f)
                     ) {
@@ -127,8 +127,7 @@ fun EditorTopBar(
                     text = "Reload",
                     icon = StudioIcons.REFRESH,
                     variant = ButtonVariant.PLAIN,
-                    paddingH = spacing.md,
-                    paddingV = spacing.xs + 1f,
+                    modifier = Modifier.pad(horizontal = spacing.md, vertical = spacing.xs + 1f),
                     onClick = onReload
                 )
 
@@ -136,9 +135,7 @@ fun EditorTopBar(
                     text = "Preview",
                     icon = StudioIcons.PLAY,
                     variant = ButtonVariant.FILLED,
-                    radius = shapes.sm,
-                    paddingH = spacing.lg,
-                    paddingV = spacing.xs + 1f,
+                    modifier = Modifier.radius(shapes.sm).pad(horizontal = spacing.lg, vertical = spacing.xs + 1f),
                     onClick = onPreview
                 )
             }

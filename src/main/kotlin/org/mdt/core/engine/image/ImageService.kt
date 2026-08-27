@@ -10,7 +10,6 @@ import org.mdt.core.common.AsyncDispatcher
 import org.mdt.core.common.LRUTextureCache
 import org.mdt.core.common.Net
 import org.mdt.core.common.TextureHandle
-import org.mdt.core.common.TextureKind
 import org.mdt.core.engine.EngineContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
