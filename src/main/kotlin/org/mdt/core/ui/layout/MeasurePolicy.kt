@@ -117,7 +117,8 @@ data class ColumnMeasurePolicy(
             padRight = node.padR,
             padBottom = node.padB,
             isVertical = true,
-            arrangement = effectiveArrangement
+            arrangement = effectiveArrangement,
+            alignment = alignment
         )
     }
 }
@@ -160,7 +161,8 @@ data class RowMeasurePolicy(
             padRight = node.padR,
             padBottom = node.padB,
             isVertical = false,
-            arrangement = effectiveArrangement
+            arrangement = effectiveArrangement,
+            alignment = alignment
         )
     }
 

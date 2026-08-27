@@ -44,11 +44,11 @@ open class UINode {
     // SIZE FLAGS & SIZING
     // ==========================================
 
-    /** Horizontal size flags for container slot allocation. Default: [SizeFlags.FILL]. */
-    var sizeFlagsHorizontal: Int = SizeFlags.FILL
+    /** Horizontal size flags for container slot allocation. Default: 0 (Hug content). */
+    var sizeFlagsHorizontal: Int = 0
 
-    /** Vertical size flags for container slot allocation. Default: [SizeFlags.FILL]. */
-    var sizeFlagsVertical: Int = SizeFlags.FILL
+    /** Vertical size flags for container slot allocation. Default: 0 (Hug content). */
+    var sizeFlagsVertical: Int = 0
 
     /** Weight ratio for distributing excess container space when [SizeFlags.EXPAND] is set. */
     var stretchRatio: Float = 1f
@@ -323,37 +323,19 @@ open class UINode {
     // COORDINATE TRANSFORMS
     // ==========================================
 
-    /** Converts local coordinates (lx, ly) to global screen coordinates. */
+    /** Converts local coordinates (lx, ly) relative to this node into global screen coordinates. */
     fun localToGlobal(lx: Float, ly: Float): Vec2 {
-        var cur: UINode? = this
-        var gx = lx
-        var gy = ly
-        while (cur != null && cur !is CanvasNode) {
-            gx += cur.bounds.x
-            gy += cur.bounds.y
-            cur = cur.parent
-        }
-        return Vec2(gx, gy)
+        return Vec2(bounds.x + lx, bounds.y + ly)
     }
 
-    /** Converts global screen coordinates (gx, gy) to local coordinates within this node. */
+    /** Converts global screen coordinates (gx, gy) into local coordinates within this node. */
     fun globalToLocal(gx: Float, gy: Float): Vec2 {
-        val root = getCanvas() ?: return Vec2(gx, gy)
-        var cur: UINode? = this
-        var ox = 0f
-        var oy = 0f
-        while (cur != null && cur !== root) {
-            ox += cur.bounds.x
-            oy += cur.bounds.y
-            cur = cur.parent
-        }
-        return Vec2(gx - ox, gy - oy)
+        return Vec2(gx - bounds.x, gy - bounds.y)
     }
 
     /** Returns global bounding rectangle in screen space. */
     fun getGlobalBounds(): Rect {
-        val gPos = localToGlobal(0f, 0f)
-        return Rect(gPos.x, gPos.y, bounds.width, bounds.height)
+        return Rect(bounds.x, bounds.y, bounds.width, bounds.height)
     }
 
     /** Returns root [CanvasNode] if attached to tree. */

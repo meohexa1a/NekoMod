@@ -1,13 +1,14 @@
 package org.mdt.ui.components.scroll
 
-import arc.graphics.g2d.Draw
-import arc.graphics.g2d.Fill
 import arc.util.Tmp
 import org.mdt.core.ui.UINode
 import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.ScrollEvent
+import org.mdt.core.ui.render.BoxRenderer
 import org.mdt.core.ui.render.EngineRenderer
+import org.mdt.ui.components.layout.BackgroundFill
+import org.mdt.ui.components.layout.BoxVisuals
 import org.mdt.ui.components.layout.LayoutNode
 
 /**
@@ -31,11 +32,19 @@ open class ScrollContainerNode : LayoutNode() {
     var maxScrollY: Float = 0f
         private set
 
-    var scrollbarColor: Color = Color.valueOf("5b6078").withAlpha(0.6f)
+    var scrollbarColor: Color = Color.valueOf("8e8e93").withAlpha(0.50f)
     var scrollbarThickness: Float = 4f
+    var autoHideScrollbars: Boolean = true
+
+    private val scrollbarThumbVisuals = BoxVisuals().apply {
+        background.mode = BackgroundFill.Mode.COLOR
+        radii.set(2f)
+    }
 
     private var lastDragX = 0f
     private var lastDragY = 0f
+    private var lastActivityTime = 0L
+    private var isDraggingPointer = false
 
     init {
         clip = true
@@ -43,6 +52,7 @@ open class ScrollContainerNode : LayoutNode() {
         onScroll = { event: ScrollEvent ->
             var consumed = false
             val isShift = arc.Core.input != null && arc.Core.input.shift()
+            lastActivityTime = arc.util.Time.millis()
 
             if (isShift || (!enableVertical && enableHorizontal)) {
                 if (enableHorizontal && maxScrollX > 0f) {
@@ -70,10 +80,14 @@ open class ScrollContainerNode : LayoutNode() {
         onPointerDown = { event: PointerEvent ->
             lastDragX = event.x
             lastDragY = event.y
+            isDraggingPointer = true
+            lastActivityTime = arc.util.Time.millis()
         }
 
         onPointerDrag = { event: PointerEvent ->
             var consumed = false
+            lastActivityTime = arc.util.Time.millis()
+
             if (enableVertical && maxScrollY > 0f) {
                 val dy = event.y - lastDragY
                 scrollY = (scrollY + dy).coerceIn(0f, maxScrollY)
@@ -90,6 +104,11 @@ open class ScrollContainerNode : LayoutNode() {
                 event.isConsumed = true
                 invalidateLayout()
             }
+        }
+
+        onPointerUp = {
+            isDraggingPointer = false
+            lastActivityTime = arc.util.Time.millis()
         }
     }
 
@@ -126,10 +145,7 @@ open class ScrollContainerNode : LayoutNode() {
         val innerX = bounds.x + padL - scrollX
         val innerY = bounds.y + padB + scrollY
 
-        val layoutW = if (enableHorizontal) maxOf(availW, contentW) else availW
-        val layoutH = if (enableVertical) maxOf(availH, contentH) else availH
-
-        measurePolicy.layout(this, innerX, innerY, layoutW, layoutH)
+        measurePolicy.layout(this, innerX, innerY, availW, availH)
 
         for (child in children) {
             if (child.visible) child.layout()
@@ -141,42 +157,48 @@ open class ScrollContainerNode : LayoutNode() {
     override fun draw(renderer: EngineRenderer) {
         super.draw(renderer)
 
-        // Draw modern slim scrollbars
+        // Overlay auto-hiding floating scrollbars
+        val currentTime = arc.util.Time.millis()
+        val timeSinceActivity = currentTime - lastActivityTime
+        val scrollbarAlpha: Float = if (autoHideScrollbars) {
+            if (isDraggingPointer || timeSinceActivity < 1200L) {
+                1.0f
+            } else {
+                (1.0f - ((timeSinceActivity - 1200L) / 350f)).coerceIn(0f, 1f)
+            }
+        } else {
+            1.0f
+        }
+
+        if (scrollbarAlpha <= 0.001f) return
+
         val availW = bounds.width - padL - padR
         val availH = bounds.height - padT - padB
         val innerX = bounds.x + padL
         val innerY = bounds.y + padB
+        val effectiveThumbColor = scrollbarColor.withAlpha(scrollbarColor.a * scrollbarAlpha)
+
+        scrollbarThumbVisuals.background.color = effectiveThumbColor
+        scrollbarThumbVisuals.radii.set(scrollbarThickness * 0.5f)
 
         if (enableVertical && maxScrollY > 0f) {
             val contentH = availH + maxScrollY
-            val thumbH = maxOf(16f, (availH / contentH) * availH)
+            val thumbH = maxOf(20f, (availH / contentH) * availH)
             val scrollRatio = if (maxScrollY > 0f) scrollY / maxScrollY else 0f
             val thumbY = innerY + availH - thumbH - scrollRatio * (availH - thumbH)
+            val trackX = innerX + availW - scrollbarThickness - 2f
 
-            Draw.color(scrollbarColor.toArcColor(Tmp.c1))
-            Fill.rect(
-                innerX + availW - scrollbarThickness * 0.5f - 2f,
-                thumbY + thumbH * 0.5f,
-                scrollbarThickness,
-                thumbH
-            )
-            Draw.color()
+            BoxRenderer.draw(trackX, thumbY, scrollbarThickness, thumbH, scrollbarThumbVisuals)
         }
 
         if (enableHorizontal && maxScrollX > 0f) {
             val contentW = maxOf(0.001f, availW + maxScrollX)
-            val thumbW = maxOf(16f, (availW / contentW) * availW)
+            val thumbW = maxOf(24f, (availW / contentW) * availW)
             val scrollRatio = if (maxScrollX > 0f) scrollX / maxScrollX else 0f
             val thumbX = innerX + scrollRatio * (availW - thumbW)
+            val trackY = innerY + 2f
 
-            Draw.color(scrollbarColor.toArcColor(Tmp.c1))
-            Fill.rect(
-                thumbX + thumbW * 0.5f,
-                innerY + scrollbarThickness * 0.5f + 2f,
-                thumbW,
-                scrollbarThickness
-            )
-            Draw.color()
+            BoxRenderer.draw(thumbX, trackY, thumbW, scrollbarThickness, scrollbarThumbVisuals)
         }
     }
 }

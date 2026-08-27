@@ -24,13 +24,13 @@ data class BoxAlignModifier(val alignment: Alignment) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         when (alignment.horizontal) {
             HorizontalAlign.START -> node.sizeFlagsHorizontal = SizeFlags.SHRINK_BEGIN
-            HorizontalAlign.CENTER -> node.sizeFlagsHorizontal = SizeFlags.SHRINK_CENTER
+            HorizontalAlign.CENTER -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal = SizeFlags.SHRINK_CENTER
             HorizontalAlign.END -> node.sizeFlagsHorizontal = SizeFlags.SHRINK_END
             HorizontalAlign.FILL -> node.sizeFlagsHorizontal = SizeFlags.FILL
         }
         when (alignment.vertical) {
             VerticalAlign.TOP -> node.sizeFlagsVertical = SizeFlags.SHRINK_BEGIN
-            VerticalAlign.CENTER -> node.sizeFlagsVertical = SizeFlags.SHRINK_CENTER
+            VerticalAlign.CENTER -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical = SizeFlags.SHRINK_CENTER
             VerticalAlign.BOTTOM -> node.sizeFlagsVertical = SizeFlags.SHRINK_END
             VerticalAlign.FILL -> node.sizeFlagsVertical = SizeFlags.FILL
         }

@@ -46,23 +46,6 @@ object GodotLayout {
         val slotInnerWidth = maxOf(0f, rectWidth - child.marginL - child.marginR)
         val slotInnerHeight = maxOf(0f, rectHeight - child.marginT - child.marginB)
 
-        // Case 1: Fixed dimensions already explicitly set on child
-        if (child.width > 0f && child.height > 0f) {
-            val computedX = when {
-                (horizontalFlags and SizeFlags.SHRINK_END) != 0 -> slotInnerX + slotInnerWidth - child.width
-                (horizontalFlags and SizeFlags.SHRINK_BEGIN) != 0 -> slotInnerX
-                else -> slotInnerX + (slotInnerWidth - child.width) * 0.5f
-            }
-            val computedY = when {
-                (verticalFlags and SizeFlags.SHRINK_END) != 0 -> slotInnerY
-                (verticalFlags and SizeFlags.SHRINK_BEGIN) != 0 -> slotInnerY + slotInnerHeight - child.height
-                else -> slotInnerY + (slotInnerHeight - child.height) * 0.5f
-            }
-
-            child.setBounds(computedX, computedY, child.width, child.height)
-            return
-        }
-
         val childPureMinWidth = run {
             val preferred = child.getPrefWidth()
             if (preferred > 0f) preferred else if (child.minWidth > 0f) child.minWidth else 0f
@@ -72,34 +55,32 @@ object GodotLayout {
             if (preferred > 0f) preferred else if (child.minHeight > 0f) child.minHeight else 0f
         }
 
-        // 1. Horizontal axis
-        val computedWidth: Float
-        val computedX: Float
-        if ((horizontalFlags and SizeFlags.FILL) == 0) {
-            computedWidth = minOf(slotInnerWidth, childPureMinWidth)
-            computedX = when {
-                (horizontalFlags and SizeFlags.SHRINK_CENTER) != 0 -> slotInnerX + (slotInnerWidth - computedWidth) * 0.5f
-                (horizontalFlags and SizeFlags.SHRINK_END) != 0 -> slotInnerX + slotInnerWidth - computedWidth
-                else -> slotInnerX // SHRINK_BEGIN
-            }
-        } else {
-            computedWidth = slotInnerWidth
-            computedX = slotInnerX
+        // 1. Horizontal Dimension & Position
+        val computedWidth: Float = when {
+            child.width > 0f -> child.width
+            (horizontalFlags and SizeFlags.FILL) != 0 -> slotInnerWidth
+            else -> minOf(slotInnerWidth, childPureMinWidth)
         }
 
-        // 2. Vertical axis (OpenGL Bottom-Left coordinate: slotInnerY is bottom, slotInnerY + slotInnerHeight is top)
-        val computedHeight: Float
-        val computedY: Float
-        if ((verticalFlags and SizeFlags.FILL) == 0) {
-            computedHeight = minOf(slotInnerHeight, childPureMinHeight)
-            computedY = when {
-                (verticalFlags and SizeFlags.SHRINK_CENTER) != 0 -> slotInnerY + (slotInnerHeight - computedHeight) * 0.5f
-                (verticalFlags and SizeFlags.SHRINK_END) != 0 -> slotInnerY // SHRINK_END: Bottom of slot
-                else -> slotInnerY + slotInnerHeight - computedHeight // SHRINK_BEGIN: Top of slot
-            }
-        } else {
-            computedHeight = slotInnerHeight
-            computedY = slotInnerY
+        val computedX: Float = when {
+            (horizontalFlags and SizeFlags.FILL) != 0 && child.width <= 0f -> slotInnerX
+            (horizontalFlags and SizeFlags.SHRINK_END) != 0 -> slotInnerX + slotInnerWidth - computedWidth
+            (horizontalFlags and SizeFlags.SHRINK_CENTER) != 0 -> slotInnerX + (slotInnerWidth - computedWidth) * 0.5f
+            else -> slotInnerX // Default / SHRINK_BEGIN: Left-aligned (Start)
+        }
+
+        // 2. Vertical Dimension & Position (OpenGL Bottom-Left: slotInnerY is bottom, slotInnerY + slotInnerHeight is top)
+        val computedHeight: Float = when {
+            child.height > 0f -> child.height
+            (verticalFlags and SizeFlags.FILL) != 0 -> slotInnerHeight
+            else -> minOf(slotInnerHeight, childPureMinHeight)
+        }
+
+        val computedY: Float = when {
+            (verticalFlags and SizeFlags.FILL) != 0 && child.height <= 0f -> slotInnerY
+            (verticalFlags and SizeFlags.SHRINK_END) != 0 -> slotInnerY // SHRINK_END: Bottom of slot
+            (verticalFlags and SizeFlags.SHRINK_CENTER) != 0 -> slotInnerY + (slotInnerHeight - computedHeight) * 0.5f
+            else -> slotInnerY + slotInnerHeight - computedHeight // Default / SHRINK_BEGIN: Top of slot
         }
 
         child.setBounds(computedX, computedY, computedWidth, computedHeight)
@@ -120,7 +101,8 @@ object GodotLayout {
         padRight: Float,
         padBottom: Float,
         isVertical: Boolean,
-        arrangement: Arrangement = Arrangement.Start
+        arrangement: Arrangement = Arrangement.Start,
+        alignment: Alignment = if (isVertical) Alignment.TopStart else Alignment.CenterStart
     ) {
         val availableWidth = maxOf(0f, parentWidth - padLeft - padRight)
         val availableHeight = maxOf(0f, parentHeight - padTop - padBottom)
@@ -202,8 +184,19 @@ object GodotLayout {
                     slotTotalHeight
                 }
 
+                val horizontalFlags = if ((child.sizeFlagsHorizontal and SizeFlags.FILL) != 0) {
+                    child.sizeFlagsHorizontal
+                } else {
+                    when (alignment.horizontal) {
+                        HorizontalAlign.START -> SizeFlags.SHRINK_BEGIN
+                        HorizontalAlign.CENTER -> SizeFlags.SHRINK_CENTER
+                        HorizontalAlign.END -> SizeFlags.SHRINK_END
+                        HorizontalAlign.FILL -> SizeFlags.FILL
+                    }
+                }
+
                 val slotY = currentTopY - slotHeight
-                fitChildInRect(child, parentX + padLeft, slotY, availableWidth, slotHeight, child.sizeFlagsHorizontal, verticalFlags)
+                fitChildInRect(child, parentX + padLeft, slotY, availableWidth, slotHeight, horizontalFlags, verticalFlags)
                 currentTopY -= slotHeight + actualGap
             }
         } else {
@@ -220,7 +213,18 @@ object GodotLayout {
                     slotTotalWidth
                 }
 
-                fitChildInRect(child, currentLeftX, parentY + padBottom, slotWidth, availableHeight, horizontalFlags, child.sizeFlagsVertical)
+                val verticalFlags = if ((child.sizeFlagsVertical and SizeFlags.FILL) != 0) {
+                    child.sizeFlagsVertical
+                } else {
+                    when (alignment.vertical) {
+                        VerticalAlign.TOP -> SizeFlags.SHRINK_BEGIN
+                        VerticalAlign.CENTER -> SizeFlags.SHRINK_CENTER
+                        VerticalAlign.BOTTOM -> SizeFlags.SHRINK_END
+                        VerticalAlign.FILL -> SizeFlags.FILL
+                    }
+                }
+
+                fitChildInRect(child, currentLeftX, parentY + padBottom, slotWidth, availableHeight, horizontalFlags, verticalFlags)
                 currentLeftX += slotWidth + actualGap
             }
         }
