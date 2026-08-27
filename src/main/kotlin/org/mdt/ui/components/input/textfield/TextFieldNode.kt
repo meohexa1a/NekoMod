@@ -7,6 +7,7 @@ import arc.graphics.g2d.GlyphLayout
 import arc.util.Tmp
 import mindustry.ui.Fonts
 import org.mdt.core.ui.graphics.Color
+import org.mdt.core.ui.input.ImeNativeBridge
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.render.EngineRenderer
 import org.mdt.ui.components.layout.BoxVisuals
@@ -16,7 +17,7 @@ import org.mdt.ui.components.layout.LayoutNode
  * ## TextFieldNode
  *
  * Virtual DOM node rendering an interactive text input with cursor,
- * selection box, placeholder text, and focus glow.
+ * selection box, placeholder text, focus glow, and zero-GC native IME bridging.
  *
  * See: docs/complex-challenges/complex_challenges_en.md
  */
@@ -42,8 +43,14 @@ open class TextFieldNode : LayoutNode() {
 
     val boxVisuals: BoxVisuals = ensureVisuals()
 
+    private var dragSelectionAnchor: Int = -1
+    private var isDraggingSelection: Boolean = false
+    private var lastClickTime: Long = 0L
+    private var clickCount: Int = 0
+
     init {
         isFocusable = true
+        cursor = arc.Graphics.Cursor.SystemCursor.ibeam
         pad(left = 12f, right = 12f, top = 6f, bottom = 6f)
         boxVisuals.radius(6f)
         boxVisuals.background.color = Color.valueOf("181926")
@@ -64,24 +71,67 @@ open class TextFieldNode : LayoutNode() {
 
         onPointerDown = { event: PointerEvent ->
             requestFocus()
+            ImeNativeBridge.attach(this)
+            val currentTime = arc.util.Time.millis()
+            if (currentTime - lastClickTime < 350L) {
+                clickCount++
+            } else {
+                clickCount = 1
+            }
+            lastClickTime = currentTime
+
             val innerX = bounds.x + padL
             val clickLocalX = event.x - innerX
             val charIndex = getCharIndexAtX(clickLocalX)
-            editState.moveCursor(charIndex, extendSelection = Core.input != null && Core.input.shift())
+
+            when (clickCount) {
+                2 -> {
+                    editState.selectWordAt(charIndex)
+                }
+                3 -> {
+                    editState.selectAll()
+                }
+                else -> {
+                    val isShift = Core.input != null && Core.input.shift()
+                    dragSelectionAnchor = if (isShift && editState.selectionStart != -1) editState.selectionStart else charIndex
+                    isDraggingSelection = true
+                    editState.moveCursor(charIndex, extendSelection = isShift)
+                }
+            }
             invalidateLayout()
+        }
+
+        onPointerDrag = { event: PointerEvent ->
+            if (isDraggingSelection && dragSelectionAnchor != -1) {
+                val innerX = bounds.x + padL
+                val dragLocalX = event.x - innerX
+                val targetIndex = getCharIndexAtX(dragLocalX)
+                editState.setSelection(dragSelectionAnchor, targetIndex)
+                invalidateLayout()
+                event.isConsumed = true
+            }
+        }
+
+        onPointerUp = {
+            isDraggingSelection = false
         }
     }
 
+    override fun onDetached() {
+        super.onDetached()
+        ImeNativeBridge.detach(this)
+    }
+
     private fun getCharIndexAtX(localX: Float): Int {
-        val text = editState.text
-        if (text.isEmpty()) return 0
+        val text = editState.getDisplayText()
+        if (text.isEmpty() || localX <= 0f) return 0
 
         val font = Fonts.def
         val oldScaleX = font.scaleX
         val oldScaleY = font.scaleY
         font.data.setScale(fontScale, fontScale)
 
-        var bestIndex = 0
+        var bestIndex = text.length
         var minDiff = Float.MAX_VALUE
 
         for (i in 0..text.length) {
@@ -107,7 +157,7 @@ open class TextFieldNode : LayoutNode() {
         val oldScaleY = font.scaleY
         font.data.setScale(fontScale, fontScale)
 
-        val displayText = editState.text.ifEmpty { placeholder }
+        val displayText = editState.getDisplayText().ifEmpty { placeholder }
         layoutHelper.setText(font, displayText)
         val textWidth = layoutHelper.width
 
@@ -121,13 +171,16 @@ open class TextFieldNode : LayoutNode() {
         editState.isFocused = isFocused
         editState.updateBlink(delta)
 
-        // Dynamic visual feedback on focus
+        // Dynamic visual feedback on focus & OS IME Candidate Synchronization
         if (isFocused) {
             boxVisuals.border.color = focusBorderColor
             boxVisuals.glow(focusGlowColor, spread = 3f, blur = 6f)
+
+            ImeNativeBridge.sync(this)
         } else {
             boxVisuals.border.color = normalBorderColor
             boxVisuals.glow(Color.Clear, spread = 0f, blur = 0f)
+            ImeNativeBridge.detach(this)
         }
 
         // 1. Draw SDF background container
@@ -148,48 +201,76 @@ open class TextFieldNode : LayoutNode() {
         val capHeight = font.data.capHeight
         val textY = innerY + (innerHeight + capHeight) * 0.5f
 
-        val text = editState.text
+        // Unified typography vertical alignment: selection box and caret share identical height & baseline center
+        val lineHeight = capHeight * 1.55f
+        val lineCenterY = textY - capHeight * 0.45f
 
-        // 2. Draw Selection highlight quad
+        val displayText = editState.getDisplayText()
+
+        // 2. Draw Selection highlight quad (Matching line height)
         if (editState.hasSelection()) {
             val range = editState.getSelectionRange()!!
-            val selStartSub = text.substring(0, range.first)
-            val selEndSub = text.substring(0, range.second)
+            val selStartSub = editState.text.substring(0, range.first)
+            val selEndSub = editState.text.substring(0, range.second)
 
             layoutHelper.setText(font, selStartSub)
             val selectionStartX = innerX + layoutHelper.width
 
             layoutHelper.setText(font, selEndSub)
             val selectionEndX = innerX + layoutHelper.width
+            val selWidth = maxOf(2f, selectionEndX - selectionStartX)
 
             Draw.color(selectionColor.toArcColor(Tmp.c1))
             Fill.rect(
-                (selectionStartX + selectionEndX) * 0.5f,
-                innerY + innerHeight * 0.5f,
-                selectionEndX - selectionStartX,
-                innerHeight
+                selectionStartX + selWidth * 0.5f,
+                lineCenterY,
+                selWidth,
+                lineHeight
             )
             Draw.color()
         }
 
-        // 3. Draw Text / Placeholder
-        if (text.isEmpty()) {
+        // 3. Draw Pre-edit / IME Composition Region with subtle highlight & underline
+        if (editState.hasComposition()) {
+            val compRange = editState.getCompositionRange()!!
+            val compStartSub = displayText.substring(0, compRange.first)
+            val compEndSub = displayText.substring(0, compRange.second)
+
+            layoutHelper.setText(font, compStartSub)
+            val compStartX = innerX + layoutHelper.width
+
+            layoutHelper.setText(font, compEndSub)
+            val compEndX = innerX + layoutHelper.width
+            val compWidth = maxOf(2f, compEndX - compStartX)
+
+            // Composition background highlight
+            Draw.color(focusBorderColor.withAlpha(0.18f).toArcColor(Tmp.c1))
+            Fill.rect(compStartX + compWidth * 0.5f, lineCenterY, compWidth, lineHeight)
+
+            // Composition underline
+            Draw.color(focusBorderColor.toArcColor(Tmp.c1))
+            Fill.rect(compStartX + compWidth * 0.5f, innerY + 3f, compWidth, 2f)
+            Draw.color()
+        }
+
+        // 4. Draw Text / Placeholder
+        if (displayText.isEmpty()) {
             font.color = placeholderColor.toArcColor(Tmp.c1)
             font.draw(placeholder, innerX, textY)
         } else {
             font.color = textColor.toArcColor(Tmp.c1)
-            font.draw(text, innerX, textY)
+            font.draw(displayText, innerX, textY)
         }
 
-        // 4. Draw Caret Cursor
+        // 5. Draw Caret Cursor (Synchronized with line height and lineCenterY)
         if (isFocused && editState.cursorVisible) {
-            val cursorSub = text.substring(0, editState.cursor.coerceIn(0, text.length))
+            val effCursor = editState.getEffectiveCursor()
+            val cursorSub = displayText.substring(0, effCursor.coerceIn(0, displayText.length))
             layoutHelper.setText(font, cursorSub)
             val cursorX = innerX + layoutHelper.width
 
             Draw.color(cursorColor.toArcColor(Tmp.c1))
-            val cursorHeight = capHeight * 1.3f
-            Fill.rect(cursorX + 1f, textY - capHeight * 0.4f, 1.5f, cursorHeight)
+            Fill.rect(cursorX + 1f, lineCenterY, 2f, lineHeight)
             Draw.color()
         }
 

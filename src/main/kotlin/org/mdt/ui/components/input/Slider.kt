@@ -79,6 +79,7 @@ fun Slider(
         modifier = Modifier
             .fillMaxWidth()
             .height(24f)
+            .minHeight(24f)
             .hoverable { if (enabled) isHovered = it }
             .then(dragModifier)
             .then(modifier)
@@ -88,7 +89,7 @@ fun Slider(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(8f)
-                .align(Alignment.Center)
+                .minHeight(8f)
                 .radius(shapes.pill)
                 .background(if (enabled) trackColor else colors.glassThin)
                 .progress(fraction, if (enabled) activeColor else colors.textQuaternary)

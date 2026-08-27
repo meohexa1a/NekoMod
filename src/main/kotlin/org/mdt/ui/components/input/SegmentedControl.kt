@@ -36,6 +36,16 @@ fun SegmentedControl(
     val colors = Theme.colors
     val shapes = Theme.shapes
 
+    val dynamicItemWidth = remember(items) {
+        val layout = arc.graphics.g2d.GlyphLayout()
+        val font = mindustry.ui.Fonts.def
+        val maxTextWidth = items.maxOfOrNull { label ->
+            layout.setText(font, label)
+            layout.width
+        } ?: 40f
+        maxTextWidth + 28f
+    }
+
     // Outer inset capsule track
     Box(
         modifier = Modifier
@@ -53,6 +63,7 @@ fun SegmentedControl(
                 val isSelected = index == selectedIndex
                 SegmentItem(
                     label = label,
+                    itemWidth = dynamicItemWidth,
                     isSelected = isSelected,
                     onClick = { onSelect(index) }
                 )
@@ -64,6 +75,7 @@ fun SegmentedControl(
 @Composable
 private fun SegmentItem(
     label: String,
+    itemWidth: Float,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -91,12 +103,13 @@ private fun SegmentItem(
 
     Box(
         modifier = Modifier
+            .width(itemWidth)
             .radius(shapes.xs)
             .background(currentBg)
             .border(1f, currentBorder)
             .hoverable { isHovered = it }
             .clickable { onClick() }
-            .pad(horizontal = 14f, vertical = 5f)
+            .pad(horizontal = 4f, vertical = 5f)
     ) {
         MonoText(
             text = label,

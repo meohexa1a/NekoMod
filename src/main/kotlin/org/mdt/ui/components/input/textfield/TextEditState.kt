@@ -25,6 +25,9 @@ class TextEditState(
     var selectionStart: Int = -1
         private set
 
+    var compositionText: String = ""
+        private set
+
     var isFocused: Boolean = false
 
     var cursorVisible: Boolean = true
@@ -33,11 +36,45 @@ class TextEditState(
     private var blinkTimer: Float = 0f
     private val blinkInterval: Float = 0.32f
 
-    fun setText(newText: String) {
-        if (text != newText) {
+    fun hasComposition(): Boolean = compositionText.isNotEmpty()
+
+    fun getDisplayText(): String {
+        if (compositionText.isEmpty()) return text
+        val safeCursor = cursor.coerceIn(0, text.length)
+        return text.substring(0, safeCursor) + compositionText + text.substring(safeCursor)
+    }
+
+    fun getEffectiveCursor(): Int {
+        if (compositionText.isEmpty()) return cursor
+        return (cursor + compositionText.length).coerceIn(0, getDisplayText().length)
+    }
+
+    fun getCompositionRange(): Pair<Int, Int>? {
+        if (compositionText.isEmpty()) return null
+        val safeCursor = cursor.coerceIn(0, text.length)
+        return Pair(safeCursor, safeCursor + compositionText.length)
+    }
+
+    fun setComposition(compText: String) {
+        if (compositionText != compText) {
+            compositionText = compText
+            resetBlink()
+        }
+    }
+
+    fun clearComposition() {
+        if (compositionText.isNotEmpty()) {
+            compositionText = ""
+            resetBlink()
+        }
+    }
+
+    fun setText(newText: String, newCursor: Int = -1) {
+        if (text != newText || newCursor != -1) {
             text = newText
-            cursor = cursor.coerceIn(0, text.length)
+            cursor = if (newCursor >= 0) newCursor.coerceIn(0, text.length) else cursor.coerceIn(0, text.length)
             selectionStart = -1
+            compositionText = ""
             resetBlink()
         }
     }
@@ -80,6 +117,22 @@ class TextEditState(
         resetBlink()
     }
 
+    fun setSelection(start: Int, end: Int) {
+        selectionStart = start.coerceIn(0, text.length)
+        cursor = end.coerceIn(0, text.length)
+        resetBlink()
+    }
+
+    fun selectWordAt(index: Int) {
+        if (text.isEmpty()) return
+        val safeIdx = index.coerceIn(0, text.length - 1)
+        var start = safeIdx
+        var end = safeIdx
+        while (start > 0 && !text[start - 1].isWhitespace()) start--
+        while (end < text.length && !text[end].isWhitespace()) end++
+        setSelection(start, end)
+    }
+
     @Suppress("unused")
     fun clearSelection() {
         selectionStart = -1
@@ -103,6 +156,7 @@ class TextEditState(
     fun insert(character: Char) {
         if (character < ' ' && character != '\t') return
 
+        clearComposition()
         deleteSelection()
         val safeCursor = cursor.coerceIn(0, text.length)
         val newText = text.substring(0, safeCursor) + character + text.substring(safeCursor)
@@ -115,6 +169,7 @@ class TextEditState(
     fun insert(textToInsert: String) {
         if (textToInsert.isEmpty()) return
 
+        clearComposition()
         deleteSelection()
         val safeCursor = cursor.coerceIn(0, text.length)
         val newText = text.substring(0, safeCursor) + textToInsert + text.substring(safeCursor)
