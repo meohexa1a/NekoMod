@@ -26,61 +26,61 @@ object CanvasGizmoOverlay {
      */
     fun drawSelectionGizmo(selectedNode: UINode, zoomScale: Float) {
         val bounds = selectedNode.bounds
-        val bx = bounds.x
-        val by = bounds.y
-        val bw = bounds.width
-        val bh = bounds.height
+        val boundX = bounds.x
+        val boundY = bounds.y
+        val boundWidth = bounds.width
+        val boundHeight = bounds.height
 
-        if (bw <= 0f || bh <= 0f) return
+        if (boundWidth <= 0f || boundHeight <= 0f) return
 
-        val blue = Color.valueOf("0a84ff")
+        val accentBlue = Color.valueOf("0a84ff")
         val handleSize = 8f
 
         // 1. Bounding Outline
-        Draw.color(blue.toArcColor(Tmp.c1))
+        Draw.color(accentBlue.toArcColor(Tmp.c1))
         Lines.stroke(2f)
-        Lines.rect(bx, by, bw, bh)
+        Lines.rect(boundX, boundY, boundWidth, boundHeight)
 
         // 2. 8 Perimeter Handles
         val handles = listOf(
-            bx to by + bh,                 // Top-Left
-            bx + bw * 0.5f to by + bh,     // Top-Center
-            bx + bw to by + bh,            // Top-Right
-            bx to by + bh * 0.5f,          // Left-Center
-            bx + bw to by + bh * 0.5f,     // Right-Center
-            bx to by,                      // Bottom-Left
-            bx + bw * 0.5f to by,          // Bottom-Center
-            bx + bw to by                  // Bottom-Right
+            boundX to boundY + boundHeight,                 // Top-Left
+            boundX + boundWidth * 0.5f to boundY + boundHeight,     // Top-Center
+            boundX + boundWidth to boundY + boundHeight,            // Top-Right
+            boundX to boundY + boundHeight * 0.5f,          // Left-Center
+            boundX + boundWidth to boundY + boundHeight * 0.5f,     // Right-Center
+            boundX to boundY,                      // Bottom-Left
+            boundX + boundWidth * 0.5f to boundY,          // Bottom-Center
+            boundX + boundWidth to boundY                  // Bottom-Right
         )
 
-        for ((hx, hy) in handles) {
+        for ((handleX, handleY) in handles) {
             Draw.color(Color.White.toArcColor(Tmp.c1))
-            Fill.rect(hx, hy, handleSize, handleSize)
+            Fill.rect(handleX, handleY, handleSize, handleSize)
 
-            Draw.color(blue.toArcColor(Tmp.c1))
+            Draw.color(accentBlue.toArcColor(Tmp.c1))
             Lines.stroke(1.5f)
-            Lines.rect(hx - handleSize * 0.5f, hy - handleSize * 0.5f, handleSize, handleSize)
+            Lines.rect(handleX - handleSize * 0.5f, handleY - handleSize * 0.5f, handleSize, handleSize)
         }
 
         // 3. Dimension & Position Tooltip Badge
-        val curX = selectedNode.anchorData.offsetLeft.toInt()
-        val curY = selectedNode.anchorData.offsetTop.toInt()
-        val tagLabel = "${selectedNode.name.ifEmpty { selectedNode.javaClass.simpleName }}  ${(bw / zoomScale).toInt()} × ${(bh / zoomScale).toInt()} px  (x:$curX, y:$curY)"
+        val currentX = selectedNode.anchorData.offsetLeft.toInt()
+        val currentY = selectedNode.anchorData.offsetTop.toInt()
+        val tagLabel = "${selectedNode.name.ifEmpty { selectedNode.javaClass.simpleName }}  ${(boundWidth / zoomScale).toInt()} × ${(boundHeight / zoomScale).toInt()} px  (x:$currentX, y:$currentY)"
         val font = Fonts.def
-        val badgeW = 240f
-        val badgeH = 22f
-        val badgeX = bx + bw * 0.5f
-        val badgeY = by - 16f
+        val badgeWidth = 240f
+        val badgeHeight = 22f
+        val badgeX = boundX + boundWidth * 0.5f
+        val badgeY = boundY - 16f
 
         Draw.color(Color(0.08f, 0.08f, 0.10f, 0.85f).toArcColor(Tmp.c1))
-        Fill.rect(badgeX, badgeY, badgeW, badgeH)
+        Fill.rect(badgeX, badgeY, badgeWidth, badgeHeight)
 
-        Draw.color(blue.toArcColor(Tmp.c1))
+        Draw.color(accentBlue.toArcColor(Tmp.c1))
         Lines.stroke(1f)
-        Lines.rect(badgeX - badgeW * 0.5f, badgeY - badgeH * 0.5f, badgeW, badgeH)
+        Lines.rect(badgeX - badgeWidth * 0.5f, badgeY - badgeHeight * 0.5f, badgeWidth, badgeHeight)
 
         Draw.color()
-        font.draw(tagLabel, badgeX - badgeW * 0.46f, badgeY + 5f)
+        font.draw(tagLabel, badgeX - badgeWidth * 0.46f, badgeY + 5f)
         Draw.color()
     }
 

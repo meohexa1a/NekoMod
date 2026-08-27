@@ -208,7 +208,7 @@ fun ComponentCanvas(
                 arrangement = Arrangement.spacedBy(spacing.xs),
                 alignment = Alignment.CenterStart
             ) {
-                for (state in ComponentState.values()) {
+                for (state in ComponentState.entries) {
                     val isSelected = state == activeState
                     Box(
                         modifier = Modifier

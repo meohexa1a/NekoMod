@@ -30,22 +30,22 @@ object CanvasArtboardFrame {
         panY: Float,
         zoomScale: Float
     ) {
-        val screenW = Core.graphics?.width?.toFloat() ?: 1920f
-        val screenH = Core.graphics?.height?.toFloat() ?: 1080f
+        val screenWidth = Core.graphics?.width?.toFloat() ?: 1920f
+        val screenHeight = Core.graphics?.height?.toFloat() ?: 1080f
 
-        val artW = rootScene.artboardWidth * zoomScale
-        val artH = rootScene.artboardHeight * zoomScale
+        val artboardWidth = rootScene.artboardWidth * zoomScale
+        val artboardHeight = rootScene.artboardHeight * zoomScale
 
-        val sceneX = (screenW - artW) * 0.5f + panX
-        val sceneY = (screenH - artH) * 0.5f + panY
+        val sceneX = (screenWidth - artboardWidth) * 0.5f + panX
+        val sceneY = (screenHeight - artboardHeight) * 0.5f + panY
 
         // 1. Layout and Boundary Positioning
-        rootScene.setBounds(sceneX, sceneY, artW, artH)
+        rootScene.setBounds(sceneX, sceneY, artboardWidth, artboardHeight)
         rootScene.layout()
 
         // 2. Artboard Frame Drop Shadow
         Draw.color(Color(0f, 0f, 0f, 0.40f).toArcColor(Tmp.c1))
-        Fill.rect(sceneX + artW * 0.5f, sceneY + artH * 0.5f - 4f, artW + 8f, artH + 8f)
+        Fill.rect(sceneX + artboardWidth * 0.5f, sceneY + artboardHeight * 0.5f - 4f, artboardWidth + 8f, artboardHeight + 8f)
 
         // 3. Render Virtual Node Scene Graph
         rootScene.draw(renderer)
@@ -54,7 +54,7 @@ object CanvasArtboardFrame {
         val font = Fonts.def
         val headerText = "${rootScene.name} • ${rootScene.artboardWidth.toInt()} × ${rootScene.artboardHeight.toInt()} px"
         val badgeX = sceneX + 60f
-        val badgeY = sceneY + artH + 16f
+        val badgeY = sceneY + artboardHeight + 16f
 
         Draw.color(Color(0.08f, 0.08f, 0.12f, 0.85f).toArcColor(Tmp.c1))
         Fill.rect(badgeX, badgeY, 140f, 20f)
