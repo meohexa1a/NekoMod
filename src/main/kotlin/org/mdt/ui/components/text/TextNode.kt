@@ -44,43 +44,63 @@ open class TextNode(
 
     override fun getPrefWidth(): Float {
         if (width >= 0f) return width
+
         if (textVisuals.wrap) {
             // When wrapping is enabled, return 0 or minimum width to avoid expanding container beyond bounds
             return (if (minWidth >= 0f) minWidth else 0f) + padL + padR
         }
 
-        val f = textVisuals.font
-        val oldSX = f.scaleX
-        val oldSY = f.scaleY
+        val font = textVisuals.font
+        val oldScaleX = font.scaleX
+        val oldScaleY = font.scaleY
         val isScaled = textVisuals.fontScaleX != 1.0f || textVisuals.fontScaleY != 1.0f
-        if (isScaled) f.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
+        if (isScaled) font.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
 
-        layoutHelper.setText(f, text)
-        val textW = layoutHelper.width
+        layoutHelper.setText(font, text)
+        val textWidth = layoutHelper.width
 
-        if (isScaled) f.data.setScale(oldSX, oldSY)
-        return (if (minWidth >= 0f) maxOf(textW, minWidth) else textW) + padL + padR
+        if (isScaled) font.data.setScale(oldScaleX, oldScaleY)
+        return (if (minWidth >= 0f) maxOf(textWidth, minWidth) else textWidth) + padL + padR
     }
 
     override fun getPrefHeight(): Float {
         if (height >= 0f) return height
-        val f = textVisuals.font
-        val oldSX = f.scaleX
-        val oldSY = f.scaleY
-        val isScaled = textVisuals.fontScaleX != 1.0f || textVisuals.fontScaleY != 1.0f
-        if (isScaled) f.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
 
-        val targetW = if (bounds.width > 0f) bounds.width - padL - padR else (if (width > 0f) width - padL - padR else 0f)
-        val textH = if (textVisuals.wrap && targetW > 0f) {
-            layoutHelper.setText(f, text, textVisuals.color.toArcColor(Tmp.c1), targetW, textVisuals.align, true)
-            layoutHelper.height
+        val font = textVisuals.font
+        val oldScaleX = font.scaleX
+        val oldScaleY = font.scaleY
+        val isScaled = textVisuals.fontScaleX != 1.0f || textVisuals.fontScaleY != 1.0f
+        if (isScaled) font.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
+
+        val targetWidth = if (bounds.width > 0f) {
+            bounds.width - padL - padR
+        } else if (width > 0f) {
+            width - padL - padR
         } else {
-            layoutHelper.setText(f, text)
-            maxOf(f.lineHeight, layoutHelper.height)
+            // Walk up parent hierarchy to find first ancestor with defined width for multi-line measurement
+            var curParent = parent
+            var foundWidth = 0f
+            while (curParent != null) {
+                val parentBoundWidth = if (curParent.bounds.width > 0f) curParent.bounds.width else curParent.width
+                if (parentBoundWidth > 0f) {
+                    foundWidth = maxOf(0f, parentBoundWidth - curParent.padL - curParent.padR)
+                    break
+                }
+                curParent = curParent.parent
+            }
+            if (foundWidth > 0f) foundWidth - padL - padR else 0f
         }
 
-        if (isScaled) f.data.setScale(oldSX, oldSY)
-        return (if (minHeight >= 0f) maxOf(textH, minHeight) else textH) + padT + padB
+        val textHeight = if (textVisuals.wrap && targetWidth > 0f) {
+            layoutHelper.setText(font, text, textVisuals.color.toArcColor(Tmp.c1), targetWidth, textVisuals.align, true)
+            layoutHelper.height
+        } else {
+            layoutHelper.setText(font, text)
+            maxOf(font.lineHeight, layoutHelper.height)
+        }
+
+        if (isScaled) font.data.setScale(oldScaleX, oldScaleY)
+        return (if (minHeight >= 0f) maxOf(textHeight, minHeight) else textHeight) + padT + padB
     }
 
     override fun drawSelf(renderer: EngineRenderer) {
@@ -89,32 +109,32 @@ open class TextNode(
 
         val innerX = bounds.x + padL
         val innerY = bounds.y + padB
-        val innerW = bounds.width - padL - padR
-        val innerH = bounds.height - padT - padB
+        val innerWidth = bounds.width - padL - padR
+        val innerHeight = bounds.height - padT - padB
 
-        val f = textVisuals.font
-        val oldSX = f.scaleX
-        val oldSY = f.scaleY
+        val font = textVisuals.font
+        val oldScaleX = font.scaleX
+        val oldScaleY = font.scaleY
         val isScaled = textVisuals.fontScaleX != 1.0f || textVisuals.fontScaleY != 1.0f
-        if (isScaled) f.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
+        if (isScaled) font.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
 
-        f.color = textVisuals.color.toArcColor(Tmp.c1)
+        font.color = textVisuals.color.toArcColor(Tmp.c1)
 
-        val capH = f.data.capHeight
-        if (textVisuals.wrap && innerW > 0f) {
-            layoutHelper.setText(f, text, textVisuals.color.toArcColor(Tmp.c1), innerW, textVisuals.align, true)
-            val drawY = innerY + (innerH + layoutHelper.height) * 0.5f
-            f.draw(text, innerX, drawY, innerW, textVisuals.align, true)
+        val capHeight = font.data.capHeight
+        if (textVisuals.wrap && innerWidth > 0f) {
+            layoutHelper.setText(font, text, textVisuals.color.toArcColor(Tmp.c1), innerWidth, textVisuals.align, true)
+            val drawY = innerY + (innerHeight + layoutHelper.height) * 0.5f
+            font.draw(text, innerX, drawY, innerWidth, textVisuals.align, true)
         } else {
-            val drawY = innerY + (innerH + capH) * 0.5f
-            if (innerW > 0f) {
-                f.draw(text, innerX, drawY, 0, text.length, innerW, textVisuals.align, false, textVisuals.ellipsis)
+            val drawY = innerY + (innerHeight + capHeight) * 0.5f
+            if (innerWidth > 0f) {
+                font.draw(text, innerX, drawY, 0, text.length, innerWidth, textVisuals.align, false, textVisuals.ellipsis)
             } else {
-                f.draw(text, innerX, drawY)
+                font.draw(text, innerX, drawY)
             }
         }
 
-        if (isScaled) f.data.setScale(oldSX, oldSY)
+        if (isScaled) font.data.setScale(oldScaleX, oldScaleY)
         Draw.color()
     }
 

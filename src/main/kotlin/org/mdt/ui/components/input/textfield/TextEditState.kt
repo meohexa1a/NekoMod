@@ -29,6 +29,7 @@ class TextEditState(
         private set
 
     var isFocused: Boolean = false
+    var isMultiline: Boolean = false
 
     var cursorVisible: Boolean = true
         private set
@@ -154,7 +155,7 @@ class TextEditState(
     // =========================================================================
 
     fun insert(character: Char) {
-        if (character < ' ' && character != '\t') return
+        if (character < ' ' && character != '\t' && (!isMultiline || character != '\n')) return
 
         clearComposition()
         deleteSelection()
@@ -308,7 +309,7 @@ class TextEditState(
     fun onKeyTyped(character: Char): Boolean {
         if (!isFocused) return false
 
-        if (character >= ' ' || character == '\t') {
+        if (character >= ' ' || character == '\t' || (isMultiline && character == '\n')) {
             insert(character)
             return true
         }
@@ -324,6 +325,7 @@ class TextEditState(
         return when (key) {
             KeyCode.backspace -> backspace()
             KeyCode.del -> delete()
+            KeyCode.enter -> if (isMultiline) { insert('\n'); true } else false
             KeyCode.left -> { moveLeft(isShift); true }
             KeyCode.right -> { moveRight(isShift); true }
             KeyCode.home -> { moveToStart(isShift); true }

@@ -41,6 +41,12 @@ open class TextFieldNode : LayoutNode() {
     var fontScale: Float = 1.0f
     var onValueChange: ((String) -> Unit)? = null
 
+    var isMultiline: Boolean
+        get() = editState.isMultiline
+        set(value) {
+            editState.isMultiline = value
+        }
+
     val boxVisuals: BoxVisuals = ensureVisuals()
 
     private var dragSelectionAnchor: Int = -1
@@ -199,11 +205,15 @@ open class TextFieldNode : LayoutNode() {
         font.data.setScale(fontScale, fontScale)
 
         val capHeight = font.data.capHeight
-        val textY = innerY + (innerHeight + capHeight) * 0.5f
+        val textY = if (isMultiline) {
+            innerY + innerHeight - 2f
+        } else {
+            innerY + (innerHeight + capHeight) * 0.5f
+        }
 
         // Unified typography vertical alignment: selection box and caret share identical height & baseline center
         val lineHeight = capHeight * 1.55f
-        val lineCenterY = textY - capHeight * 0.45f
+        val lineCenterY = if (isMultiline) textY - capHeight * 0.5f else textY - capHeight * 0.45f
 
         val displayText = editState.getDisplayText()
 
@@ -256,10 +266,18 @@ open class TextFieldNode : LayoutNode() {
         // 4. Draw Text / Placeholder
         if (displayText.isEmpty()) {
             font.color = placeholderColor.toArcColor(Tmp.c1)
-            font.draw(placeholder, innerX, textY)
+            if (isMultiline) {
+                font.draw(placeholder, innerX, textY, innerWidth, arc.util.Align.topLeft, true)
+            } else {
+                font.draw(placeholder, innerX, textY)
+            }
         } else {
             font.color = textColor.toArcColor(Tmp.c1)
-            font.draw(displayText, innerX, textY)
+            if (isMultiline) {
+                font.draw(displayText, innerX, textY, innerWidth, arc.util.Align.topLeft, true)
+            } else {
+                font.draw(displayText, innerX, textY)
+            }
         }
 
         // 5. Draw Caret Cursor (Synchronized with line height and lineCenterY)

@@ -42,6 +42,7 @@ fun TextField(
     modifier: UIModifier = UIModifier,
     placeholder: String = "",
     enabled: Boolean = true,
+    isMultiline: Boolean = false,
     colors: TextFieldColors = TextFieldColors(
         background = Theme.colors.surfacePrimary,
         text = Theme.colors.textPrimary,
@@ -60,6 +61,7 @@ fun TextField(
             node.onValueChange = onValueChange
             node.touchable = enabled
             node.isFocusable = enabled
+            node.isMultiline = isMultiline
 
             node.boxVisuals.background.color = colors.background
             node.textColor = colors.text
@@ -84,6 +86,10 @@ fun TextField(
             set(enabled) {
                 this.touchable = it
                 this.isFocusable = it
+            }
+            set(isMultiline) {
+                this.isMultiline = it
+                invalidateLayout()
             }
             set(colors) {
                 this.boxVisuals.background.color = it.background
