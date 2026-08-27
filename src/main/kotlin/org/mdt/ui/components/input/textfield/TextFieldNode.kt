@@ -1,15 +1,16 @@
 package org.mdt.ui.components.input.textfield
 
 import arc.Core
-import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
 import arc.graphics.g2d.GlyphLayout
+import arc.util.Tmp
 import mindustry.ui.Fonts
-import org.mdt.ui.components.layout.BoxVisuals
-import org.mdt.ui.components.layout.LayoutNode
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.render.EngineRenderer
+import org.mdt.ui.components.layout.BoxVisuals
+import org.mdt.ui.components.layout.LayoutNode
 
 /**
  * ## TextFieldNode
@@ -27,14 +28,14 @@ open class TextFieldNode : LayoutNode() {
     }
 
     var placeholder: String = ""
-    var textColor: Color = Color(Color.valueOf("cad3f5"))
-    var placeholderColor: Color = Color(Color.valueOf("5b6078"))
-    var cursorColor: Color = Color(Color.valueOf("85c1dc"))
-    var selectionColor: Color = Color(Color.valueOf("363a4f").a(0.8f))
+    var textColor: Color = Color.valueOf("cad3f5")
+    var placeholderColor: Color = Color.valueOf("5b6078")
+    var cursorColor: Color = Color.valueOf("85c1dc")
+    var selectionColor: Color = Color.valueOf("363a4f").withAlpha(0.8f)
 
-    var normalBorderColor: Color = Color(Color.valueOf("363a4f"))
-    var focusBorderColor: Color = Color(Color.valueOf("2563eb"))
-    var focusGlowColor: Color = Color(Color.valueOf("2563eb").a(0.4f))
+    var normalBorderColor: Color = Color.valueOf("363a4f")
+    var focusBorderColor: Color = Color.valueOf("2563eb")
+    var focusGlowColor: Color = Color.valueOf("2563eb").withAlpha(0.4f)
 
     var fontScale: Float = 1.0f
     var onValueChange: ((String) -> Unit)? = null
@@ -45,7 +46,7 @@ open class TextFieldNode : LayoutNode() {
         isFocusable = true
         pad(left = 12f, right = 12f, top = 6f, bottom = 6f)
         boxVisuals.radius(6f)
-        boxVisuals.background.color.set(Color.valueOf("181926"))
+        boxVisuals.background.color = Color.valueOf("181926")
         boxVisuals.border(1f, normalBorderColor)
         minHeight = 32f
 
@@ -122,11 +123,11 @@ open class TextFieldNode : LayoutNode() {
 
         // Dynamic visual feedback on focus
         if (isFocused) {
-            boxVisuals.border.color.set(focusBorderColor)
+            boxVisuals.border.color = focusBorderColor
             boxVisuals.glow(focusGlowColor, spread = 3f, blur = 6f)
         } else {
-            boxVisuals.border.color.set(normalBorderColor)
-            boxVisuals.glow(Color.clear, spread = 0f, blur = 0f)
+            boxVisuals.border.color = normalBorderColor
+            boxVisuals.glow(Color.Clear, spread = 0f, blur = 0f)
         }
 
         // 1. Draw SDF background container
@@ -161,22 +162,22 @@ open class TextFieldNode : LayoutNode() {
             layoutHelper.setText(font, selEndSub)
             val selectionEndX = innerX + layoutHelper.width
 
-            Draw.color(selectionColor)
+            Draw.color(selectionColor.toArcColor(Tmp.c1))
             Fill.rect(
                 (selectionStartX + selectionEndX) * 0.5f,
                 innerY + innerHeight * 0.5f,
                 selectionEndX - selectionStartX,
                 innerHeight
             )
-            Draw.color(Color.white)
+            Draw.color()
         }
 
         // 3. Draw Text / Placeholder
         if (text.isEmpty()) {
-            font.color = placeholderColor
+            font.color = placeholderColor.toArcColor(Tmp.c1)
             font.draw(placeholder, innerX, textY)
         } else {
-            font.color = textColor
+            font.color = textColor.toArcColor(Tmp.c1)
             font.draw(text, innerX, textY)
         }
 
@@ -186,10 +187,10 @@ open class TextFieldNode : LayoutNode() {
             layoutHelper.setText(font, cursorSub)
             val cursorX = innerX + layoutHelper.width
 
-            Draw.color(cursorColor)
+            Draw.color(cursorColor.toArcColor(Tmp.c1))
             val cursorHeight = capHeight * 1.3f
             Fill.rect(cursorX + 1f, textY - capHeight * 0.4f, 1.5f, cursorHeight)
-            Draw.color(Color.white)
+            Draw.color()
         }
 
         font.data.setScale(oldScaleX, oldScaleY)

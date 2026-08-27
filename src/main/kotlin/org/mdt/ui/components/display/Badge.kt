@@ -1,18 +1,18 @@
-package org.mdt.ui.components.display.badge
+package org.mdt.ui.components.display
 
 import androidx.compose.runtime.Composable
-import arc.graphics.Color
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.ui.components.layout.Box
-import org.mdt.ui.components.text.Text
+import org.mdt.ui.components.text.MonoText
 import org.mdt.ui.theme.ColorTokens
 import org.mdt.ui.theme.Theme
 
 /**
  * ## BadgeVariant
  *
- * Visual style variants for status pills and chips.
+ * Visual style variants for status pills and indicator chips.
  */
 enum class BadgeVariant {
     DEFAULT,
@@ -30,6 +30,8 @@ enum class BadgeVariant {
  * @param text Badge text label.
  * @param variant Visual color style (Default, Primary, Success, Warning, Error).
  * @param modifier Chainable [UIModifier].
+ *
+ * See: docs/design-system/design_system_en.md
  */
 @Composable
 fun Badge(
@@ -52,7 +54,7 @@ fun Badge(
             .pad(horizontal = 8f, vertical = 2f)
             .then(modifier)
     ) {
-        Text(
+        MonoText(
             text = text,
             color = textColor,
             modifier = Modifier.align(Alignment.Center)
@@ -66,10 +68,10 @@ fun Badge(
 
 private fun computeBadgeBackground(variant: BadgeVariant, colors: ColorTokens): Color = when (variant) {
     BadgeVariant.DEFAULT -> colors.glassThin
-    BadgeVariant.PRIMARY -> colors.blue.cpy().apply { a = 0.20f }
-    BadgeVariant.SUCCESS -> colors.green.cpy().apply { a = 0.20f }
-    BadgeVariant.WARNING -> colors.orange.cpy().apply { a = 0.20f }
-    BadgeVariant.ERROR -> colors.red.cpy().apply { a = 0.20f }
+    BadgeVariant.PRIMARY -> colors.blue.withAlpha(0.20f)
+    BadgeVariant.SUCCESS -> colors.green.withAlpha(0.20f)
+    BadgeVariant.WARNING -> colors.orange.withAlpha(0.20f)
+    BadgeVariant.ERROR -> colors.red.withAlpha(0.20f)
 }
 
 private fun computeBadgeText(variant: BadgeVariant, colors: ColorTokens): Color = when (variant) {
@@ -82,8 +84,8 @@ private fun computeBadgeText(variant: BadgeVariant, colors: ColorTokens): Color 
 
 private fun computeBadgeBorder(variant: BadgeVariant, colors: ColorTokens): Color = when (variant) {
     BadgeVariant.DEFAULT -> colors.borderHairline
-    BadgeVariant.PRIMARY -> colors.blue.cpy().apply { a = 0.40f }
-    BadgeVariant.SUCCESS -> colors.green.cpy().apply { a = 0.40f }
-    BadgeVariant.WARNING -> colors.orange.cpy().apply { a = 0.40f }
-    BadgeVariant.ERROR -> colors.red.cpy().apply { a = 0.40f }
+    BadgeVariant.PRIMARY -> colors.blue.withAlpha(0.40f)
+    BadgeVariant.SUCCESS -> colors.green.withAlpha(0.40f)
+    BadgeVariant.WARNING -> colors.orange.withAlpha(0.40f)
+    BadgeVariant.ERROR -> colors.red.withAlpha(0.40f)
 }

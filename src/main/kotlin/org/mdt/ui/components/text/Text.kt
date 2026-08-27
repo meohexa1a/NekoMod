@@ -1,15 +1,13 @@
-@file:Suppress("FunctionName", "unused")
-
 package org.mdt.ui.components.text
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
-import arc.graphics.Color
 import arc.graphics.g2d.Font
 import arc.util.Align
 import mindustry.ui.Fonts
 import org.mdt.core.ui.compose.NodeApplier
 import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.graphics.Color
 
 /**
  * ## Text
@@ -29,7 +27,7 @@ import org.mdt.core.ui.compose.UIModifier
 fun Text(
     text: String,
     modifier: UIModifier = UIModifier,
-    color: Color = Color.white,
+    color: Color = Color.White,
     font: Font = Fonts.def,
     scale: Float = 1.0f,
     align: Int = Align.left,
@@ -40,7 +38,7 @@ fun Text(
         factory = {
             val node = TextNode(text)
             node.textVisuals.font = font
-            node.textVisuals.color.set(color)
+            node.textVisuals.color = color
             node.textVisuals.fontScale = scale
             node.textVisuals.align = align
             node.textVisuals.wrap = wrap
@@ -54,7 +52,7 @@ fun Text(
                 this.textVisuals.font = it
                 invalidateLayout()
             }
-            set(color) { this.textVisuals.color.set(it) }
+            set(color) { this.textVisuals.color = it }
             set(scale) {
                 this.textVisuals.fontScale = it
                 invalidateLayout()
@@ -94,7 +92,7 @@ fun Text(
 fun MonoText(
     text: String,
     modifier: UIModifier = UIModifier,
-    color: Color = Color.white,
+    color: Color = Color.White,
     scale: Float = 1.0f,
     align: Int = Align.left,
     wrap: Boolean = false,

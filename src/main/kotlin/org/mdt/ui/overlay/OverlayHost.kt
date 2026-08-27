@@ -1,10 +1,9 @@
 package org.mdt.ui.overlay
 
 import androidx.compose.runtime.*
-import arc.graphics.Color
 import org.mdt.core.ui.compose.*
 import org.mdt.core.ui.layout.LayoutPreset
-import org.mdt.ui.components.display.tooltip.Tooltip
+import org.mdt.ui.components.display.Tooltip
 import org.mdt.ui.components.layout.Box
 
 /**

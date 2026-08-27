@@ -1,15 +1,14 @@
-@file:Suppress("FunctionName", "unused")
-
-package org.mdt.ui.components.display.tooltip
+package org.mdt.ui.components.display
 
 import androidx.compose.runtime.Composable
 import arc.Core
-import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.GlyphLayout
+import arc.util.Tmp
 import mindustry.ui.Fonts
 import org.mdt.core.ui.UINode
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.render.BoxRenderer
 import org.mdt.core.ui.render.EngineRenderer
 import org.mdt.ui.components.layout.Box
@@ -20,6 +19,8 @@ import org.mdt.ui.components.text.Text
  * ## Tooltip
  *
  * Declarative Frosted Glass tooltip card with hairline specular highlight and 1.0x BMFont clarity.
+ *
+ * See: docs/design-system/design_system_en.md
  */
 @Composable
 fun Tooltip(
@@ -35,7 +36,7 @@ fun Tooltip(
             .pad(horizontal = 12f, vertical = 8f)
             .then(modifier)
     ) {
-        Text(text = text, color = Color.white)
+        Text(text = text, color = Color.White)
     }
 }
 
@@ -47,7 +48,7 @@ fun Tooltip(
  *
  * Complies with Rule 8 (Top-layer overlay pass rendering).
  *
- * See: docs/ui-engine/ui_engine_en.md
+ * See: docs/design-system/design_system_en.md
  */
 object TooltipManager {
     var activeText: String? = null
@@ -55,7 +56,7 @@ object TooltipManager {
     private var lastTarget: Any? = null
 
     val tooltipVisuals = BoxVisuals().apply {
-        background.color.set(Color(0.08f, 0.09f, 0.13f, 0.92f))
+        background.color = Color(0.08f, 0.09f, 0.13f, 0.92f)
         border(width = 1f, color = Color(1f, 1f, 1f, 0.25f))
         radius(8f)
         shadow(color = Color(0f, 0f, 0f, 0.45f), blur = 12f, spread = 2f)
@@ -112,9 +113,9 @@ object TooltipManager {
         BoxRenderer.draw(positionX, positionY, boxWidth, boxHeight, tooltipVisuals)
 
         // Draw text at pixel-perfect scale 1.0f
-        font.color = Color.white
+        font.color = Color.White.toArcColor(Tmp.c1)
         font.draw(text, positionX + padHorizontal, positionY + padVertical + font.data.capHeight)
-        Draw.color(Color.white)
+        Draw.color()
     }
 }
 

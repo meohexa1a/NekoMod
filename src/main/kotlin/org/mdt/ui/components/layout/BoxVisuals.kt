@@ -1,9 +1,9 @@
 package org.mdt.ui.components.layout
 
-import arc.graphics.Color
 import arc.graphics.Texture
 import arc.graphics.g2d.TextureRegion
-import org.mdt.ui.components.display.image.ScaleMode
+import org.mdt.core.ui.graphics.Color
+import org.mdt.ui.components.display.ScaleMode
 
 /**
  * ## CornerRadii
@@ -50,7 +50,7 @@ data class CornerRadii(
  */
 data class Border(
     var width: Float = 0f,
-    val color: Color = Color(Color.clear),
+    var color: Color = Color.Clear,
     var style: Style = Style.SOLID,
     var dashLength: Float = 8f,
     var dashRatio: Float = 0.5f
@@ -65,7 +65,7 @@ data class Border(
 
     fun set(width: Float, color: Color, style: Style = Style.SOLID, dashLength: Float = 8f, dashRatio: Float = 0.5f) {
         this.width = width
-        this.color.set(color)
+        this.color = color
         this.style = style
         this.dashLength = dashLength
         this.dashRatio = dashRatio
@@ -78,7 +78,7 @@ data class Border(
  * Diffuse ambient drop shadow, inset shadow, or radial glow (CSS `box-shadow`).
  */
 data class BoxShadow(
-    val color: Color = Color(Color.clear),
+    var color: Color = Color.Clear,
     var offsetX: Float = 0f,
     var offsetY: Float = 0f,
     var blur: Float = 0f,
@@ -88,7 +88,7 @@ data class BoxShadow(
     val isVisible: Boolean get() = color.a > 0.001f && (blur > 0.001f || spread > 0.001f || offsetX != 0f || offsetY != 0f)
 
     fun set(color: Color, offsetX: Float = 0f, offsetY: Float = 0f, blur: Float = 8f, spread: Float = 0f, isInset: Boolean = false) {
-        this.color.set(color)
+        this.color = color
         this.offsetX = offsetX
         this.offsetY = offsetY
         this.blur = blur
@@ -106,7 +106,7 @@ data class BackdropFilter(
     var enabled: Boolean = false,
     var blurRadius: Float = 12f,
     var iterations: Int = 2,
-    val tint: Color = Color(Color.white),
+    var tint: Color = Color.White,
     var weight: Float = 1.0f,
     var blend: Float = 0.5f,
     var minAlpha: Float = 0.1f
@@ -127,7 +127,7 @@ class BackgroundFill {
     }
 
     var mode: Mode = Mode.COLOR
-    val color: Color = Color(Color.clear)
+    var color: Color = Color.Clear
     var texture: Texture? = null
     var region: TextureRegion? = null
     var scaleMode: ScaleMode = ScaleMode.FIT
@@ -249,7 +249,7 @@ class BackgroundFill {
  */
 data class ProgressFill(
     var fraction: Float = 0f,
-    val color: Color = Color(Color.clear)
+    var color: Color = Color.Clear
 ) {
     val isVisible: Boolean get() = fraction > 0.001f && color.a > 0.001f
 }
@@ -370,25 +370,25 @@ class BoxVisuals {
     fun texture(
         region: TextureRegion,
         scaleMode: ScaleMode = ScaleMode.FIT,
-        tint: Color = Color.white
+        tint: Color = Color.White
     ): BoxVisuals {
         background.mode = BackgroundFill.Mode.TEXTURE
         background.region = region
         background.texture = region.texture
         background.scaleMode = scaleMode
-        background.color.set(tint)
+        background.color = tint
         return this
     }
 
     fun texture(
         tex: Texture,
         scaleMode: ScaleMode = ScaleMode.FIT,
-        tint: Color = Color.white
+        tint: Color = Color.White
     ): BoxVisuals = texture(TextureRegion(tex), scaleMode, tint)
 
     fun progress(fraction: Float, color: Color): BoxVisuals {
         progress.fraction = fraction.coerceIn(0f, 1f)
-        progress.color.set(color)
+        progress.color = color
         return this
     }
 }

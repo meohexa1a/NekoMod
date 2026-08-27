@@ -1,16 +1,16 @@
 package org.mdt.ui.components.text
 
-import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.GlyphLayout
-import org.mdt.ui.components.layout.LayoutNode
+import arc.util.Tmp
 import org.mdt.core.ui.render.EngineRenderer
+import org.mdt.ui.components.layout.LayoutNode
 
 /**
  * ## TextNode
  *
  * Virtual DOM node rendering BMFont glyphs with typography configurations,
- * multi-line wrapping, and font selection.
+ * multi-line wrapping, and font selection. Uses Anuke's pooled [Tmp.c1] for zero-allocation rendering.
  *
  * See: docs/architecture/architecture_en.md
  */
@@ -72,7 +72,7 @@ open class TextNode(
 
         val targetW = if (bounds.width > 0f) bounds.width - padL - padR else (if (width > 0f) width - padL - padR else 0f)
         val textH = if (textVisuals.wrap && targetW > 0f) {
-            layoutHelper.setText(f, text, textVisuals.color, targetW, textVisuals.align, true)
+            layoutHelper.setText(f, text, textVisuals.color.toArcColor(Tmp.c1), targetW, textVisuals.align, true)
             layoutHelper.height
         } else {
             layoutHelper.setText(f, text)
@@ -98,11 +98,11 @@ open class TextNode(
         val isScaled = textVisuals.fontScaleX != 1.0f || textVisuals.fontScaleY != 1.0f
         if (isScaled) f.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
 
-        f.color = textVisuals.color
+        f.color = textVisuals.color.toArcColor(Tmp.c1)
 
         val capH = f.data.capHeight
         if (textVisuals.wrap && innerW > 0f) {
-            layoutHelper.setText(f, text, textVisuals.color, innerW, textVisuals.align, true)
+            layoutHelper.setText(f, text, textVisuals.color.toArcColor(Tmp.c1), innerW, textVisuals.align, true)
             val drawY = innerY + (innerH + layoutHelper.height) * 0.5f
             f.draw(text, innerX, drawY, innerW, textVisuals.align, true)
         } else {
@@ -115,7 +115,7 @@ open class TextNode(
         }
 
         if (isScaled) f.data.setScale(oldSX, oldSY)
-        Draw.color(Color.white)
+        Draw.color()
     }
 
     companion object {

@@ -1,5 +1,3 @@
-@file:Suppress("FunctionName", "unused")
-
 package org.mdt.ui.components.surface
 
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -7,8 +5,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import arc.graphics.Color
 import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.LayoutPreset
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.theme.Theme
@@ -21,8 +19,8 @@ import org.mdt.ui.theme.Theme
 data class ToggleColors(
     val activeTrack: Color,
     val inactiveTrack: Color,
-    val thumb: Color = Color.white,
-    val border: Color = Color.clear
+    val thumb: Color = Color.White,
+    val border: Color = Color.Clear
 )
 
 /**
@@ -50,8 +48,8 @@ fun Toggle(
         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
     )
 
-    val currentTrackColor = colors.surfaceTertiary.cpy().lerp(activeColor, progress)
-    val currentBorderColor = colors.borderHairline.cpy().lerp(activeColor.cpy().mul(1.15f), progress)
+    val currentTrackColor = colors.surfaceTertiary.lerp(activeColor, progress)
+    val currentBorderColor = colors.borderHairline.lerp(activeColor.mul(1.15f), progress)
 
     val trackWidth = 44f
     val trackHeight = 24f
@@ -65,7 +63,7 @@ fun Toggle(
             .size(trackWidth, trackHeight)
             .radius(Theme.shapes.pill)
             .background(currentTrackColor)
-            .shadow(activeColor.cpy().apply { a = 0.35f * progress }, blur = 6f * progress, spread = 1f)
+            .shadow(activeColor.withAlpha(0.35f * progress), blur = 6f * progress, spread = 1f)
             .clickable { onToggle(!checked) }
             .then(modifier)
     ) {
@@ -75,7 +73,7 @@ fun Toggle(
                 .anchor(LayoutPreset.CENTER_LEFT)
                 .margin(left = thumbLeft)
                 .radius(Theme.shapes.pill)
-                .background(Color.white)
+                .background(Color.White)
                 .shadow(Color(0f, 0f, 0f, 0.40f), offsetX = 0f, offsetY = -1f, blur = 3f, spread = 0.5f)
         )
     }

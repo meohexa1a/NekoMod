@@ -1,7 +1,6 @@
 package org.mdt.ui.components.layout
 
-import arc.graphics.Color
-import org.mdt.core.ui.layout.LayoutPreset
+import org.mdt.core.ui.graphics.Color
 
 /**
  * ## ComponentNode
@@ -27,9 +26,9 @@ class ComponentNode(
         if (isMaster) {
             val vis = ensureVisuals()
             vis.background.mode = BackgroundFill.Mode.COLOR
-            vis.background.color.set(Color.valueOf("1e1828"))
+            vis.background.color = Color.valueOf("1e1828")
             vis.border.width = 1f
-            vis.border.color.set(Color.valueOf("bf5af2")) // Purple for Master Component
+            vis.border.color = Color.valueOf("bf5af2") // Purple for Master Component
         }
     }
 

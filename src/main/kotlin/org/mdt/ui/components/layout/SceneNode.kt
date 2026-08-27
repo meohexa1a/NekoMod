@@ -1,6 +1,6 @@
 package org.mdt.ui.components.layout
 
-import arc.graphics.Color
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.LayoutPreset
 
 /**
@@ -29,9 +29,9 @@ class SceneNode(
 
         val vis = ensureVisuals()
         vis.background.mode = BackgroundFill.Mode.COLOR
-        vis.background.color.set(backgroundColor)
+        vis.background.color = backgroundColor
         vis.border.width = 1f
-        vis.border.color.set(Color(1f, 1f, 1f, 0.08f))
+        vis.border.color = Color(1f, 1f, 1f, 0.08f)
     }
 
     /**

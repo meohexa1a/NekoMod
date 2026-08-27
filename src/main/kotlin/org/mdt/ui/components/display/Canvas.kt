@@ -1,18 +1,18 @@
-@file:Suppress("FunctionName", "unused")
-
-package org.mdt.ui.components.display.canvas
+package org.mdt.ui.components.display
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import org.mdt.core.ui.compose.NodeApplier
 import org.mdt.core.ui.compose.UIModifier
-import org.mdt.ui.components.layout.LayoutNode
 import org.mdt.core.ui.render.EngineRenderer
+import org.mdt.ui.components.layout.LayoutNode
 
 /**
  * ## CustomDrawNode
  *
  * Virtual DOM primitive node executing a direct GPU draw callback during the render pass.
+ *
+ * See: docs/design-system/design_system_en.md
  */
 open class CustomDrawNode : LayoutNode() {
     var onDraw: ((EngineRenderer) -> Unit)? = null
@@ -32,6 +32,8 @@ open class CustomDrawNode : LayoutNode() {
  *
  * @param modifier Chainable [UIModifier] to configure size, anchors, and bounds.
  * @param onDraw Callback invoked during the render pass with the active [EngineRenderer].
+ *
+ * See: docs/design-system/design_system_en.md
  */
 @Composable
 fun Canvas(

@@ -1,9 +1,10 @@
 package org.mdt.ui.components.scroll
 
-import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.Fill
+import arc.util.Tmp
 import org.mdt.core.ui.UINode
+import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.render.EngineRenderer
@@ -30,7 +31,7 @@ open class ScrollContainerNode : LayoutNode() {
     var maxScrollY: Float = 0f
         private set
 
-    var scrollbarColor: Color = Color(Color.valueOf("5b6078").a(0.6f))
+    var scrollbarColor: Color = Color.valueOf("5b6078").withAlpha(0.6f)
     var scrollbarThickness: Float = 4f
 
     private var lastDragX = 0f
@@ -41,15 +42,25 @@ open class ScrollContainerNode : LayoutNode() {
 
         onScroll = { event: ScrollEvent ->
             var consumed = false
-            if (enableVertical && maxScrollY > 0f) {
-                // Invert wheel: scrolling down increases scrollY (moves content upwards)
-                scrollY = (scrollY + event.amountY * 36f).coerceIn(0f, maxScrollY)
-                consumed = true
+            val isShift = arc.Core.input != null && arc.Core.input.shift()
+
+            if (isShift || (!enableVertical && enableHorizontal)) {
+                if (enableHorizontal && maxScrollX > 0f) {
+                    val delta = if (event.amountX != 0f) event.amountX else event.amountY
+                    scrollX = (scrollX + delta * 36f).coerceIn(0f, maxScrollX)
+                    consumed = true
+                }
+            } else {
+                if (enableVertical && maxScrollY > 0f) {
+                    scrollY = (scrollY + event.amountY * 36f).coerceIn(0f, maxScrollY)
+                    consumed = true
+                }
+                if (enableHorizontal && maxScrollX > 0f && event.amountX != 0f) {
+                    scrollX = (scrollX + event.amountX * 36f).coerceIn(0f, maxScrollX)
+                    consumed = true
+                }
             }
-            if (enableHorizontal && maxScrollX > 0f) {
-                scrollX = (scrollX + event.amountX * 36f).coerceIn(0f, maxScrollX)
-                consumed = true
-            }
+
             if (consumed) {
                 event.isConsumed = true
                 invalidateLayout()
@@ -65,7 +76,7 @@ open class ScrollContainerNode : LayoutNode() {
             var consumed = false
             if (enableVertical && maxScrollY > 0f) {
                 val dy = event.y - lastDragY
-                scrollY = (scrollY - dy).coerceIn(0f, maxScrollY)
+                scrollY = (scrollY + dy).coerceIn(0f, maxScrollY)
                 lastDragY = event.y
                 consumed = true
             }
@@ -103,25 +114,26 @@ open class ScrollContainerNode : LayoutNode() {
 
         val availW = maxOf(0f, bounds.width - padL - padR)
         val availH = maxOf(0f, bounds.height - padT - padB)
+
+        val contentW = measurePolicy.measureWidth(this)
+        val contentH = measurePolicy.measureHeight(this)
+
+        maxScrollX = maxOf(0f, contentW - availW)
+        maxScrollY = maxOf(0f, contentH - availH)
+        scrollX = scrollX.coerceIn(0f, maxScrollX)
+        scrollY = scrollY.coerceIn(0f, maxScrollY)
+
         val innerX = bounds.x + padL - scrollX
         val innerY = bounds.y + padB + scrollY
 
-        measurePolicy.layout(this, innerX, innerY, availW, availH)
+        val layoutW = if (enableHorizontal) maxOf(availW, contentW) else availW
+        val layoutH = if (enableVertical) maxOf(availH, contentH) else availH
 
-        var totalW = 0f
-        var totalH = 0f
+        measurePolicy.layout(this, innerX, innerY, layoutW, layoutH)
+
         for (child in children) {
-            if (child.visible) {
-                child.layout()
-                totalW = maxOf(totalW, child.bounds.x + child.bounds.width - innerX)
-                totalH = maxOf(totalH, child.bounds.y + child.bounds.height - innerY)
-            }
+            if (child.visible) child.layout()
         }
-
-        maxScrollX = maxOf(0f, totalW - availW)
-        maxScrollY = maxOf(0f, totalH - availH)
-        scrollX = scrollX.coerceIn(0f, maxScrollX)
-        scrollY = scrollY.coerceIn(0f, maxScrollY)
 
         isLayoutDirty = false
     }
@@ -141,14 +153,14 @@ open class ScrollContainerNode : LayoutNode() {
             val scrollRatio = if (maxScrollY > 0f) scrollY / maxScrollY else 0f
             val thumbY = innerY + availH - thumbH - scrollRatio * (availH - thumbH)
 
-            Draw.color(scrollbarColor)
+            Draw.color(scrollbarColor.toArcColor(Tmp.c1))
             Fill.rect(
                 innerX + availW - scrollbarThickness * 0.5f - 2f,
                 thumbY + thumbH * 0.5f,
                 scrollbarThickness,
                 thumbH
             )
-            Draw.color(Color.white)
+            Draw.color()
         }
 
         if (enableHorizontal && maxScrollX > 0f) {
@@ -157,14 +169,14 @@ open class ScrollContainerNode : LayoutNode() {
             val scrollRatio = if (maxScrollX > 0f) scrollX / maxScrollX else 0f
             val thumbX = innerX + scrollRatio * (availW - thumbW)
 
-            Draw.color(scrollbarColor)
+            Draw.color(scrollbarColor.toArcColor(Tmp.c1))
             Fill.rect(
                 thumbX + thumbW * 0.5f,
                 innerY + scrollbarThickness * 0.5f + 2f,
                 thumbW,
                 scrollbarThickness
             )
-            Draw.color(Color.white)
+            Draw.color()
         }
     }
 }

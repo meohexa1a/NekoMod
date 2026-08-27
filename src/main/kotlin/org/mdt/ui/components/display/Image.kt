@@ -1,7 +1,6 @@
-package org.mdt.ui.components.display.image
+package org.mdt.ui.components.display
 
 import androidx.compose.runtime.*
-import arc.graphics.Color
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.common.RequestBuilder
 import org.mdt.core.common.TextureHandle
@@ -9,6 +8,7 @@ import org.mdt.core.engine.EngineContext
 import org.mdt.core.engine.image.ImageSource
 import org.mdt.core.ui.compose.UIModifier
 import org.mdt.core.ui.compose.texture
+import org.mdt.core.ui.graphics.Color
 import org.mdt.ui.components.layout.Box
 
 /**
@@ -40,13 +40,15 @@ enum class ScaleMode {
  * @param modifier Chainable [UIModifier].
  * @param scaleMode Image scaling behavior ([ScaleMode]).
  * @param tint Tint color multiplied with the image.
+ *
+ * See: docs/design-system/design_system_en.md
  */
 @Composable
 fun Image(
     source: ImageSource,
     modifier: UIModifier = UIModifier,
     scaleMode: ScaleMode = ScaleMode.FIT,
-    tint: Color = Color.white
+    tint: Color = Color.White
 ) {
     val imageService = EngineContext.current.image
     var region by remember(source) { mutableStateOf(imageService.fallbackRegion()) }
@@ -79,7 +81,7 @@ fun Image(
     source: String,
     modifier: UIModifier = UIModifier,
     scaleMode: ScaleMode = ScaleMode.FIT,
-    tint: Color = Color.white
+    tint: Color = Color.White
 ) {
     Image(
         source = ImageSource.of(source),
@@ -97,7 +99,7 @@ fun Image(
     url: String,
     modifier: UIModifier = UIModifier,
     scaleMode: ScaleMode = ScaleMode.FIT,
-    tint: Color = Color.white,
+    tint: Color = Color.White,
     configureRequest: RequestBuilder.() -> Unit
 ) {
     Image(
@@ -116,7 +118,7 @@ fun Image(
     region: TextureRegion,
     modifier: UIModifier = UIModifier,
     scaleMode: ScaleMode = ScaleMode.FIT,
-    tint: Color = Color.white
+    tint: Color = Color.White
 ) {
     Box(
         modifier = UIModifier

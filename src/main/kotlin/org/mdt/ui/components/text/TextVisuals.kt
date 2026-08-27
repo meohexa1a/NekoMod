@@ -1,9 +1,9 @@
 package org.mdt.ui.components.text
 
-import arc.graphics.Color
 import arc.graphics.g2d.Font
 import arc.util.Align
 import mindustry.ui.Fonts
+import org.mdt.core.ui.graphics.Color
 
 /**
  * ## TextVisuals
@@ -15,7 +15,7 @@ import mindustry.ui.Fonts
 class TextVisuals {
     var text: String = ""
     var font: Font = Fonts.def
-    var color: Color = Color(Color.white)
+    var color: Color = Color.White
     var fontScaleX: Float = 1.0f
     var fontScaleY: Float = 1.0f
     var labelAlign: Int = Align.left
@@ -44,7 +44,7 @@ class TextVisuals {
     }
 
     fun color(color: Color): TextVisuals {
-        this.color.set(color)
+        this.color = color
         return this
     }
 
