@@ -9,10 +9,10 @@ package org.mdt.core.ui
  * See: docs/ui-engine/ui_engine_en.md
  */
 data class Rect(
-    var x: Float = 0f,
-    var y: Float = 0f,
-    var width: Float = 0f,
-    var height: Float = 0f
+    var x: Float = 0.0f,
+    var y: Float = 0.0f,
+    var width: Float = 0.0f,
+    var height: Float = 0.0f
 ) {
     /** Checks whether point ([pointX], [pointY]) is contained within this rectangle. */
     fun contains(pointX: Float, pointY: Float): Boolean =
@@ -38,10 +38,10 @@ data class Rect(
  * See: docs/ui-engine/ui_engine_en.md
  */
 data class Insets(
-    var left: Float = 0f,
-    var top: Float = 0f,
-    var right: Float = 0f,
-    var bottom: Float = 0f
+    var left: Float = 0.0f,
+    var top: Float = 0.0f,
+    var right: Float = 0.0f,
+    var bottom: Float = 0.0f
 ) {
     /** Sets individual edge insets. */
     fun set(left: Float, top: Float, right: Float, bottom: Float) {

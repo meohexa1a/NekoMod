@@ -12,25 +12,21 @@ import org.mdt.core.ui.UINode
  */
 object GodotLayout {
 
-    // =========================================================================
-    // I. Intrinsic Measurement Helpers
-    // =========================================================================
+    // --- INTRINSIC MEASUREMENT HELPERS ---
 
     fun getChildMinWidth(child: UINode): Float {
         val preferred = child.getPrefWidth()
-        val baseWidth = if (preferred > 0f) preferred else if (child.minWidth > 0f) child.minWidth else 0f
+        val baseWidth = if (preferred > 0.0f) preferred else if (child.minWidth > 0.0f) child.minWidth else 0.0f
         return baseWidth + child.marginL + child.marginR
     }
 
-    fun getChildMinHeight(child: UINode): Float {
-        val preferred = child.getPrefHeight()
-        val baseHeight = if (preferred > 0f) preferred else if (child.minHeight > 0f) child.minHeight else 0f
+    fun getChildMinHeight(child: UINode, availableWidth: Float = -1.0f): Float {
+        val preferred = child.getPrefHeight(availableWidth)
+        val baseHeight = if (preferred > 0.0f) preferred else if (child.minHeight > 0.0f) child.minHeight else 0.0f
         return baseHeight + child.marginT + child.marginB
     }
 
-    // =========================================================================
-    // II. Slot Rectangle Fitting
-    // =========================================================================
+    // --- SLOT RECTANGLE FITTING ---
 
     fun fitChildInRect(
         child: UINode,
@@ -43,42 +39,43 @@ object GodotLayout {
     ) {
         val slotInnerX = rectX + child.marginL
         val slotInnerY = rectY + child.marginB
-        val slotInnerWidth = maxOf(0f, rectWidth - child.marginL - child.marginR)
-        val slotInnerHeight = maxOf(0f, rectHeight - child.marginT - child.marginB)
+        val slotInnerWidth = maxOf(0.0f, rectWidth - child.marginL - child.marginR)
+        val slotInnerHeight = maxOf(0.0f, rectHeight - child.marginT - child.marginB)
 
         val childPureMinWidth = run {
             val preferred = child.getPrefWidth()
-            if (preferred > 0f) preferred else if (child.minWidth > 0f) child.minWidth else 0f
+            if (preferred > 0.0f) preferred else if (child.minWidth > 0.0f) child.minWidth else 0.0f
         }
         val childPureMinHeight = run {
             val preferred = child.getPrefHeight()
-            if (preferred > 0f) preferred else if (child.minHeight > 0f) child.minHeight else 0f
+            if (preferred > 0.0f) preferred else if (child.minHeight > 0.0f) child.minHeight else 0.0f
         }
 
         // 1. Horizontal Dimension & Position
         val computedWidth: Float = when {
-            child.width > 0f -> child.width
+            child.width > 0.0f -> child.width
             (horizontalFlags and SizeFlags.FILL) != 0 -> slotInnerWidth
+            child is org.mdt.ui.components.text.TextNode && child.wrap -> slotInnerWidth
             else -> minOf(slotInnerWidth, childPureMinWidth)
         }
 
         val computedX: Float = when {
-            (horizontalFlags and SizeFlags.FILL) != 0 && child.width <= 0f -> slotInnerX
+            (horizontalFlags and SizeFlags.FILL) != 0 && child.width <= 0.0f -> slotInnerX
             (horizontalFlags and SizeFlags.SHRINK_END) != 0 -> slotInnerX + slotInnerWidth - computedWidth
             (horizontalFlags and SizeFlags.SHRINK_CENTER) != 0 -> slotInnerX + (slotInnerWidth - computedWidth) * 0.5f
-            else -> slotInnerX // Default / SHRINK_BEGIN: Left-aligned (Start)
+            else -> slotInnerX // Default / SHRINK_BEGIN: Left-aligned
         }
 
-        // 2. Vertical Dimension & Position (OpenGL Bottom-Left: slotInnerY is bottom, slotInnerY + slotInnerHeight is top)
+        // 2. Vertical Dimension & Position (OpenGL Bottom-Left)
         val computedHeight: Float = when {
-            child.height > 0f -> child.height
+            child.height > 0.0f -> child.height
             (verticalFlags and SizeFlags.FILL) != 0 -> slotInnerHeight
             else -> minOf(slotInnerHeight, childPureMinHeight)
         }
 
         val computedY: Float = when {
-            (verticalFlags and SizeFlags.FILL) != 0 && child.height <= 0f -> slotInnerY
-            (verticalFlags and SizeFlags.SHRINK_END) != 0 -> slotInnerY // SHRINK_END: Bottom of slot
+            (verticalFlags and SizeFlags.FILL) != 0 && child.height <= 0.0f -> slotInnerY
+            (verticalFlags and SizeFlags.SHRINK_END) != 0 -> slotInnerY
             (verticalFlags and SizeFlags.SHRINK_CENTER) != 0 -> slotInnerY + (slotInnerHeight - computedHeight) * 0.5f
             else -> slotInnerY + slotInnerHeight - computedHeight // Default / SHRINK_BEGIN: Top of slot
         }
@@ -86,9 +83,7 @@ object GodotLayout {
         child.setBounds(computedX, computedY, computedWidth, computedHeight)
     }
 
-    // =========================================================================
-    // III. Flex & Box Layout (Row / Column)
-    // =========================================================================
+    // --- FLEX & BOX LAYOUT (ROW / COLUMN) ---
 
     fun layoutBox(
         children: List<UINode>,
@@ -104,17 +99,18 @@ object GodotLayout {
         arrangement: Arrangement = Arrangement.Start,
         alignment: Alignment = if (isVertical) Alignment.TopStart else Alignment.CenterStart
     ) {
-        val availableWidth = maxOf(0f, parentWidth - padLeft - padRight)
-        val availableHeight = maxOf(0f, parentHeight - padTop - padBottom)
+        val availableWidth = maxOf(0.0f, parentWidth - padLeft - padRight)
+        val availableHeight = maxOf(0.0f, parentHeight - padTop - padBottom)
 
         val visibleChildren = children.filter { it.visible }
         if (visibleChildren.isEmpty()) return
 
-        var unweightedMinSize = 0f
-        var totalMinMain = 0f
-        var totalStretchRatio = 0f
+        var unweightedMinSize = 0.0f
+        var totalMinMain = 0.0f
+        var totalStretchRatio = 0.0f
 
-        for (child in visibleChildren) {
+        for (i in 0 until visibleChildren.size) {
+            val child = visibleChildren[i]
             val minSize = if (isVertical) getChildMinHeight(child) else getChildMinWidth(child)
             val flags = if (isVertical) child.sizeFlagsVertical else child.sizeFlagsHorizontal
             val ratio = child.stretchRatio
@@ -132,53 +128,56 @@ object GodotLayout {
         val fixedGap = arrangement.spacing
 
         var actualGap = fixedGap
-        var startOffset = 0f
-        var spaceForExpanding = 0f
+        var startOffset = 0.0f
+        var spaceForExpanding = 0.0f
 
-        if (totalStretchRatio > 0f) {
-            val totalGaps = if (visibleCount > 1) (visibleCount - 1) * fixedGap else 0f
-            spaceForExpanding = maxOf(0f, availableMain - unweightedMinSize - totalGaps)
+        if (totalStretchRatio > 0.0f) {
+            val totalGaps = if (visibleCount > 1) (visibleCount - 1) * fixedGap else 0.0f
+            spaceForExpanding = maxOf(0.0f, availableMain - unweightedMinSize - totalGaps)
         } else {
-            val totalFixedGaps = if (visibleCount > 1) (visibleCount - 1) * fixedGap else 0f
-            val remainingSpace = maxOf(0f, availableMain - totalMinMain)
+            val totalFixedGaps = if (visibleCount > 1) (visibleCount - 1) * fixedGap else 0.0f
+            val remainingSpace = maxOf(0.0f, availableMain - totalMinMain)
 
             when (arrangement.type) {
                 ArrangementType.START -> {
-                    startOffset = 0f
+                    startOffset = 0.0f
                     actualGap = fixedGap
                 }
                 ArrangementType.CENTER -> {
-                    startOffset = maxOf(0f, (availableMain - totalMinMain - totalFixedGaps) * 0.5f)
+                    startOffset = maxOf(0.0f, (availableMain - totalMinMain - totalFixedGaps) * 0.5f)
                     actualGap = fixedGap
                 }
                 ArrangementType.END -> {
-                    startOffset = maxOf(0f, availableMain - totalMinMain - totalFixedGaps)
+                    startOffset = maxOf(0.0f, availableMain - totalMinMain - totalFixedGaps)
                     actualGap = fixedGap
                 }
                 ArrangementType.SPACE_BETWEEN -> {
-                    startOffset = 0f
-                    actualGap = if (visibleCount > 1) remainingSpace / (visibleCount - 1) else 0f
+                    startOffset = 0.0f
+                    actualGap = if (visibleCount > 1) remainingSpace / (visibleCount - 1) else 0.0f
                 }
                 ArrangementType.SPACE_AROUND -> {
-                    actualGap = if (visibleCount > 0) remainingSpace / visibleCount else 0f
+                    actualGap = if (visibleCount > 0) remainingSpace / visibleCount else 0.0f
                     startOffset = actualGap * 0.5f
                 }
                 ArrangementType.SPACE_EVENLY -> {
-                    actualGap = if (visibleCount > 0) remainingSpace / (visibleCount + 1) else 0f
+                    actualGap = if (visibleCount > 0) remainingSpace / (visibleCount + 1) else 0.0f
                     startOffset = actualGap
                 }
             }
         }
 
         if (isVertical) {
-            // Stack from Top to Bottom
             var currentTopY = parentY + parentHeight - padTop - startOffset
-            for (child in visibleChildren) {
-                val slotTotalHeight = getChildMinHeight(child)
+            for (i in 0 until visibleChildren.size) {
+                val child = visibleChildren[i]
+                val childAvailableWidth = if ((child.sizeFlagsHorizontal and SizeFlags.FILL) != 0) availableWidth
+                                          else if (child.width > 0.0f) child.width
+                                          else availableWidth
+                val slotTotalHeight = getChildMinHeight(child, childAvailableWidth)
                 val verticalFlags = child.sizeFlagsVertical
                 val ratio = child.stretchRatio
 
-                val slotHeight = if ((verticalFlags and SizeFlags.EXPAND) != 0 && totalStretchRatio > 0f) {
+                val slotHeight = if ((verticalFlags and SizeFlags.EXPAND) != 0 && totalStretchRatio > 0.0f) {
                     spaceForExpanding * (ratio / totalStretchRatio)
                 } else {
                     slotTotalHeight
@@ -200,14 +199,14 @@ object GodotLayout {
                 currentTopY -= slotHeight + actualGap
             }
         } else {
-            // Stack from Left to Right
             var currentLeftX = parentX + padLeft + startOffset
-            for (child in visibleChildren) {
+            for (i in 0 until visibleChildren.size) {
+                val child = visibleChildren[i]
                 val slotTotalWidth = getChildMinWidth(child)
                 val horizontalFlags = child.sizeFlagsHorizontal
                 val ratio = child.stretchRatio
 
-                val slotWidth = if ((horizontalFlags and SizeFlags.EXPAND) != 0 && totalStretchRatio > 0f) {
+                val slotWidth = if ((horizontalFlags and SizeFlags.EXPAND) != 0 && totalStretchRatio > 0.0f) {
                     spaceForExpanding * (ratio / totalStretchRatio)
                 } else {
                     slotTotalWidth
@@ -230,9 +229,7 @@ object GodotLayout {
         }
     }
 
-    // =========================================================================
-    // IV. Grid Layout
-    // =========================================================================
+    // --- GRID LAYOUT ---
 
     fun layoutGrid(
         children: List<UINode>,
@@ -245,8 +242,8 @@ object GodotLayout {
         padRight: Float,
         padBottom: Float,
         columns: Int,
-        hSeparation: Float,
-        vSeparation: Float
+        horizontalSeparation: Float,
+        verticalSeparation: Float
     ) {
         if (columns <= 0) return
 
@@ -254,8 +251,8 @@ object GodotLayout {
         if (visibleChildren.isEmpty()) return
 
         val rows = (visibleChildren.size + columns - 1) / columns
-        val availableWidth = maxOf(0f, parentWidth - padLeft - padRight)
-        val availableHeight = maxOf(0f, parentHeight - padTop - padBottom)
+        val availableWidth = maxOf(0.0f, parentWidth - padLeft - padRight)
+        val availableHeight = maxOf(0.0f, parentHeight - padTop - padBottom)
 
         val columnWidths = FloatArray(columns)
         val rowHeights = FloatArray(rows)
@@ -281,41 +278,41 @@ object GodotLayout {
             }
         }
 
-        val totalColumnGaps = if (columns > 1) (columns - 1) * hSeparation else 0f
-        val totalRowGaps = if (rows > 1) (rows - 1) * vSeparation else 0f
+        val totalColumnGaps = if (columns > 1) (columns - 1) * horizontalSeparation else 0.0f
+        val totalRowGaps = if (rows > 1) (rows - 1) * verticalSeparation else 0.0f
 
         val totalMinWidth = columnWidths.sum()
         val totalMinHeight = rowHeights.sum()
         val totalExpandWidth = columnExpand.sum()
         val totalExpandHeight = rowExpand.sum()
 
-        val freeWidth = maxOf(0f, availableWidth - totalMinWidth - totalColumnGaps)
-        val freeHeight = maxOf(0f, availableHeight - totalMinHeight - totalRowGaps)
+        val freeWidth = maxOf(0.0f, availableWidth - totalMinWidth - totalColumnGaps)
+        val freeHeight = maxOf(0.0f, availableHeight - totalMinHeight - totalRowGaps)
 
-        if (totalExpandWidth > 0f) {
-            for (c in 0 until columns) {
-                columnWidths[c] += freeWidth * (columnExpand[c] / totalExpandWidth)
+        if (totalExpandWidth > 0.0f) {
+            for (columnIndex in 0 until columns) {
+                columnWidths[columnIndex] += freeWidth * (columnExpand[columnIndex] / totalExpandWidth)
             }
         }
-        if (totalExpandHeight > 0f) {
-            for (r in 0 until rows) {
-                rowHeights[r] += freeHeight * (rowExpand[r] / totalExpandHeight)
+        if (totalExpandHeight > 0.0f) {
+            for (rowIndex in 0 until rows) {
+                rowHeights[rowIndex] += freeHeight * (rowExpand[rowIndex] / totalExpandHeight)
             }
         }
 
         val columnPositionsX = FloatArray(columns)
         var currentPositionX = parentX + padLeft
-        for (c in 0 until columns) {
-            columnPositionsX[c] = currentPositionX
-            currentPositionX += columnWidths[c] + hSeparation
+        for (columnIndex in 0 until columns) {
+            columnPositionsX[columnIndex] = currentPositionX
+            currentPositionX += columnWidths[columnIndex] + horizontalSeparation
         }
 
         val rowPositionsY = FloatArray(rows)
         var currentTopY = parentY + parentHeight - padTop
-        for (r in 0 until rows) {
-            val cellHeight = rowHeights[r]
-            rowPositionsY[r] = currentTopY - cellHeight
-            currentTopY -= cellHeight + vSeparation
+        for (rowIndex in 0 until rows) {
+            val cellHeight = rowHeights[rowIndex]
+            rowPositionsY[rowIndex] = currentTopY - cellHeight
+            currentTopY -= cellHeight + verticalSeparation
         }
 
         for (i in visibleChildren.indices) {
@@ -326,54 +323,39 @@ object GodotLayout {
         }
     }
 
-    // =========================================================================
-    // V. Anchor Layout
-    // =========================================================================
+    // --- ANCHOR LAYOUT ---
 
     fun layoutSingleAnchor(child: UINode, parentX: Float, parentY: Float, parentWidth: Float, parentHeight: Float) {
         val anchor = child.anchorData
 
-        // Compute width factoring in margins when anchored across edges
         val computedWidth = if (anchor.anchorLeft != anchor.anchorRight) {
-            maxOf(0f, (parentWidth * anchor.anchorRight + anchor.offsetRight) - (parentWidth * anchor.anchorLeft + anchor.offsetLeft) - child.marginL - child.marginR)
+            maxOf(0.0f, (parentWidth * anchor.anchorRight + anchor.offsetRight) - (parentWidth * anchor.anchorLeft + anchor.offsetLeft) - child.marginL - child.marginR)
         } else {
-            if (child.width > 0f) child.width else if (child.getPrefWidth() > 0f) child.getPrefWidth() else 0f
+            if (child.width > 0.0f) child.width else if (child.getPrefWidth() > 0.0f) child.getPrefWidth() else 0.0f
         }
 
-        // Compute height factoring in margins when anchored across edges
         val computedHeight = if (anchor.anchorTop != anchor.anchorBottom) {
-            maxOf(0f, (parentHeight * (1f - anchor.anchorTop) - anchor.offsetTop) - (parentHeight * (1f - anchor.anchorBottom) + anchor.offsetBottom) - child.marginT - child.marginB)
+            maxOf(0.0f, (parentHeight * (1.0f - anchor.anchorTop) - anchor.offsetTop) - (parentHeight * (1.0f - anchor.anchorBottom) + anchor.offsetBottom) - child.marginT - child.marginB)
         } else {
-            if (child.height > 0f) child.height else if (child.getPrefHeight() > 0f) child.getPrefHeight() else 0f
+            if (child.height > 0.0f) child.height else if (child.getPrefHeight() > 0.0f) child.getPrefHeight() else 0.0f
         }
 
-        // Compute X (Factoring in Margins in standard left-to-right coordinate space)
         val computedX = when {
             anchor.anchorLeft != anchor.anchorRight -> parentX + parentWidth * anchor.anchorLeft + anchor.offsetLeft + child.marginL
-            anchor.anchorLeft == 0f -> parentX + anchor.offsetLeft + child.marginL
-            anchor.anchorLeft == 1f -> parentX + parentWidth + anchor.offsetRight - computedWidth - child.marginR
+            anchor.anchorLeft == 0.0f -> parentX + anchor.offsetLeft + child.marginL
+            anchor.anchorLeft == 1.0f -> parentX + parentWidth + anchor.offsetRight - computedWidth - child.marginR
             anchor.anchorLeft == 0.5f -> parentX + parentWidth * 0.5f + anchor.offsetLeft - computedWidth * 0.5f + (child.marginL - child.marginR) * 0.5f
-            else -> parentX + parentWidth * anchor.anchorLeft + anchor.offsetLeft - computedWidth * anchor.anchorLeft + child.marginL * (1f - anchor.anchorLeft) - child.marginR * anchor.anchorLeft
+            else -> parentX + parentWidth * anchor.anchorLeft + anchor.offsetLeft - computedWidth * anchor.anchorLeft + child.marginL * (1.0f - anchor.anchorLeft) - child.marginR * anchor.anchorLeft
         }
 
-        // Compute Y (OpenGL coordinate: y=0 is bottom, y=parentHeight is top)
         val computedY = when {
-            anchor.anchorTop != anchor.anchorBottom -> parentY + parentHeight * (1f - anchor.anchorBottom) + anchor.offsetBottom + child.marginB
-            anchor.anchorTop == 0f -> parentY + parentHeight - anchor.offsetTop - computedHeight - child.marginT
-            anchor.anchorTop == 1f -> parentY + anchor.offsetBottom + child.marginB
+            anchor.anchorTop != anchor.anchorBottom -> parentY + parentHeight * (1.0f - anchor.anchorBottom) + anchor.offsetBottom + child.marginB
+            anchor.anchorTop == 0.0f -> parentY + parentHeight - anchor.offsetTop - computedHeight - child.marginT
+            anchor.anchorTop == 1.0f -> parentY + anchor.offsetBottom + child.marginB
             anchor.anchorTop == 0.5f -> parentY + parentHeight * 0.5f - anchor.offsetTop - computedHeight * 0.5f + (child.marginB - child.marginT) * 0.5f
-            else -> parentY + parentHeight * (1f - anchor.anchorTop) - anchor.offsetTop - computedHeight * (1f - anchor.anchorTop) + child.marginB * anchor.anchorTop - child.marginT * (1f - anchor.anchorTop)
+            else -> parentY + parentHeight * (1.0f - anchor.anchorTop) - anchor.offsetTop - computedHeight * (1.0f - anchor.anchorTop) + child.marginB * anchor.anchorTop - child.marginT * (1.0f - anchor.anchorTop)
         }
 
         child.setBounds(computedX, computedY, computedWidth, computedHeight)
-    }
-
-    fun layoutAnchors(children: List<UINode>, parentWidth: Float, parentHeight: Float, parentX: Float = 0f, parentY: Float = 0f) {
-        for (child in children) {
-            if (!child.visible) continue
-            if (child.anchorData.isEnabled) {
-                layoutSingleAnchor(child, parentX, parentY, parentWidth, parentHeight)
-            }
-        }
     }
 }

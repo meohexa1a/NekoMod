@@ -2,6 +2,15 @@
 
 package org.mdt.core.ui.layout
 
+// --- ARRANGEMENT DEFINITIONS ---
+
+/**
+ * ## ArrangementType
+ *
+ * Types of child distribution along the flexbox main axis.
+ *
+ * See: docs/layout-engine/layout_engine_en.md
+ */
 enum class ArrangementType {
     START,
     CENTER,
@@ -11,23 +20,39 @@ enum class ArrangementType {
     SPACE_EVENLY
 }
 
+/**
+ * ## Arrangement
+ *
+ * Spatial spacing and alignment configuration for linear layouts ([RowMeasurePolicy] and [ColumnMeasurePolicy]).
+ *
+ * See: docs/layout-engine/layout_engine_en.md
+ */
 data class Arrangement(
     val type: ArrangementType = ArrangementType.START,
-    val spacing: Float = 0f
+    val spacing: Float = 0.0f
 ) {
     companion object {
-        val Start = Arrangement(ArrangementType.START, 0f)
-        val Center = Arrangement(ArrangementType.CENTER, 0f)
-        val End = Arrangement(ArrangementType.END, 0f)
-        val SpaceBetween = Arrangement(ArrangementType.SPACE_BETWEEN, 0f)
-        val SpaceAround = Arrangement(ArrangementType.SPACE_AROUND, 0f)
-        val SpaceEvenly = Arrangement(ArrangementType.SPACE_EVENLY, 0f)
+        val Start = Arrangement(ArrangementType.START, 0.0f)
+        val Center = Arrangement(ArrangementType.CENTER, 0.0f)
+        val End = Arrangement(ArrangementType.END, 0.0f)
+        val SpaceBetween = Arrangement(ArrangementType.SPACE_BETWEEN, 0.0f)
+        val SpaceAround = Arrangement(ArrangementType.SPACE_AROUND, 0.0f)
+        val SpaceEvenly = Arrangement(ArrangementType.SPACE_EVENLY, 0.0f)
 
         fun spacedBy(space: Float, alignment: ArrangementType = ArrangementType.START) =
             Arrangement(alignment, space)
     }
 }
 
+// --- ALIGNMENT DEFINITIONS ---
+
+/**
+ * ## HorizontalAlign
+ *
+ * Horizontal alignment placement for cross-axis slot positioning.
+ *
+ * See: docs/layout-engine/layout_engine_en.md
+ */
 enum class HorizontalAlign {
     START,
     CENTER,
@@ -35,6 +60,13 @@ enum class HorizontalAlign {
     FILL
 }
 
+/**
+ * ## VerticalAlign
+ *
+ * Vertical alignment placement for cross-axis slot positioning.
+ *
+ * See: docs/layout-engine/layout_engine_en.md
+ */
 enum class VerticalAlign {
     TOP,
     CENTER,
@@ -42,6 +74,13 @@ enum class VerticalAlign {
     FILL
 }
 
+/**
+ * ## Alignment
+ *
+ * 2D box content alignment configuration combining horizontal and vertical alignments.
+ *
+ * See: docs/layout-engine/layout_engine_en.md
+ */
 data class Alignment(
     val horizontal: HorizontalAlign = HorizontalAlign.START,
     val vertical: VerticalAlign = VerticalAlign.CENTER
