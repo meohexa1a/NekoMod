@@ -138,3 +138,11 @@ tasks.register<JavaExec>("runGame") {
     classpath = mindustryRuntime
     mainClass.set("mindustry.desktop.DesktopLauncher")
 }
+
+tasks.register<JavaExec>("runGameWithoutLoadMod") {
+    description = "Just launch game. I lazy to download mindustry"
+
+    standardInput = System.`in`
+    classpath = mindustryRuntime
+    mainClass.set("mindustry.desktop.DesktopLauncher")
+}
