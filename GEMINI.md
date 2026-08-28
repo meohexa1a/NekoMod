@@ -56,7 +56,13 @@
 
 ## 📖 VI. Documentation & In-Source Standards
 22. **Bilingual Documentation:** Maintain parallel bilingual documentation pairs (`*_vi.md` and `*_en.md`) in `docs/`. All inter-document markdown links must strictly use relative paths (`./` or `../`), never hardcoded machine paths (`file:///C:/...`).
-23. **In-Source KDoc Documentation:** All KDoc comments in Kotlin source files (`*.kt`) must be strictly 100% English. Every public class, interface, and composable must include a header `## SymbolName`, purpose description, and reference link `See: docs/path/file_en.md` (do not use `@see` with file paths).
+23. **In-Source Living Specification & Behavioral Checklist KDoc Standard:**
+    All KDoc comments in Kotlin source files (`*.kt`) must be strictly 100% English and act as self-contained, authoritative living specifications. Every public/internal class, interface, object, and composable must include:
+    - **Header & Architectural Role:** `## SymbolName [Role/Type Tag]` (e.g. `[Virtual DOM Node]`, `[Zero-GC Inline Value Class]`, `[GPU UI Batcher]`, `[Composable]`).
+    - **1. 📖 Feature Specification & Core Architecture:** Detailed operational mechanics, state machines, data flow, coordinate math, and edge-case handling.
+    - **2. ⚡ Invariants & Non-Negotiable Rules:** Performance constraints (Zero-GC, 1-Draw-Call), OpenGL standards, platform isolation (`PlatformHost`), and thread-safety.
+    - **3. 🔗 Related Files & Subsystem Map:** Concrete relative repository file paths (`src/...`) to companion Composables, Virtual Nodes, State Machines, Shaders, and Platform Bridges. Never reference non-existent files.
+    - **4. ✅ Behavioral Verification Checklist:** An actionable checklist (`[x]` / `[ ]`) of core behavioral contracts and invariants that the AI agent and developers MUST review, maintain, and update in the SAME turn whenever modifying code or adding features.
 
 ---
 
