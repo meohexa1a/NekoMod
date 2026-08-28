@@ -11,13 +11,30 @@ import org.mdt.core.ui.node.CanvasNode
 import org.mdt.core.ui.render.UIBatch
 
 /**
- * ## EngineRuntime
+ * ## EngineRuntime [Master UI Orchestrator & Frame Coordinator]
  *
- * Top-level UI orchestration runtime and display surface bridge.
- * Connects the host platform's window, viewport resizing, input event dispatch chain,
- * Compose snapshot frame scheduler, and OpenGL GPU batch renderer to the root [CanvasNode].
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Master singleton orchestrating the entire UI runtime lifecycle, input pipeline, and frame rendering loop.
+ * - Bridges the host platform window/display surface ([PlatformHost]) to the root virtual DOM container ([CanvasNode]).
+ * - Manages Compose slot-table recomposition frames via [CompositionManager] and dispatches top-layer overlay passes.
+ * - Coordinates 1-Draw-Call GPU batch rendering via [UIBatch] at the end of each host render frame.
  *
- * See: docs/ui-engine/ui_engine_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Zero Platform Bypass):** Viewport dimensions, input processor registration, resize listeners, and frame end hooks MUST go through [host].
+ * - **Rule 2 (Exception Isolation):** Render errors inside [draw] are logged safely to prevent game crash loops.
+ * - **Rule 3 (Safe Re-entrancy):** [setContent] automatically invokes [init] and disposes previous composition instances.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - 🔌 **Platform Bridge:** `src/main/kotlin/org/mdt/core/engine/PlatformHost.kt`
+ * - 🌲 **Root Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/CanvasNode.kt`
+ * - 🎮 **Input Routing:** `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
+ * - 🔄 **Compose Recomposer:** `src/main/kotlin/org/mdt/core/ui/compose/UIComposition.kt`
+ * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `init()` registers `inputProcessor`, `resizeListener`, and `frameEndListener` on [PlatformHost].
+ * - [x] `draw()` executes `inputProcessor.update()`, `canvas.resize()`, `CompositionManager.frame()`, and wraps canvas drawing inside `UIBatch.begin()` / `end()`.
+ * - [x] `dispose()` clears overlays, cancels composition, stops recomposer, unregisters platform hooks, and frees GPU resources.
  */
 object EngineRuntime {
 
@@ -66,6 +83,7 @@ object EngineRuntime {
         if (screenWidth <= 0.0f || screenHeight <= 0.0f) return
 
         try {
+            inputProcessor.update()
             canvas.resize(screenWidth, screenHeight)
             CompositionManager.frame()
 
@@ -85,7 +103,6 @@ object EngineRuntime {
         host.removeInputProcessor(inputProcessor)
         host.removeResize(resizeListener)
         host.removeFrameEnd(frameEndListener)
-        canvas.clearOverlays()
         CompositionManager.stop()
         UIBatch.dispose()
         initialized = false

@@ -4,24 +4,36 @@ import org.mdt.core.ui.layout.GodotLayout
 import org.mdt.core.ui.layout.SizeFlags
 
 /**
- * ## CanvasNode
+ * ## CanvasNode [Root Viewport Virtual DOM Node]
  *
- * Root Virtual DOM container node representing the game's full window viewport.
- * Automatically distributes layout bounds to child UI trees using full-screen anchors and flex fitting,
- * and hosts top-layer overlay elements rendered in the final draw pass.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Root container Virtual DOM node representing the full game display surface / window viewport.
+ * - Automatically distributes layout bounds across root children using full-screen anchors or flex fill fitting.
+ * - Manages display resizing and drives iterative layout passes prior to frame rendering.
  *
- * See: docs/ui-engine/ui_engine_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (OpenGL Bottom-Left Origin):** Full screen bounds map from `(x=0, y=0)` with width and height matching viewport pixels.
+ * - **Rule 2 (Layout Pass Cap):** Guarded to maximum 3 layout passes to prevent infinite invalidation loops.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - ⚙️ **Runtime Host:** `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
+ * - 📐 **Layout Engine:** `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
+ * - 🎮 **Input Processor:** `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
+ * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `resize(width, height)` updates `bounds`, `screenWidth`, and `screenHeight` and invalidates layout.
+ * - [x] Root children fill full screen width/height when explicit anchors are omitted.
+ * - [x] Iterative layout pass stabilizes layout before calling `super.draw()`.
  */
-class CanvasNode : UINode(), OverlayHost {
+class CanvasNode : UINode() {
 
-    // --- PROPERTIES & OVERLAYS ---
+    // --- PROPERTIES ---
 
     var screenWidth: Float = 0.0f
         private set
     var screenHeight: Float = 0.0f
         private set
-
-    private val overlayNodes = ArrayList<UINode>()
 
     // --- VIEWPORT & RESIZE ---
 
@@ -32,22 +44,6 @@ class CanvasNode : UINode(), OverlayHost {
             bounds.set(0.0f, 0.0f, width, height)
             invalidateLayout()
         }
-    }
-
-    // --- OVERLAY HOST IMPLEMENTATION ---
-
-    override fun registerOverlay(node: UINode) {
-        if (!overlayNodes.contains(node)) {
-            overlayNodes.add(node)
-        }
-    }
-
-    override fun unregisterOverlay(node: UINode) {
-        overlayNodes.remove(node)
-    }
-
-    override fun clearOverlays() {
-        overlayNodes.clear()
     }
 
     // --- LAYOUT & DRAW ---
@@ -93,13 +89,5 @@ class CanvasNode : UINode(), OverlayHost {
             layoutPass++
         }
         super.draw()
-
-        // Draw top-layer overlays (Tooltips, Modals, Popups) strictly above all children in the same UIBatch pass
-        for (i in overlayNodes.indices) {
-            val node = overlayNodes[i]
-            if (node.visible) {
-                node.draw()
-            }
-        }
     }
 }

@@ -3,11 +3,9 @@ package org.mdt.core.ui.layout
 // --- SIZE FLAGS & SLOTS ---
 
 /**
- * ## SizeFlags
+ * ## SizeFlags [Container Slot Expansion Bitmask]
  *
  * Container slot allocation and expansion flags inspired by Godot Engine's UI architecture.
- *
- * See: docs/layout-engine/layout_engine_en.md
  */
 object SizeFlags {
     /** Do not expand; place at the start of the allocated slot. */
@@ -32,11 +30,9 @@ object SizeFlags {
 // --- LAYOUT PRESETS ---
 
 /**
- * ## LayoutPreset
+ * ## LayoutPreset [2D Anchor Presets]
  *
  * Common 2D anchor configurations for positioning UI nodes relative to their parents.
- *
- * See: docs/layout-engine/layout_engine_en.md
  */
 enum class LayoutPreset {
     TOP_LEFT,
@@ -58,12 +54,24 @@ enum class LayoutPreset {
 }
 
 /**
- * ## AnchorData
+ * ## AnchorData [2D Dual-Coordinate Anchor Model]
  *
- * Dual-coordinate anchor and margin offset model for absolute and responsive layout positioning.
- * Features an explicit [isEnabled] state to eliminate heuristic 0f checks.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Dual-coordinate anchor and margin offset model for absolute and responsive layout positioning.
+ * - Stores normalized ratio bounds (`anchorLeft`..`anchorBottom` in 0.0f..1.0f) and pixel offsets (`offsetLeft`..`offsetBottom`).
+ * - Features an explicit [isEnabled] flag to eliminate ambiguous 0f heuristic checks.
  *
- * See: docs/layout-engine/layout_engine_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Bottom-Left OpenGL Origin):** Y coordinates map $0.0f = \text{top edge}$ and $1.0f = \text{bottom edge}$ in preset ratio definitions.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - 📐 **Layout Engine:** `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
+ * - 🌲 **Target Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
+ * - 🌲 **Root Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/CanvasNode.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `setPreset` enables anchor mode (`isEnabled = true`) and sets anchor ratios.
+ * - [x] `reset()` restores disabled state (`isEnabled = false`) and zeroes all ratios/offsets.
  */
 class AnchorData {
 

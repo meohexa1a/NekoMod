@@ -10,18 +10,30 @@ import arc.util.Log
 import kotlinx.coroutines.*
 import org.mdt.core.engine.LocalPlatformHost
 import org.mdt.core.ui.EngineRuntime
-import org.mdt.core.ui.node.LocalOverlayHost
-import org.mdt.core.ui.node.OverlayHost
 import org.mdt.core.ui.node.UINode
 
 // --- COMPOSITION MANAGER & FRAME CLOCK ---
 
 /**
- * ## CompositionManager
+ * ## CompositionManager [Compose Runtime & Frame Clock Coordinator]
  *
- * Master Compose Runtime orchestrator managing the recomposition frame clock and coroutine scopes.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Orchestrates the Jetpack Compose Runtime [Recomposer] and [BroadcastFrameClock].
+ * - Registers global [Snapshot] write observers to dispatch state mutation apply notifications immediately.
+ * - Drives frame ticks on-demand via `frame()` during `EngineRuntime.draw()`.
  *
- * See: docs/compose-dsl/compose_dsl_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Thread Safety & Coroutines):** Recomposer runs under `Dispatchers.Unconfined + SupervisorJob() + clock`.
+ * - **Rule 2 (Idempotent Lifecycle):** `start()` and `stop()` can be called safely without leaking coroutines.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - ⚙️ **Runtime Host:** `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
+ * - 🔄 **Tree Composition:** `src/main/kotlin/org/mdt/core/ui/compose/UIComposition.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `start()` launches undispatched `recomposer.runRecomposeAndApplyChanges()`.
+ * - [x] `frame()` sends apply notifications and nano-timestamp to `clock`.
+ * - [x] `stop()` cancels coroutine scope and recomposer.
  */
 object CompositionManager {
     val clock = BroadcastFrameClock()
@@ -63,11 +75,23 @@ object CompositionManager {
 // --- UI COMPOSITION ROOT HOST ---
 
 /**
- * ## UIComposition
+ * ## UIComposition [Compose Tree Mount Host]
  *
- * Mounts a declarative Compose UI tree onto a root [UINode].
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Mounts a declarative Compose UI tree onto a root [UINode] via [NodeApplier].
+ * - Injects ambient [LocalPlatformHost] CompositionLocal provider.
  *
- * See: docs/compose-dsl/compose_dsl_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Clean Disposal):** Calling `dispose()` frees the Compose slot table and applier tree.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - 🌲 **Node Applier:** `src/main/kotlin/org/mdt/core/ui/compose/NodeApplier.kt`
+ * - 🌲 **Root Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/CanvasNode.kt`
+ * - 🔌 **Platform Host:** `src/main/kotlin/org/mdt/core/engine/PlatformHost.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] Automatically provides [LocalPlatformHost].
+ * - [x] `dispose()` cleanly tears down underlying [Composition].
  */
 class UIComposition(
     root: UINode,
@@ -82,20 +106,10 @@ class UIComposition(
             parent = CompositionManager.recomposer
         ).apply {
             setContent {
-                val overlayHost = root as? OverlayHost
-                if (overlayHost != null) {
-                    CompositionLocalProvider(
-                        LocalPlatformHost provides EngineRuntime.host,
-                        LocalOverlayHost provides overlayHost
-                    ) {
-                        content()
-                    }
-                } else {
-                    CompositionLocalProvider(
-                        LocalPlatformHost provides EngineRuntime.host
-                    ) {
-                        content()
-                    }
+                CompositionLocalProvider(
+                    LocalPlatformHost provides EngineRuntime.host
+                ) {
+                    content()
                 }
             }
         }

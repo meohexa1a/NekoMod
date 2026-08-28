@@ -33,7 +33,8 @@ fun Text(
     color: Color = Color.White,
     font: Font? = null,
     align: Int = Align.left,
-    wrap: Boolean = false
+    wrap: Boolean = false,
+    ellipsis: Boolean = false
 ) {
     val effectiveModifier = if (wrap) UIModifier.fillMaxWidth().then(modifier) else modifier
     ComposeNode<TextNode, NodeApplier>(
@@ -43,6 +44,7 @@ fun Text(
             node.font = font
             node.align = align
             node.wrap = wrap
+            node.ellipsis = ellipsis
             effectiveModifier.applyTo(node)
             node
         },
@@ -52,6 +54,7 @@ fun Text(
             set(font) { this.font = it }
             set(align) { this.align = it }
             set(wrap) { this.wrap = it }
+            set(ellipsis) { this.ellipsis = it }
             set(effectiveModifier) {
                 it.applyTo(this)
                 invalidateLayout()

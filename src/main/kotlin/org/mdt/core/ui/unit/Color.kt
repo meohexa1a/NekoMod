@@ -3,15 +3,27 @@ package org.mdt.core.ui.unit
 import arc.util.Tmp
 
 /**
- * ## Color (Zero-GC Inline Value Class)
+ * ## Color [Zero-GC Inline Value Class]
  *
- * 64-bit packed immutable ARGB/sRGB color representation stored directly in CPU registers (Zero-GC).
- * Provides full math operations, linear color interpolation, alpha modification,
- * and seamless bridging to OpenGL raw floats and Arc engine primitives.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - 64-bit packed immutable ARGB/sRGB color representation stored directly in CPU registers (Zero-GC).
+ * - Stored as a packed 64-bit unsigned long integer in ARGB order: `0xAARRGGBB_00000000UL`.
+ * - Provides full math operations, linear color interpolation (`lerp`), alpha compositing (`compositeOver`),
+ *   and seamless ABGR vertex packing for direct OpenGL attribute streaming (`toGLPackedFloat`).
  *
- * Stored as a packed 64-bit unsigned long integer in ARGB order: `0xAARRGGBB_00000000UL`.
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Zero-GC Primitive):** Must remain `@JvmInline value class` to avoid object allocation in render loops.
+ * - **Rule 2 (Float Everywhere):** RGBA channel getters and constructor parameters use `Float` (0.0f..1.0f).
  *
- * See: docs/design-system/design_system_en.md
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
+ * - 🔤 **Font Drawer:** `src/main/kotlin/org/mdt/core/ui/render/UIFontDrawer.kt`
+ * - 🎨 **Design Tokens:** `src/main/kotlin/org/mdt/ui/theme/ThemeTokens.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] Channel getters (`red`, `green`, `blue`, `alpha`) decode packed bits into 0.0f..1.0f floats.
+ * - [x] `toGLPackedFloat()` converts ARGB to ABGR float bits for OpenGL normalized attributes.
+ * - [x] `Color.parse` handles 3, 4, 6, and 8-digit hex strings with or without `#`.
  */
 @JvmInline
 value class Color(val value: ULong) {
@@ -237,3 +249,25 @@ fun Color(argbHex: Long): Color = Color((argbHex.toULong() and 0xFFFFFFFFuL) shl
  * Extension bridging Arc mutable [arc.graphics.Color] to Compose immutable [Color].
  */
 fun arc.graphics.Color.toComposeColor(): Color = Color(r, g, b, a)
+
+/**
+ * Extension property parsing a hex color string: `"#85c1dc".color` or `"85c1dc".color`.
+ */
+inline val String.color: Color get() = Color.parse(this)
+
+/**
+ * Alias for [Color.withAlpha].
+ */
+fun Color.alpha(alpha: Float): Color = withAlpha(alpha)
+
+/**
+ * Formats this color as a hex string `#RRGGBBAA`.
+ */
+val Color.hex: String
+    get() {
+        val redByte = (red * 255.0f).toInt().coerceIn(0, 255)
+        val greenByte = (green * 255.0f).toInt().coerceIn(0, 255)
+        val blueByte = (blue * 255.0f).toInt().coerceIn(0, 255)
+        val alphaByte = (alpha * 255.0f).toInt().coerceIn(0, 255)
+        return String.format("#%02x%02x%02x%02x", redByte, greenByte, blueByte, alphaByte)
+    }

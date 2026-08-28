@@ -5,15 +5,12 @@ import org.mdt.core.ui.layout.HorizontalAlign
 import org.mdt.core.ui.layout.SizeFlags
 import org.mdt.core.ui.layout.VerticalAlign
 import org.mdt.core.ui.node.UINode
-import org.mdt.core.ui.unit.Color
 
 /**
- * ## UIDslMarker
+ * ## UIDslMarker [Compose DSL Marker]
  *
  * Scoping annotation ensuring Compose UI builder lambdas do not unintentionally
  * cross-access nested modifier scopes.
- *
- * See: docs/compose-dsl/compose_dsl_en.md
  */
 @DslMarker
 annotation class UIDslMarker
@@ -21,35 +18,31 @@ annotation class UIDslMarker
 // --- SCOPE-SPECIFIC TYPED MODIFIERS ---
 
 /**
- * ## BoxAlignModifier
+ * ## BoxAlignModifier [Scope Alignment Modifier]
  *
- * Typed modifier element applying box content alignment.
- *
- * See: docs/compose-dsl/compose_dsl_en.md
+ * Typed modifier element applying 2D content alignment within a `Box` container.
  */
 data class BoxAlignModifier(val alignment: Alignment) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         when (alignment.horizontal) {
-            HorizontalAlign.START -> node.sizeFlagsHorizontal = SizeFlags.SHRINK_BEGIN
+            HorizontalAlign.START -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal = SizeFlags.SHRINK_BEGIN
             HorizontalAlign.CENTER -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal = SizeFlags.SHRINK_CENTER
-            HorizontalAlign.END -> node.sizeFlagsHorizontal = SizeFlags.SHRINK_END
+            HorizontalAlign.END -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal = SizeFlags.SHRINK_END
             HorizontalAlign.FILL -> node.sizeFlagsHorizontal = SizeFlags.FILL
         }
         when (alignment.vertical) {
-            VerticalAlign.TOP -> node.sizeFlagsVertical = SizeFlags.SHRINK_BEGIN
+            VerticalAlign.TOP -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical = SizeFlags.SHRINK_BEGIN
             VerticalAlign.CENTER -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical = SizeFlags.SHRINK_CENTER
-            VerticalAlign.BOTTOM -> node.sizeFlagsVertical = SizeFlags.SHRINK_END
+            VerticalAlign.BOTTOM -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical = SizeFlags.SHRINK_END
             VerticalAlign.FILL -> node.sizeFlagsVertical = SizeFlags.FILL
         }
     }
 }
 
 /**
- * ## RowAlignModifier
+ * ## RowAlignModifier [Scope Alignment Modifier]
  *
- * Typed modifier element applying row vertical cross-alignment.
- *
- * See: docs/compose-dsl/compose_dsl_en.md
+ * Typed modifier element applying vertical cross-axis alignment within a `Row` container.
  */
 data class RowAlignModifier(val alignment: VerticalAlign) : UIModifier.Element {
     override fun applyTo(node: UINode) {
@@ -63,11 +56,9 @@ data class RowAlignModifier(val alignment: VerticalAlign) : UIModifier.Element {
 }
 
 /**
- * ## ColumnAlignModifier
+ * ## ColumnAlignModifier [Scope Alignment Modifier]
  *
- * Typed modifier element applying column horizontal cross-alignment.
- *
- * See: docs/compose-dsl/compose_dsl_en.md
+ * Typed modifier element applying horizontal cross-axis alignment within a `Column` container.
  */
 data class ColumnAlignModifier(val alignment: HorizontalAlign) : UIModifier.Element {
     override fun applyTo(node: UINode) {
@@ -83,11 +74,21 @@ data class ColumnAlignModifier(val alignment: HorizontalAlign) : UIModifier.Elem
 // --- COMPOSE SCOPE INTERFACES ---
 
 /**
- * ## BoxScope
+ * ## BoxScope [Composable Container Scope]
  *
- * Scope receiver for children inside a `Box` container.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Scope receiver restricting child modifier extensions inside [org.mdt.ui.components.layout.Box].
+ * - Provides 2D child content positioning via `align(Alignment)`.
  *
- * See: docs/compose-dsl/compose_dsl_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Zero-GC Chaining):** Extension functions must append typed [BoxAlignModifier] via `.then()`.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - 🎨 **Composable Box:** `src/main/kotlin/org/mdt/ui/components/layout/Box.kt`
+ * - 📐 **Measure Policy:** `src/main/kotlin/org/mdt/core/ui/layout/MeasurePolicy.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `align(Alignment)` accurately translates horizontal/vertical alignment into size flags without overriding `FILL`.
  */
 @UIDslMarker
 interface BoxScope {
@@ -98,11 +99,22 @@ interface BoxScope {
 }
 
 /**
- * ## RowScope
+ * ## RowScope [Composable Container Scope]
  *
- * Scope receiver for children inside a horizontal `Row` container.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Scope receiver restricting child modifier extensions inside [org.mdt.ui.components.layout.Row].
+ * - Provides horizontal flex proportional weight distribution and vertical cross-axis alignment.
  *
- * See: docs/compose-dsl/compose_dsl_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Zero-GC Chaining):** `weight(Float)` and `align(VerticalAlign)` append typed modifiers via `.then()`.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - 🎨 **Composable Row:** `src/main/kotlin/org/mdt/ui/components/layout/FlexLayouts.kt`
+ * - 📐 **Measure Policy:** `src/main/kotlin/org/mdt/core/ui/layout/MeasurePolicy.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `weight(Float)` sets `SizeFlags.EXPAND_FILL` and assigns proportional `stretchRatio`.
+ * - [x] `align(VerticalAlign)` positions child along row vertical cross-axis.
  */
 @UIDslMarker
 interface RowScope {
@@ -116,11 +128,22 @@ interface RowScope {
 }
 
 /**
- * ## ColumnScope
+ * ## ColumnScope [Composable Container Scope]
  *
- * Scope receiver for children inside a vertical `Column` container.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Scope receiver restricting child modifier extensions inside [org.mdt.ui.components.layout.Column].
+ * - Provides vertical flex proportional weight distribution and horizontal cross-axis alignment.
  *
- * See: docs/compose-dsl/compose_dsl_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Zero-GC Chaining):** `weight(Float)` and `align(HorizontalAlign)` append typed modifiers via `.then()`.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - 🎨 **Composable Column:** `src/main/kotlin/org/mdt/ui/components/layout/FlexLayouts.kt`
+ * - 📐 **Measure Policy:** `src/main/kotlin/org/mdt/core/ui/layout/MeasurePolicy.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `weight(Float)` sets `SizeFlags.EXPAND_FILL` and assigns proportional `stretchRatio`.
+ * - [x] `align(HorizontalAlign)` positions child along column horizontal cross-axis.
  */
 @UIDslMarker
 interface ColumnScope {
@@ -134,11 +157,9 @@ interface ColumnScope {
 }
 
 /**
- * ## GridScope
+ * ## GridScope [Composable Container Scope]
  *
- * Scope receiver for children inside a `Grid` container.
- *
- * See: docs/compose-dsl/compose_dsl_en.md
+ * Scope receiver restricting child modifier extensions inside grid containers.
  */
 @UIDslMarker
 interface GridScope {

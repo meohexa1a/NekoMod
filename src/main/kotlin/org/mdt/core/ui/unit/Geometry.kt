@@ -1,12 +1,22 @@
 package org.mdt.core.ui.unit
 
 /**
- * ## Rect
+ * ## Rect [2D Geometric Bounding Rectangle]
  *
- * Mutable 2D geometric bounding rectangle defined by origin ([x], [y]) and dimensions ([width], [height]).
- * Standardized on [Float] primitives across the UI engine.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Mutable 2D geometric bounding rectangle defined by origin ([x], [y]) and dimensions ([width], [height]).
+ * - Standardized on [Float] primitives across the entire UI engine with bottom-left OpenGL origin coordinates.
  *
- * See: docs/ui-engine/ui_engine_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Float Everywhere):** Geometry fields use `Float`.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - 🌲 **Target Node:** `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
+ * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `contains(pointX, pointY)` performs inclusive 2D hit test.
+ * - [x] `intersects(other)` detects overlapping axis-aligned bounding boxes (AABB).
  */
 data class Rect(
     var x: Float = 0.0f,
@@ -17,6 +27,11 @@ data class Rect(
     /** Checks whether point ([pointX], [pointY]) is contained within this rectangle. */
     fun contains(pointX: Float, pointY: Float): Boolean =
         pointX >= x && pointX <= x + width && pointY >= y && pointY <= y + height
+
+    /** Checks whether this rectangle overlaps with [other]. */
+    fun intersects(other: Rect): Boolean =
+        x < other.x + other.width && x + width > other.x &&
+        y < other.y + other.height && y + height > other.y
 
     /** Sets rectangle dimensions and coordinates. */
     fun set(x: Float, y: Float, width: Float, height: Float) {
@@ -31,11 +46,9 @@ data class Rect(
 }
 
 /**
- * ## Insets
+ * ## Insets [2D Edge Spacing Metric]
  *
  * Outward/inward edge distance spacing for margin and padding calculations.
- *
- * See: docs/ui-engine/ui_engine_en.md
  */
 data class Insets(
     var left: Float = 0.0f,
@@ -43,6 +56,12 @@ data class Insets(
     var right: Float = 0.0f,
     var bottom: Float = 0.0f
 ) {
+    /** Total horizontal inset width (`left + right`). */
+    val horizontal: Float get() = left + right
+
+    /** Total vertical inset height (`top + bottom`). */
+    val vertical: Float get() = top + bottom
+
     /** Sets individual edge insets. */
     fun set(left: Float, top: Float, right: Float, bottom: Float) {
         this.left = left

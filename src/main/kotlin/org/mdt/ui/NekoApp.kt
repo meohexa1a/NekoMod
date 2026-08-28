@@ -55,6 +55,15 @@ fun NekoApp() {
                     wrap = true
                 )
 
+                var inputText by remember { mutableStateOf("") }
+
+                org.mdt.ui.components.input.TextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    placeholder = "Nhap lenh hoac van ban o day...",
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 Row(
                     arrangement = Arrangement.spacedBy(10.0f),
                     alignment = Alignment.CenterStart

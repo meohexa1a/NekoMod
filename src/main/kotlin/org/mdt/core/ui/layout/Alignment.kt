@@ -5,11 +5,9 @@ package org.mdt.core.ui.layout
 // --- ARRANGEMENT DEFINITIONS ---
 
 /**
- * ## ArrangementType
+ * ## ArrangementType [Flex Main-Axis Distribution]
  *
  * Types of child distribution along the flexbox main axis.
- *
- * See: docs/layout-engine/layout_engine_en.md
  */
 enum class ArrangementType {
     START,
@@ -21,11 +19,9 @@ enum class ArrangementType {
 }
 
 /**
- * ## Arrangement
+ * ## Arrangement [Flex Spatial Arrangement Configuration]
  *
  * Spatial spacing and alignment configuration for linear layouts ([RowMeasurePolicy] and [ColumnMeasurePolicy]).
- *
- * See: docs/layout-engine/layout_engine_en.md
  */
 data class Arrangement(
     val type: ArrangementType = ArrangementType.START,
@@ -47,11 +43,9 @@ data class Arrangement(
 // --- ALIGNMENT DEFINITIONS ---
 
 /**
- * ## HorizontalAlign
+ * ## HorizontalAlign [Horizontal Cross-Axis Alignment]
  *
  * Horizontal alignment placement for cross-axis slot positioning.
- *
- * See: docs/layout-engine/layout_engine_en.md
  */
 enum class HorizontalAlign {
     START,
@@ -61,11 +55,9 @@ enum class HorizontalAlign {
 }
 
 /**
- * ## VerticalAlign
+ * ## VerticalAlign [Vertical Cross-Axis Alignment]
  *
  * Vertical alignment placement for cross-axis slot positioning.
- *
- * See: docs/layout-engine/layout_engine_en.md
  */
 enum class VerticalAlign {
     TOP,
@@ -75,11 +67,22 @@ enum class VerticalAlign {
 }
 
 /**
- * ## Alignment
+ * ## Alignment [2D Box Alignment Model]
  *
- * 2D box content alignment configuration combining horizontal and vertical alignments.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - 2D box content alignment combining [HorizontalAlign] and [VerticalAlign].
+ * - Configures child positioning within container slots without altering intrinsic bounds unless `FILL` is set.
  *
- * See: docs/layout-engine/layout_engine_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Zero-GC Predefined Constants):** Common alignments are provided as immutable static singletons in companion object.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - 📐 **Layout Engine:** `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
+ * - 📐 **Measure Policy:** `src/main/kotlin/org/mdt/core/ui/layout/MeasurePolicy.kt`
+ * - 🎨 **Composable Box:** `src/main/kotlin/org/mdt/ui/components/layout/Box.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] Standard alignment constants (TopStart..BottomEnd, Center, Fill) map to correct horizontal/vertical pairs.
  */
 data class Alignment(
     val horizontal: HorizontalAlign = HorizontalAlign.START,

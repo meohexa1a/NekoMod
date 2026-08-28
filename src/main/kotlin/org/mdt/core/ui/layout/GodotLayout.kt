@@ -4,12 +4,28 @@ import org.mdt.core.ui.node.TextNode
 import org.mdt.core.ui.node.UINode
 
 /**
- * ## GodotLayout
+ * ## GodotLayout [2-Pass Container Layout Engine]
  *
- * 2-Pass container layout engine inspired by Godot Engine's UI architecture.
- * Manages Flexbox (Row/Column), Grid, and Multi-Anchor responsive layout distributions.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - 2-Pass responsive container layout engine inspired by Godot Engine's UI architecture.
+ * - Computes Box Model fitting, proportional flex weights (Row / Column), uniform/flexible Grid distributions, and dual-coordinate Anchors.
+ * - Respects intrinsic minimum bounds, inward padding, outward margins, and size flags ([SizeFlags.FILL], [SizeFlags.EXPAND], [SizeFlags.SHRINK_CENTER], etc.).
  *
- * See: docs/layout-engine/layout_engine_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (OpenGL Bottom-Left Coordinates):** All layout math operates in bottom-left origin ($y=0$ bottom, $y=\text{parentH}$ top).
+ * - **Rule 2 (Zero-GC Traversals):** Direct indexed `for` loops MUST be used instead of `.filter {}` to prevent Heap allocations per frame.
+ * - **Rule 3 (Hug Content by Default):** Unconstrained children hug content intrinsic size unless `FILL` or fixed dimension is specified.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - 📐 **Measure Policy:** `src/main/kotlin/org/mdt/core/ui/layout/MeasurePolicy.kt`
+ * - 🌲 **Primitive Node:** `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`
+ * - 🌲 **Base Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
+ * - 🌲 **Root Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/CanvasNode.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `fitChildInRect` correctly offsets by `marginL` and `marginB` and clamps slot dimensions.
+ * - [x] `layoutBox` distributes excess main-axis space proportionally according to `stretchRatio` when `EXPAND` is active.
+ * - [x] `layoutSingleAnchor` applies anchor ratio and offset bounds without subtracting height from top-anchored nodes.
  */
 object GodotLayout {
 
@@ -103,15 +119,19 @@ object GodotLayout {
         val availableWidth = maxOf(0.0f, parentWidth - padLeft - padRight)
         val availableHeight = maxOf(0.0f, parentHeight - padTop - padBottom)
 
-        val visibleChildren = children.filter { it.visible }
-        if (visibleChildren.isEmpty()) return
+        var visibleCount = 0
+        for (i in children.indices) {
+            if (children[i].visible) visibleCount++
+        }
+        if (visibleCount == 0) return
 
         var unweightedMinSize = 0.0f
         var totalMinMain = 0.0f
         var totalStretchRatio = 0.0f
 
-        for (i in 0 until visibleChildren.size) {
-            val child = visibleChildren[i]
+        for (i in children.indices) {
+            val child = children[i]
+            if (!child.visible) continue
             val minSize = if (isVertical) getChildMinHeight(child) else getChildMinWidth(child)
             val flags = if (isVertical) child.sizeFlagsVertical else child.sizeFlagsHorizontal
             val ratio = child.stretchRatio
@@ -125,7 +145,6 @@ object GodotLayout {
         }
 
         val availableMain = if (isVertical) availableHeight else availableWidth
-        val visibleCount = visibleChildren.size
         val fixedGap = arrangement.spacing
 
         var actualGap = fixedGap
@@ -169,11 +188,14 @@ object GodotLayout {
 
         if (isVertical) {
             var currentTopY = parentY + parentHeight - padTop - startOffset
-            for (i in 0 until visibleChildren.size) {
-                val child = visibleChildren[i]
-                val childAvailableWidth = if ((child.sizeFlagsHorizontal and SizeFlags.FILL) != 0) availableWidth
-                                          else if (child.width > 0.0f) child.width
-                                          else availableWidth
+            for (i in children.indices) {
+                val child = children[i]
+                if (!child.visible) continue
+                val childAvailableWidth = when {
+                    (child.sizeFlagsHorizontal and SizeFlags.FILL) != 0 -> availableWidth
+                    child.width > 0.0f -> child.width
+                    else -> availableWidth
+                }
                 val slotTotalHeight = getChildMinHeight(child, childAvailableWidth)
                 val verticalFlags = child.sizeFlagsVertical
                 val ratio = child.stretchRatio
@@ -201,8 +223,9 @@ object GodotLayout {
             }
         } else {
             var currentLeftX = parentX + padLeft + startOffset
-            for (i in 0 until visibleChildren.size) {
-                val child = visibleChildren[i]
+            for (i in children.indices) {
+                val child = children[i]
+                if (!child.visible) continue
                 val slotTotalWidth = getChildMinWidth(child)
                 val horizontalFlags = child.sizeFlagsHorizontal
                 val ratio = child.stretchRatio
@@ -248,10 +271,13 @@ object GodotLayout {
     ) {
         if (columns <= 0) return
 
-        val visibleChildren = children.filter { it.visible }
-        if (visibleChildren.isEmpty()) return
+        var visibleCount = 0
+        for (i in children.indices) {
+            if (children[i].visible) visibleCount++
+        }
+        if (visibleCount == 0) return
 
-        val rows = (visibleChildren.size + columns - 1) / columns
+        val rows = (visibleCount + columns - 1) / columns
         val availableWidth = maxOf(0.0f, parentWidth - padLeft - padRight)
         val availableHeight = maxOf(0.0f, parentHeight - padTop - padBottom)
 
@@ -260,10 +286,13 @@ object GodotLayout {
         val columnExpand = FloatArray(columns)
         val rowExpand = FloatArray(rows)
 
-        for (i in visibleChildren.indices) {
-            val child = visibleChildren[i]
-            val columnIndex = i % columns
-            val rowIndex = i / columns
+        var visibleIndex = 0
+        for (i in children.indices) {
+            val child = children[i]
+            if (!child.visible) continue
+
+            val columnIndex = visibleIndex % columns
+            val rowIndex = visibleIndex / columns
 
             val minWidth = getChildMinWidth(child)
             val minHeight = getChildMinHeight(child)
@@ -277,6 +306,7 @@ object GodotLayout {
             if ((child.sizeFlagsVertical and SizeFlags.EXPAND) != 0) {
                 rowExpand[rowIndex] = maxOf(rowExpand[rowIndex], child.stretchRatio)
             }
+            visibleIndex++
         }
 
         val totalColumnGaps = if (columns > 1) (columns - 1) * horizontalSeparation else 0.0f
@@ -316,11 +346,14 @@ object GodotLayout {
             currentTopY -= cellHeight + verticalSeparation
         }
 
-        for (i in visibleChildren.indices) {
-            val child = visibleChildren[i]
-            val columnIndex = i % columns
-            val rowIndex = i / columns
+        visibleIndex = 0
+        for (i in children.indices) {
+            val child = children[i]
+            if (!child.visible) continue
+            val columnIndex = visibleIndex % columns
+            val rowIndex = visibleIndex / columns
             fitChildInRect(child, columnPositionsX[columnIndex], rowPositionsY[rowIndex], columnWidths[columnIndex], rowHeights[rowIndex])
+            visibleIndex++
         }
     }
 

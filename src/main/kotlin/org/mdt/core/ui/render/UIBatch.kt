@@ -13,13 +13,32 @@ import org.mdt.core.ui.EngineRuntime
 import org.mdt.core.ui.unit.Color
 
 /**
- * ## UIBatch
+ * ## UIBatch [Master 1-Draw-Call GPU UI Batch Renderer]
  *
- * Master high-performance GPU UI batcher for NekoMod.
- * Unifies all UI elements (BMFont text glyphs, rounded SDF boxes, borders,
- * icons, atlas images, and frosted glass surfaces) into a single batched pipeline.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Master high-performance GPU UI batcher unifying BMFont text glyphs, rounded SDF boxes, borders, icons, textures, and frosted glass.
+ * - Streams packed 14-float vertex data (`a_position`, `a_texCoords`, `a_color`, `a_rectCenterHalfSize`, `a_radiiBorderMode`, `a_borderColor`, `a_clipRect`)
+ *   into a persistent pre-allocated [Mesh] buffer (up to 16,384 quads per batch).
+ * - Implements analytical GPU per-pixel scissor clipping inside the Uber Fragment Shader, eliminating OpenGL hardware scissor state switches.
+ * - Samples frosted glass background blur directly from [GameBlurService] texture via sampler unit 2.
  *
- * See: docs/rendering-shaders/rendering_shaders_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (1-Draw-Call Target):** All UI primitives drawn between `begin()` and `end()` are batched together.
+ * - **Rule 2 (OpenGL Active Texture Enum):** Always call `Gl.activeTexture(Gl.texture0 + unit)`, NEVER `Gl.texture2d + unit`.
+ * - **Rule 3 (Float Everywhere):** Geometry coordinates, radii, and insets use `Float`.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - 🎨 **Shader Manager:** `src/main/kotlin/org/mdt/core/ui/render/Shaders.kt`
+ * - 🌫️ **Blur Pipeline:** `src/main/kotlin/org/mdt/core/ui/render/GameBlurService.kt`
+ * - 🔤 **Font Drawer:** `src/main/kotlin/org/mdt/core/ui/render/UIFontDrawer.kt`
+ * - 🌲 **Virtual Nodes:** `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/TextNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `begin(proj, w, h)` binds shader, prepares mesh and activates blur texture.
+ * - [x] `drawBox` packages rect center, halfSize, radius, and border properties accurately.
+ * - [x] `drawGlyph` pushes font glyph quad with analytical clip coordinates.
+ * - [x] `pushClip` and `popClip` manage analytical per-quad scissor stack without flushing batch.
+ * - [x] `end()` flushes vertex buffer, executes `mesh.render`, and restores OpenGL state.
  */
 object UIBatch : Disposable {
 

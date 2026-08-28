@@ -9,17 +9,30 @@ import arc.util.Disposable
 import org.mdt.core.ui.EngineRuntime
 
 /**
- * ## GameBlurService
+ * ## GameBlurService [Progressive Dual-Kawase Background Blur Coordinator]
  *
- * Ultra-low-overhead Dual-Kawase background blur coordinator optimized for Intel Integrated GPUs & Mobile.
- * Operates completely independent of Arc's SpriteBatch with 100% Pure OpenGL, Zero-GC,
- * zero grid artifacts, and $<1\%$ GPU load.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Ultra-low-overhead Dual-Kawase background blur coordinator optimized for integrated and mobile GPUs.
+ * - Operates independently of Arc's SpriteBatch using 100% Pure OpenGL, Zero-GC, and monotonic frame-indexing.
+ * - Employs a 3-level downsampling pyramid ($1\times \rightarrow 1/2 \rightarrow 1/4 \rightarrow 1/8$) followed by a 2-level 9-tap tent upsampling pass ($1/8 \rightarrow 1/4 \rightarrow 1/2$).
+ * - Throttled by `updateIntervalMs` (33ms = 30 FPS update rate) to completely eliminate memory bandwidth bottlenecks on Intel iGPUs.
  *
- * Employs progressive 3-level FBO downsampling ($1\times \rightarrow 1/2 \rightarrow 1/4 \rightarrow 1/8$)
- * and 2-level 9-tap tent upsampling ($1/8 \rightarrow 1/4 \rightarrow 1/2$) to produce silky,
- * creamy frosted glass without ghosting or double-image artifacts.
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (OpenGL Active Texture Enum):** Texture binding calls must use `Gl.texture0 + unit`, NEVER `Gl.texture2d + unit`.
+ * - **Rule 2 (Single Execution per Frame):** Guarded by monotonic frame id (`lastCapturedFrameId == currentFrameId`) for $O(1)$ single execution per frame.
+ * - **Rule 3 (Resource Cleanliness):** All FrameBuffers and QuadMesh must be freed in `dispose()`.
  *
- * See: docs/rendering-shaders/rendering_shaders_en.md
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
+ * - 🎨 **Shader Manager:** `src/main/kotlin/org/mdt/core/ui/render/Shaders.kt`
+ * - 🔌 **Platform Host:** `src/main/kotlin/org/mdt/core/engine/PlatformHost.kt`
+ * - ⚙️ **Runtime Orchestrator:** `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] Returns cached `blurredTexture` without re-rendering if executed multiple times within same frame or interval.
+ * - [x] Downsamples screen buffer across 3 FBO levels and upsamples with tent filter into `pingPongA`.
+ * - [x] Cleans up scratch framebuffers when window dimensions resize.
+ * - [x] `dispose()` releases FBOs and static NDC quad mesh cleanly.
  */
 object GameBlurService : Disposable {
 

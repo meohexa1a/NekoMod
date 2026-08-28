@@ -2,6 +2,7 @@ package org.mdt.core.ui.node
 
 import arc.input.KeyCode
 import arc.math.geom.Vec2
+import org.mdt.core.ui.EngineRuntime
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.layout.AnchorData
@@ -9,14 +10,30 @@ import org.mdt.core.ui.render.UIBatch
 import org.mdt.core.ui.unit.Rect
 
 /**
- * ## UINode (Virtual UI Node)
+ * ## UINode [Virtual DOM UI Tree Base Node]
  *
- * Base class for all elements in the declarative Virtual DOM UI tree.
- * Manages parent-child hierarchy, Box Model (Margin & Padding),
- * sizing computations, event dispatching, and coordinate transformations.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Base class for all elements in the declarative Virtual DOM UI tree.
+ * - Manages tree hierarchy (`parent`, `children`), Box Model (Margin & Padding), intrinsic preferred dimensions,
+ *   event dispatching (`onClick`, `onPointerDown`, `onKeyDown`, etc.), focus control, and coordinate transformations.
+ * - Coordinates bounds in OpenGL bottom-left origin ($y=0$ bottom, $y=\text{parentH}$ top).
+ * - Traverses children in reverse order during hit testing to prioritize topmost children.
  *
- * See: docs/architecture/architecture_en.md
- * See: docs/layout-engine/layout_engine_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Float Everywhere):** Bounds, dimensions, margins, paddings, and opacities use `Float`.
+ * - **Rule 2 (Event Bubbling & Scissor Test):** `hitTest` verifies scissor boundaries and respects [HitTestBehavior].
+ * - **Rule 3 (Zero-GC Layout):** Child additions/removals automatically invalidate layout (`invalidateLayout`).
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - 🌲 **Subclasses:** `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/TextNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/CanvasNode.kt`
+ * - 🎮 **Input Processor:** `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
+ * - 🌲 **Node Applier:** `src/main/kotlin/org/mdt/core/ui/compose/NodeApplier.kt`
+ * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `setBounds(x, y, w, h)` invalidates layout if dimensions change.
+ * - [x] `hitTest(x, y)` traverses children in reverse order and respects `visible` and `HitTestBehavior`.
+ * - [x] `localToGlobal` and `globalToLocal` transform coordinates accurately with zero allocation outside Vec2.
  */
 open class UINode {
 
@@ -260,7 +277,7 @@ open class UINode {
     /** Executes layout pass for this node and its children. */
     open fun layout() {
         isLayoutDirty = false
-        for (i in 0 until children.size) {
+        for (i in children.indices) {
             val child = children[i]
             if (child.visible) child.layout()
         }
@@ -352,7 +369,7 @@ open class UINode {
     }
 
     fun clearChildren() {
-        for (i in 0 until children.size) {
+        for (i in children.indices) {
             val child = children[i]
             child.onDetached()
             child.parent = null
@@ -380,13 +397,13 @@ open class UINode {
     fun requestFocus() {
         if (!isFocusable || isFocused) return
 
-        isFocused = true
+        EngineRuntime.inputProcessor.requestFocus(this)
     }
 
     fun clearFocus() {
         if (!isFocused) return
 
-        isFocused = false
+        EngineRuntime.inputProcessor.clearFocus()
     }
 
     // --- COORDINATE TRANSFORMATIONS ---
@@ -396,11 +413,9 @@ open class UINode {
 }
 
 /**
- * ## HitTestBehavior
+ * ## HitTestBehavior [Pointer Hit-Testing Strategy]
  *
- * Defines how pointer hit testing evaluates this node and its children.
- *
- * See: docs/ui-engine/ui_engine_en.md
+ * Defines how pointer hit testing evaluates this node and its children during event dispatch passes.
  */
 enum class HitTestBehavior {
     /**

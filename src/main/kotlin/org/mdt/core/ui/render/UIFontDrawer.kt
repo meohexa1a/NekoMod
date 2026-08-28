@@ -6,13 +6,29 @@ import arc.util.Align
 import org.mdt.core.ui.unit.Color
 
 /**
- * ## UIFontDrawer
+ * ## UIFontDrawer [Direct BMFont Glyph Emitter & Measurement Helper]
  *
- * Direct, high-performance BMFont glyph emitter for NekoMod.
- * Reuses Java's [GlyphLayout] for text measurement, word-wrapping, and color tag parsing,
- * while emitting glyph quads directly into [UIBatch] without invoking Arc's `FontCache` or `Draw.batch`.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Direct, high-performance BMFont glyph emitter for NekoMod.
+ * - Reuses static [GlyphLayout] for text bounds measurement, word-wrapping, and color markup parsing.
+ * - Emits individual glyph quads directly into [UIBatch] without invoking Arc's `FontCache` or `Draw.batch`.
+ * - Supports binary-search single-line ellipsis truncation (`truncateWithEllipsis`) and multi-line wrapping.
  *
- * See: docs/rendering-shaders/rendering_shaders_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Typography & Scale):** Draw BMFonts at natural scale ($1.0f$). Do not apply fractional float scale to bitmap fonts.
+ * - **Rule 2 (1-Draw-Call Batching):** Pushes glyphs into active [UIBatch] pass with texture binding validation.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
+ * - 🌲 **Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/TextNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`
+ * - 🎨 **Composable Text:** `src/main/kotlin/org/mdt/ui/components/display/text/Text.kt`
+ * - 🔌 **Platform Host:** `src/main/kotlin/org/mdt/core/engine/PlatformHost.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `getPrefWidth` calculates string width without text wrapping when `wrap = false`.
+ * - [x] `getPrefHeight` clamps height to at least `font.lineHeight`.
+ * - [x] `truncateWithEllipsis` truncates string and appends `...` within target width.
+ * - [x] `draw` maps runs and glyph offsets into [UIBatch.drawGlyph].
  */
 object UIFontDrawer {
 
@@ -52,10 +68,47 @@ object UIFontDrawer {
         return maxOf(font.lineHeight, layoutHelper.height)
     }
 
+    /**
+     * Truncates [text] to fit within [availableWidth] by appending an ellipsis (`...`).
+     */
+    fun truncateWithEllipsis(
+        font: Font,
+        text: String,
+        availableWidth: Float
+    ): String {
+        if (text.isEmpty() || availableWidth <= 0.0f) return ""
+
+        val totalWidth = getPrefWidth(font, text, 0.0f, false)
+        if (totalWidth <= availableWidth) return text
+
+        val ellipsis = "..."
+        val ellipsisWidth = getPrefWidth(font, ellipsis, 0.0f, false)
+        if (ellipsisWidth >= availableWidth) return ellipsis
+
+        val maxTextWidth = availableWidth - ellipsisWidth
+        var low = 0
+        var high = text.length
+        var bestFit = 0
+
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            val sub = text.substring(0, mid)
+            val subWidth = getPrefWidth(font, sub, 0.0f, false)
+            if (subWidth <= maxTextWidth) {
+                bestFit = mid
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+
+        return text.substring(0, bestFit) + ellipsis
+    }
+
     // --- RENDERING ---
 
     /**
-     * Draws [text] directly into [UIBatch].
+     * Draws [text] directly into [UIBatch] with optional [ellipsis] truncation or [wrap].
      */
     fun draw(
         font: Font,
@@ -65,11 +118,18 @@ object UIFontDrawer {
         targetWidth: Float = 0.0f,
         align: Int = Align.left,
         wrap: Boolean = false,
+        ellipsis: Boolean = false,
         color: Color = Color.White
     ) {
         if (text.isEmpty()) return
 
-        layoutHelper.setText(font, text, color.toArcColor(arcColorHelper), targetWidth, align, wrap)
+        val textToRender = if (ellipsis && !wrap && targetWidth > 0.0f) {
+            truncateWithEllipsis(font, text.toString(), targetWidth)
+        } else {
+            text
+        }
+
+        layoutHelper.setText(font, textToRender, color.toArcColor(arcColorHelper), targetWidth, align, wrap)
 
         val scaleX = font.data.scaleX
         val scaleY = font.data.scaleY
@@ -81,8 +141,8 @@ object UIFontDrawer {
             val currentY = y + run.y
             val runColor = Color.fromArc(run.color)
 
-            for (i in 0 until glyphs.size) {
-                val glyph = glyphs[i]
+            for ((i, element) in glyphs.withIndex()) {
+                val glyph = element
                 currentX += xAdvances[i]
 
                 val drawX = currentX + glyph.xoffset * scaleX

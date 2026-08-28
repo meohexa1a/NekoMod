@@ -7,12 +7,28 @@ import org.mdt.core.ui.render.UIFontDrawer
 import org.mdt.core.ui.unit.Color
 
 /**
- * ## TextNode
+ * ## TextNode [Primitive BMFont Text Virtual DOM Node]
  *
- * Core primitive Virtual DOM node rendering BMFont text glyphs directly through [UIFontDrawer] and [org.mdt.core.ui.render.UIBatch].
- * Unstyled by default.
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Primitive Virtual DOM node rendering BMFont text glyphs directly through [UIFontDrawer] and [org.mdt.core.ui.render.UIBatch].
+ * - Supports multiline wrapping (`wrap = true`), ellipsis truncation (`ellipsis = true`), and horizontal alignment flags.
+ * - Sizing math respects font glyph metrics, capHeight, ascent, line heights, and container inward padding.
+ * - Completely unstyled by default (zero default background, padding, or fixed size).
  *
- * See: docs/design-system/design_system_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Typography & Scale):** Render fonts at natural `scale = 1.0f` (integer increments only). Fractional float scaling is banned.
+ * - **Rule 2 (OpenGL Bottom-Left Baseline Alignment):** In non-wrapped text, vertical baseline centers via `innerY + (innerHeight + capHeight) * 0.5f`.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - 🎨 **Composable UI:** `src/main/kotlin/org/mdt/ui/components/display/text/Text.kt`
+ * - 🔤 **Font Drawer:** `src/main/kotlin/org/mdt/core/ui/render/UIFontDrawer.kt`
+ * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
+ * - 🔌 **Platform Host:** `src/main/kotlin/org/mdt/core/engine/PlatformHost.kt`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] Setting `text`, `font`, `wrap`, or `ellipsis` invalidates layout.
+ * - [x] Intrinsic height calculation passes container inner width when `wrap = true`.
+ * - [x] Glyph emitter draws via [UIFontDrawer.draw] in 1-Draw-Call batch.
  */
 open class TextNode(
     text: String = ""
@@ -43,6 +59,13 @@ open class TextNode(
     var textColor: Color = Color.White
     var align: Int = Align.left
     var wrap: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
+    var ellipsis: Boolean = false
         set(value) {
             if (field != value) {
                 field = value
@@ -101,6 +124,7 @@ open class TextNode(
             targetWidth = innerWidth,
             align = align,
             wrap = wrap,
+            ellipsis = ellipsis,
             color = textColor
         )
     }

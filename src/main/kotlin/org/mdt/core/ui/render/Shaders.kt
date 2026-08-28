@@ -6,12 +6,26 @@ import arc.util.Log
 import org.mdt.core.ui.EngineRuntime
 
 /**
- * ## Shaders
+ * ## Shaders [GPU Shader Lifecycle Coordinator]
  *
- * Master GPU Shader lifecycle coordinator for NekoMod.
- * Manages compile, cache, and disposal of the unified [uberShader] and [blurShader].
+ * ### 1. 📖 Feature Specification & Core Architecture:
+ * - Master GPU Shader coordinator managing compile, uniform binding, and disposal of [uberShader] and [blurShader].
+ * - Reads vertex and fragment source definitions from modular mod assets via [EngineRuntime.host].
+ * - Pre-binds static uniform sampler indices (`u_atlas = 0`, `u_gameBlur = 2`).
  *
- * See: docs/rendering-shaders/rendering_shaders_en.md
+ * ### 2. ⚡ Invariants & Non-Negotiable Rules:
+ * - **Rule 1 (Arc Shader Headers & Precisions):** Shaders must never contain manual `#version` or `#ifdef GL_ES` headers.
+ * - **Rule 2 (Lazy Lifecycle):** Shaders compile on-demand via `ensure()` and dispose safely via `dispose()`.
+ *
+ * ### 3. 🔗 Related Files & Subsystem Map:
+ * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
+ * - 🌫️ **Blur Pipeline:** `src/main/kotlin/org/mdt/core/ui/render/GameBlurService.kt`
+ * - 🔌 **Platform Host:** `src/main/kotlin/org/mdt/core/engine/PlatformHost.kt`
+ * - 🎨 **Shader Sources:** `src/main/resources/shaders/uber_ui.vert`, `src/main/resources/shaders/uber_ui.frag`
+ *
+ * ### 4. ✅ Behavioral Verification Checklist:
+ * - [x] `ensure()` compiles `uberShader` and `blurShader` idempotently.
+ * - [x] `dispose()` releases GL programs and sets `isLoaded = false`.
  */
 object Shaders : Disposable {
 
