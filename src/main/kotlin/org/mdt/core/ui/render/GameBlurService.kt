@@ -15,8 +15,9 @@ import org.mdt.core.ui.EngineRuntime
  * Operates completely independent of Arc's SpriteBatch with 100% Pure OpenGL, Zero-GC,
  * zero grid artifacts, and $<1\%$ GPU load.
  *
- * Employs time-throttled dirty caching (30-60 FPS blur update rate) and lean FBO pyramids
- * to reduce GPU VRAM memory bandwidth by over 90%.
+ * Employs progressive 3-level FBO downsampling ($1\times \rightarrow 1/2 \rightarrow 1/4 \rightarrow 1/8$)
+ * and 2-level 9-tap tent upsampling ($1/8 \rightarrow 1/4 \rightarrow 1/2$) to produce silky,
+ * creamy frosted glass without ghosting or double-image artifacts.
  *
  * See: docs/rendering-shaders/rendering_shaders_en.md
  */
@@ -30,8 +31,8 @@ object GameBlurService : Disposable {
     /** Refresh throttle in milliseconds (~33ms = 30 FPS update rate, completely eliminates Intel GPU bandwidth bottleneck). */
     var updateIntervalMs: Long = 33L
 
-    /** Blur spread radius multiplier for the upsample tent filter (1.0f - 3.0f). */
-    var blurRadius: Float = 1.75f
+    /** Blur spread radius multiplier for the upsample tent filter (0.5f - 2.0f). Default: 1.2f. */
+    var blurRadius: Float = 1.2f
 
     /** Execution time of the latest blur pass in milliseconds. */
     var lastBlurDurationMs: Float = 0.0f
@@ -44,8 +45,9 @@ object GameBlurService : Disposable {
     // --- SCRATCH BUFFERS & GEOMETRY ---
 
     private var screenCaptureFbo: FrameBuffer? = null
-    private var pingPongA: FrameBuffer? = null // Level 1 FBO (e.g. 480x270 for 1080p)
-    private var pingPongB: FrameBuffer? = null // Level 2 FBO (e.g. 240x135 for 1080p)
+    private var pingPongA: FrameBuffer? = null // Level 1 FBO: 1/2 scale (e.g. 960x540 for 1080p)
+    private var pingPongB: FrameBuffer? = null // Level 2 FBO: 1/4 scale (e.g. 480x270 for 1080p)
+    private var pingPongC: FrameBuffer? = null // Level 3 FBO: 1/8 scale (e.g. 240x135 for 1080p)
     private var blurredTexture: Texture? = null
 
     private var lastCapturedFrameId: Long = -1L
@@ -72,7 +74,7 @@ object GameBlurService : Disposable {
     // --- DUAL-KAWASE BLUR PIPELINE ---
 
     /**
-     * Executes the Dual-Kawase background blur capture.
+     * Executes the progressive 5-pass Dual-Kawase background blur capture.
      * Guaranteed to execute at most ONCE per frame with O(1) monotonic frame-indexing and time-throttled caching.
      *
      * @return The silky-smooth blurred background [Texture], or null if blur is disabled.
@@ -97,18 +99,24 @@ object GameBlurService : Disposable {
 
         val blurStartNanos = System.nanoTime()
 
-        // Level 1: 1/4 scale (480x270 for 1080p, ultra low memory bandwidth)
-        val level1Width = maxOf(32, screenWidth / 4)
-        val level1Height = maxOf(32, screenHeight / 4)
+        // Level 1: 1/2 scale (960x540 for 1080p) - sharp half-res base
+        val level1Width = maxOf(32, screenWidth / 2)
+        val level1Height = maxOf(32, screenHeight / 2)
 
-        // Level 2: 1/8 scale (240x135 for 1080p)
+        // Level 2: 1/4 scale (480x270 for 1080p) - intermediate diffusion
         val level2Width = maxOf(16, level1Width / 2)
         val level2Height = maxOf(16, level1Height / 2)
 
+        // Level 3: 1/8 scale (240x135 for 1080p) - deep background blur
+        val level3Width = maxOf(8, level2Width / 2)
+        val level3Height = maxOf(8, level2Height / 2)
+
         val existingA = pingPongA
         val existingB = pingPongB
+        val existingC = pingPongC
         if (existingA != null && (existingA.width != level1Width || existingA.height != level1Height) ||
-            existingB != null && (existingB.width != level2Width || existingB.height != level2Height)) {
+            existingB != null && (existingB.width != level2Width || existingB.height != level2Height) ||
+            existingC != null && (existingC.width != level3Width || existingC.height != level3Height)) {
             disposeScratch()
         }
 
@@ -121,15 +129,20 @@ object GameBlurService : Disposable {
                 texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
                 texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
             }
+            pingPongC = FrameBuffer(level3Width, level3Height).apply {
+                texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
+                texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
+            }
         }
 
         val fboA = pingPongA ?: return null
         val fboB = pingPongB ?: return null
+        val fboC = pingPongC ?: return null
 
         Shaders.ensure()
         val blurShader = Shaders.blurShader ?: return null
 
-        // --- PURE OPENGL DUAL-KAWASE PYRAMID ---
+        // --- PURE OPENGL PROGRESSIVE DUAL-KAWASE PYRAMID ---
         val wasBlend = Gl.isEnabled(Gl.blend)
         val wasDepth = Gl.isEnabled(Gl.depthTest)
         if (wasBlend) Gl.disable(Gl.blend)
@@ -140,7 +153,9 @@ object GameBlurService : Disposable {
         blurShader.setUniformi("u_texture", 0)
         Gl.activeTexture(Gl.texture0)
 
-        // --- PASS 1: Downsample Screen (1080p) -> Level 1 FBO (480x270) ---
+        val effectiveRadius = blurRadius.coerceIn(0.5f, 2.5f)
+
+        // --- PASS 1: Downsample Screen (1080p) -> Level 1 FBO (960x540) ---
         fboA.begin()
         Gl.viewport(0, 0, level1Width, level1Height)
         captureTexture.bind()
@@ -150,7 +165,7 @@ object GameBlurService : Disposable {
         quadMesh.render(blurShader, Gl.triangles)
         fboA.end()
 
-        // --- PASS 2: Downsample Level 1 (480x270) -> Level 2 FBO (240x135) ---
+        // --- PASS 2: Downsample Level 1 (960x540) -> Level 2 FBO (480x270) ---
         fboB.begin()
         Gl.viewport(0, 0, level2Width, level2Height)
         fboA.texture.bind()
@@ -160,12 +175,32 @@ object GameBlurService : Disposable {
         quadMesh.render(blurShader, Gl.triangles)
         fboB.end()
 
-        // --- PASS 3: Upsample Level 2 (240x135) -> Level 1 FBO (480x270) with 8-tap Tent Filter ---
+        // --- PASS 3: Downsample Level 2 (480x270) -> Level 3 FBO (240x135) ---
+        fboC.begin()
+        Gl.viewport(0, 0, level3Width, level3Height)
+        fboB.texture.bind()
+        blurShader.setUniformf("u_texelSize", 1.0f / level2Width.toFloat(), 1.0f / level2Height.toFloat())
+        blurShader.setUniformf("u_radius", 1.0f)
+        blurShader.setUniformf("u_mode", 0.0f) // Downsample
+        quadMesh.render(blurShader, Gl.triangles)
+        fboC.end()
+
+        // --- PASS 4: Upsample Level 3 (240x135) -> Level 2 FBO (480x270) ---
+        fboB.begin()
+        Gl.viewport(0, 0, level2Width, level2Height)
+        fboC.texture.bind()
+        blurShader.setUniformf("u_texelSize", 1.0f / level3Width.toFloat(), 1.0f / level3Height.toFloat())
+        blurShader.setUniformf("u_radius", effectiveRadius)
+        blurShader.setUniformf("u_mode", 1.0f) // Upsample
+        quadMesh.render(blurShader, Gl.triangles)
+        fboB.end()
+
+        // --- PASS 5: Upsample Level 2 (480x270) -> Level 1 FBO (960x540) ---
         fboA.begin()
         Gl.viewport(0, 0, level1Width, level1Height)
         fboB.texture.bind()
         blurShader.setUniformf("u_texelSize", 1.0f / level2Width.toFloat(), 1.0f / level2Height.toFloat())
-        blurShader.setUniformf("u_radius", blurRadius.coerceIn(1.0f, 3.5f))
+        blurShader.setUniformf("u_radius", effectiveRadius)
         blurShader.setUniformf("u_mode", 1.0f) // Upsample
         quadMesh.render(blurShader, Gl.triangles)
         fboA.end()
@@ -230,6 +265,8 @@ object GameBlurService : Disposable {
         pingPongA = null
         pingPongB?.dispose()
         pingPongB = null
+        pingPongC?.dispose()
+        pingPongC = null
         blurredTexture = null
         lastCapturedFrameId = -1L
         lastCaptureTimestamp = 0L

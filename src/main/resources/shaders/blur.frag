@@ -6,27 +6,35 @@ uniform float u_mode; // 0.0 = Dual Kawase Downsample, 1.0 = Dual Kawase Upsampl
 varying vec2 v_texCoords;
 
 void main() {
-    vec2 offset = u_texelSize * max(u_radius, 0.5);
+    vec2 offset = u_texelSize * u_radius;
 
     if (u_mode < 0.5) {
-        // --- DOWNSAMPLE PASS (4-tap rotated bilinear + center box: 5 samples covering 16 texels) ---
+        // --- DOWNSAMPLE PASS (5-tap rotated bilinear box: 1 center + 4 diagonal corners) ---
+        // Samples 16 source texels smoothly via GPU bilinear filtering
         vec4 sum = texture2D(u_texture, v_texCoords) * 4.0;
-        sum += texture2D(u_texture, v_texCoords - offset);
-        sum += texture2D(u_texture, v_texCoords + offset);
-        sum += texture2D(u_texture, v_texCoords + vec2(offset.x, -offset.y));
-        sum += texture2D(u_texture, v_texCoords + vec2(-offset.x, offset.y));
+        sum += texture2D(u_texture, v_texCoords + vec2(-offset.x, -offset.y));
+        sum += texture2D(u_texture, v_texCoords + vec2( offset.x, -offset.y));
+        sum += texture2D(u_texture, v_texCoords + vec2(-offset.x,  offset.y));
+        sum += texture2D(u_texture, v_texCoords + vec2( offset.x,  offset.y));
         gl_FragColor = sum * 0.125;
     } else {
-        // --- UPSAMPLE PASS (8-tap tent filter: 8 samples covering 36 texels smoothly) ---
-        vec4 sum = vec4(0.0);
-        sum += texture2D(u_texture, v_texCoords + vec2(-offset.x * 2.0, 0.0));
-        sum += texture2D(u_texture, v_texCoords + vec2(-offset.x, offset.y)) * 2.0;
-        sum += texture2D(u_texture, v_texCoords + vec2(0.0, offset.y * 2.0));
-        sum += texture2D(u_texture, v_texCoords + vec2(offset.x, offset.y)) * 2.0;
-        sum += texture2D(u_texture, v_texCoords + vec2(offset.x * 2.0, 0.0));
-        sum += texture2D(u_texture, v_texCoords + vec2(offset.x, -offset.y)) * 2.0;
-        sum += texture2D(u_texture, v_texCoords + vec2(0.0, -offset.y * 2.0));
+        // --- UPSAMPLE PASS (9-tap smooth tent filter with center weight) ---
+        // Center weight 4.0 eliminates ghosting/doughnut-hole/split-image artifacts
+        vec4 sum = texture2D(u_texture, v_texCoords) * 4.0;
+
+        // 4 diagonal corners (weight 2.0 each = 8.0)
         sum += texture2D(u_texture, v_texCoords + vec2(-offset.x, -offset.y)) * 2.0;
-        gl_FragColor = sum * (1.0 / 12.0);
+        sum += texture2D(u_texture, v_texCoords + vec2( offset.x, -offset.y)) * 2.0;
+        sum += texture2D(u_texture, v_texCoords + vec2(-offset.x,  offset.y)) * 2.0;
+        sum += texture2D(u_texture, v_texCoords + vec2( offset.x,  offset.y)) * 2.0;
+
+        // 4 cardinal axis edges (weight 1.0 each = 4.0)
+        sum += texture2D(u_texture, v_texCoords + vec2(-offset.x * 2.0, 0.0));
+        sum += texture2D(u_texture, v_texCoords + vec2( offset.x * 2.0, 0.0));
+        sum += texture2D(u_texture, v_texCoords + vec2(0.0, -offset.y * 2.0));
+        sum += texture2D(u_texture, v_texCoords + vec2(0.0,  offset.y * 2.0));
+
+        // Total weight = 4.0 + 8.0 + 4.0 = 16.0
+        gl_FragColor = sum * 0.0625;
     }
 }
