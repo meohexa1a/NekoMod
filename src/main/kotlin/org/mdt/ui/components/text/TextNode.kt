@@ -1,144 +1,118 @@
 package org.mdt.ui.components.text
 
-import arc.graphics.g2d.Draw
-import arc.graphics.g2d.GlyphLayout
-import arc.util.Tmp
-import org.mdt.core.ui.render.EngineRenderer
+import arc.graphics.g2d.Font
+import arc.util.Align
+import org.mdt.core.ui.EngineRuntime
+import org.mdt.core.ui.HitTestBehavior
+import org.mdt.core.ui.graphics.Color
+import org.mdt.core.ui.render.UIFontDrawer
 import org.mdt.ui.components.layout.LayoutNode
 
 /**
  * ## TextNode
  *
- * Virtual DOM node rendering BMFont glyphs with typography configurations,
- * multi-line wrapping, and font selection. Uses Anuke's pooled [Tmp.c1] for zero-allocation rendering.
+ * Virtual DOM node rendering BMFont text glyphs directly through [UIFontDrawer] and [org.mdt.core.ui.render.UIBatch].
  *
- * See: docs/architecture/architecture_en.md
+ * See: docs/design-system/design_system_en.md
  */
 open class TextNode(
     text: String = ""
 ) : LayoutNode() {
 
-    val textVisuals = TextVisuals()
-
-    var text: String
-        get() = textVisuals.text
-        set(value) {
-            if (textVisuals.text != value) {
-                textVisuals.text = value
-                invalidateLayout()
-            }
-        }
-
-    var ellipsis: String?
-        get() = textVisuals.ellipsis
-        set(value) {
-            if (textVisuals.ellipsis != value) {
-                textVisuals.ellipsis = value
-                invalidateLayout()
-            }
-        }
-
     init {
-        this.text = text
+        hitTestBehavior = HitTestBehavior.TRANSLUCENT
     }
+
+    // --- PROPERTIES & STATE ---
+
+    var text: String = text
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
+
+    var font: Font? = null
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
+
+    val activeFont: Font? get() = font ?: EngineRuntime.host.resolveDefaultFont()
+
+    var textColor: Color = Color.White
+    var align: Int = Align.left
+    var wrap: Boolean = false
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
+
+    // --- INTRINSIC MEASUREMENT ---
 
     override fun getPrefWidth(): Float {
-        if (width >= 0f) return width
+        if (width >= 0.0f) return width
 
-        if (textVisuals.wrap) {
-            // When wrapping is enabled, return 0 or minimum width to avoid expanding container beyond bounds
-            return (if (minWidth >= 0f) minWidth else 0f) + padL + padR
-        }
+        if (wrap) return (if (minWidth >= 0.0f) minWidth else 0.0f) + padL + padR
 
-        val font = textVisuals.font
-        val oldScaleX = font.scaleX
-        val oldScaleY = font.scaleY
-        val isScaled = textVisuals.fontScaleX != 1.0f || textVisuals.fontScaleY != 1.0f
-        if (isScaled) font.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
+        val currentFont = activeFont ?: return padL + padR
 
-        layoutHelper.setText(font, text)
-        val textWidth = layoutHelper.width
-
-        if (isScaled) font.data.setScale(oldScaleX, oldScaleY)
-        return (if (minWidth >= 0f) maxOf(textWidth, minWidth) else textWidth) + padL + padR
+        val measuredWidth = UIFontDrawer.getPrefWidth(currentFont, text, 0.0f, false)
+        val baseWidth = if (minWidth >= 0.0f) maxOf(measuredWidth, minWidth) else measuredWidth
+        return baseWidth + padL + padR
     }
 
-    override fun getPrefHeight(): Float {
-        if (height >= 0f) return height
+    override fun getPrefHeight(availableWidth: Float): Float {
+        if (height >= 0.0f) return height
 
-        val font = textVisuals.font
-        val oldScaleX = font.scaleX
-        val oldScaleY = font.scaleY
-        val isScaled = textVisuals.fontScaleX != 1.0f || textVisuals.fontScaleY != 1.0f
-        if (isScaled) font.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
+        val currentFont = activeFont ?: return padT + padB
 
-        val targetWidth = if (bounds.width > 0f) {
-            bounds.width - padL - padR
-        } else if (width > 0f) {
-            width - padL - padR
-        } else {
-            // Walk up parent hierarchy to find first ancestor with defined width for multi-line measurement
-            var curParent = parent
-            var foundWidth = 0f
-            while (curParent != null) {
-                val parentBoundWidth = if (curParent.bounds.width > 0f) curParent.bounds.width else curParent.width
-                if (parentBoundWidth > 0f) {
-                    foundWidth = maxOf(0f, parentBoundWidth - curParent.padL - curParent.padR)
-                    break
-                }
-                curParent = curParent.parent
-            }
-            if (foundWidth > 0f) foundWidth - padL - padR else 0f
+        val targetWidth = when {
+            availableWidth >= 0.0f -> availableWidth - padL - padR
+            bounds.width > 0.0f -> bounds.width - padL - padR
+            width > 0.0f -> width - padL - padR
+            parent != null && parent!!.bounds.width > 0.0f -> parent!!.bounds.width - parent!!.padL - parent!!.padR - padL - padR
+            else -> 0.0f
         }
-
-        val textHeight = if (textVisuals.wrap && targetWidth > 0f) {
-            layoutHelper.setText(font, text, textVisuals.color.toArcColor(Tmp.c1), targetWidth, textVisuals.align, true)
-            layoutHelper.height
-        } else {
-            layoutHelper.setText(font, text)
-            maxOf(font.lineHeight, layoutHelper.height)
-        }
-
-        if (isScaled) font.data.setScale(oldScaleX, oldScaleY)
-        return (if (minHeight >= 0f) maxOf(textHeight, minHeight) else textHeight) + padT + padB
+        val measuredHeight = UIFontDrawer.getPrefHeight(currentFont, text, maxOf(0.0f, targetWidth), align, wrap)
+        val baseHeight = if (minHeight >= 0.0f) maxOf(measuredHeight, minHeight) else measuredHeight
+        return baseHeight + padT + padB
     }
 
-    override fun drawSelf(renderer: EngineRenderer) {
-        super.drawSelf(renderer)
+    // --- RENDERING ---
+
+    override fun drawSelf() {
+        super.drawSelf()
         if (text.isEmpty()) return
+
+        val currentFont = activeFont ?: return
 
         val innerX = bounds.x + padL
         val innerY = bounds.y + padB
-        val innerWidth = bounds.width - padL - padR
-        val innerHeight = bounds.height - padT - padB
+        val innerWidth = maxOf(0.0f, bounds.width - padL - padR)
+        val innerHeight = maxOf(0.0f, bounds.height - padT - padB)
 
-        val font = textVisuals.font
-        val oldScaleX = font.scaleX
-        val oldScaleY = font.scaleY
-        val isScaled = textVisuals.fontScaleX != 1.0f || textVisuals.fontScaleY != 1.0f
-        if (isScaled) font.data.setScale(textVisuals.fontScaleX, textVisuals.fontScaleY)
-
-        font.color = textVisuals.color.toArcColor(Tmp.c1)
-
-        val capHeight = font.data.capHeight
-        if (textVisuals.wrap && innerWidth > 0f) {
-            layoutHelper.setText(font, text, textVisuals.color.toArcColor(Tmp.c1), innerWidth, textVisuals.align, true)
-            val drawY = innerY + (innerHeight + layoutHelper.height) * 0.5f
-            font.draw(text, innerX, drawY, innerWidth, textVisuals.align, true)
+        val capHeight = currentFont.data.capHeight
+        val drawY = if (wrap) {
+            innerY + innerHeight - currentFont.data.ascent
         } else {
-            val drawY = innerY + (innerHeight + capHeight) * 0.5f
-            if (innerWidth > 0f) {
-                font.draw(text, innerX, drawY, 0, text.length, innerWidth, textVisuals.align, false, textVisuals.ellipsis)
-            } else {
-                font.draw(text, innerX, drawY)
-            }
+            innerY + (innerHeight + capHeight) * 0.5f
         }
 
-        if (isScaled) font.data.setScale(oldScaleX, oldScaleY)
-        Draw.color()
-    }
-
-    companion object {
-        private val layoutHelper = GlyphLayout()
+        UIFontDrawer.draw(
+            font = currentFont,
+            text = text,
+            x = innerX,
+            y = drawY,
+            targetWidth = innerWidth,
+            align = align,
+            wrap = wrap,
+            color = textColor
+        )
     }
 }

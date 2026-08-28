@@ -13,10 +13,14 @@ import org.mdt.core.ui.layout.Arrangement
 import org.mdt.core.ui.layout.ColumnMeasurePolicy
 import org.mdt.core.ui.layout.RowMeasurePolicy
 
+// --- ROW COMPOSABLE ---
+
 /**
  * ## Row
  *
- * Horizontal linear layout positioning children left-to-right.
+ * Horizontal linear layout arranging child elements left-to-right.
+ *
+ * See: docs/components-guide/components_guide_en.md
  */
 @Composable
 fun Row(
@@ -28,29 +32,25 @@ fun Row(
     ComposeNode<LayoutNode, NodeApplier>(
         factory = {
             val node = LayoutNode()
-            node.measurePolicy = RowMeasurePolicy(
-                gap = arrangement.spacing,
-                arrangement = arrangement,
-                alignment = alignment
-            )
+            node.measurePolicy = RowMeasurePolicy(arrangement = arrangement, alignment = alignment)
             modifier.applyTo(node)
             node
         },
         update = {
             set(arrangement) {
-                this.measurePolicy = RowMeasurePolicy(
-                    gap = it.spacing,
-                    arrangement = it,
-                    alignment = alignment
-                )
+                (measurePolicy as? RowMeasurePolicy)?.let {
+                    measurePolicy = it.copy(arrangement = arrangement)
+                } ?: run {
+                    measurePolicy = RowMeasurePolicy(arrangement = arrangement, alignment = alignment)
+                }
                 invalidateLayout()
             }
             set(alignment) {
-                this.measurePolicy = RowMeasurePolicy(
-                    gap = arrangement.spacing,
-                    arrangement = arrangement,
-                    alignment = it
-                )
+                (measurePolicy as? RowMeasurePolicy)?.let {
+                    measurePolicy = it.copy(alignment = alignment)
+                } ?: run {
+                    measurePolicy = RowMeasurePolicy(arrangement = arrangement, alignment = alignment)
+                }
                 invalidateLayout()
             }
             set(modifier) {
@@ -64,49 +64,44 @@ fun Row(
     )
 }
 
+// --- COLUMN COMPOSABLE ---
+
 /**
  * ## Column
  *
- * Vertical linear layout positioning children top-to-bottom.
+ * Vertical linear layout arranging child elements top-to-bottom.
+ *
+ * See: docs/components-guide/components_guide_en.md
  */
 @Composable
 fun Column(
     modifier: UIModifier = UIModifier,
-    gap: Float = 0f,
     arrangement: Arrangement = Arrangement.Start,
     alignment: Alignment = Alignment.TopStart,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val actualArrangement = if (gap > 0f && arrangement == Arrangement.Start) {
-        Arrangement.spacedBy(gap)
-    } else arrangement
-
     ComposeNode<LayoutNode, NodeApplier>(
         factory = {
             val node = LayoutNode()
-            node.measurePolicy = ColumnMeasurePolicy(
-                gap = actualArrangement.spacing,
-                arrangement = actualArrangement,
-                alignment = alignment
-            )
+            node.measurePolicy = ColumnMeasurePolicy(arrangement = arrangement, alignment = alignment)
             modifier.applyTo(node)
             node
         },
         update = {
-            set(actualArrangement) {
-                this.measurePolicy = ColumnMeasurePolicy(
-                    gap = it.spacing,
-                    arrangement = it,
-                    alignment = alignment
-                )
+            set(arrangement) {
+                (measurePolicy as? ColumnMeasurePolicy)?.let {
+                    measurePolicy = it.copy(arrangement = arrangement)
+                } ?: run {
+                    measurePolicy = ColumnMeasurePolicy(arrangement = arrangement, alignment = alignment)
+                }
                 invalidateLayout()
             }
             set(alignment) {
-                this.measurePolicy = ColumnMeasurePolicy(
-                    gap = actualArrangement.spacing,
-                    arrangement = actualArrangement,
-                    alignment = it
-                )
+                (measurePolicy as? ColumnMeasurePolicy)?.let {
+                    measurePolicy = it.copy(alignment = alignment)
+                } ?: run {
+                    measurePolicy = ColumnMeasurePolicy(arrangement = arrangement, alignment = alignment)
+                }
                 invalidateLayout()
             }
             set(modifier) {

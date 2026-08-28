@@ -13,6 +13,8 @@ import org.mdt.core.ui.layout.BoxMeasurePolicy
  * ## Box
  *
  * Fundamental container layout positioning children relative to anchor points.
+ *
+ * See: docs/ui-components/ui_components_en.md
  */
 @Composable
 fun Box(

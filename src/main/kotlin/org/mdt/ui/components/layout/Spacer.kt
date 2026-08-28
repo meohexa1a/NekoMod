@@ -3,40 +3,48 @@
 package org.mdt.ui.components.layout
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ComposeNode
-import org.mdt.core.ui.compose.NodeApplier
 import org.mdt.core.ui.compose.UIModifier
-import org.mdt.core.ui.compose.height
-import org.mdt.core.ui.compose.width
+import org.mdt.core.ui.compose.size
+import org.mdt.core.ui.compose.weight
 
 /**
  * ## Spacer
  *
- * Empty layout space provider for adding fixed gaps or flexible expansions.
+ * Empty layout node reserving spatial gaps in Row or Column containers.
+ *
+ * See: docs/components-guide/components_guide_en.md
+ */
+@Composable
+fun Spacer(modifier: UIModifier = UIModifier) {
+    Box(modifier = modifier)
+}
+
+/**
+ * ## Spacer
+ *
+ * Fixed-size spacer reserving equal horizontal and vertical bounds.
+ *
+ * See: docs/components-guide/components_guide_en.md
  */
 @Composable
 fun Spacer(
+    size: Float,
     modifier: UIModifier = UIModifier
 ) {
-    ComposeNode<LayoutNode, NodeApplier>(
-        factory = {
-            val node = LayoutNode()
-            modifier.applyTo(node)
-            node
-        },
-        update = {
-            set(modifier) {
-                it.applyTo(this)
-                invalidateLayout()
-            }
-        }
-    )
+    Box(modifier = UIModifier.size(size).then(modifier))
 }
 
+/**
+ * ## FlexSpacer
+ *
+ * Flexible weighted spacer expanding to consume available flex space in Row or Column containers.
+ *
+ * See: docs/components-guide/components_guide_en.md
+ */
 @Composable
-fun Spacer(width: Float = 0f, height: Float = 0f) {
-    var mod: UIModifier = UIModifier
-    if (width > 0f) mod = mod.width(width)
-    if (height > 0f) mod = mod.height(height)
-    Spacer(mod)
+fun FlexSpacer(
+    weight: Float = 1.0f,
+    modifier: UIModifier = UIModifier
+) {
+    Box(modifier = UIModifier.weight(weight).then(modifier))
 }

@@ -1,112 +1,60 @@
+@file:Suppress("FunctionName", "unused")
+
 package org.mdt.ui.components.text
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import arc.graphics.g2d.Font
 import arc.util.Align
-import mindustry.ui.Fonts
 import org.mdt.core.ui.compose.NodeApplier
 import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.compose.fillMaxWidth
 import org.mdt.core.ui.graphics.Color
 
 /**
  * ## Text
  *
- * Declarative BMFont text rendering component.
+ * Declarative BMFont text composable.
  *
- * @param text Content string to display.
+ * @param text The string to display.
  * @param modifier Chainable [UIModifier].
- * @param color Text tint color.
- * @param font Font family ([Fonts.def], [Fonts.monospace], [Fonts.large], [Fonts.outline]).
- * @param scale Font scale multiplier (default 1.0f for pixel-perfect clarity).
- * @param align Horizontal text alignment ([Align.left], [Align.center], [Align.right]).
- * @param wrap Whether to enable multi-line text wrapping.
- * @param ellipsis Truncation string for single-line text (defaults to "..."). Set to null to disable truncation.
+ * @param color Text color.
+ * @param font Custom font instance (defaults to [mindustry.ui.Fonts.def]).
+ * @param align Alignment mode ([Align.left], [Align.center], [Align.right]).
+ * @param wrap Whether long text should wrap onto multiple lines.
+ *
+ * See: docs/components-guide/components_guide_en.md
  */
 @Composable
 fun Text(
     text: String,
     modifier: UIModifier = UIModifier,
     color: Color = Color.White,
-    font: Font = Fonts.def,
-    scale: Float = 1.0f,
+    font: Font? = null,
     align: Int = Align.left,
-    wrap: Boolean = false,
-    ellipsis: String? = "..."
+    wrap: Boolean = false
 ) {
+    val effectiveModifier = if (wrap) UIModifier.fillMaxWidth().then(modifier) else modifier
     ComposeNode<TextNode, NodeApplier>(
         factory = {
             val node = TextNode(text)
-            node.textVisuals.font = font
-            node.textVisuals.color = color
-            node.textVisuals.fontScale = scale
-            node.textVisuals.align = align
-            node.textVisuals.wrap = wrap
-            node.textVisuals.ellipsis = ellipsis
-            modifier.applyTo(node)
+            node.textColor = color
+            node.font = font
+            node.align = align
+            node.wrap = wrap
+            effectiveModifier.applyTo(node)
             node
         },
         update = {
             set(text) { this.text = it }
-            set(font) {
-                this.textVisuals.font = it
-                invalidateLayout()
-            }
-            set(color) { this.textVisuals.color = it }
-            set(scale) {
-                this.textVisuals.fontScale = it
-                invalidateLayout()
-            }
-            set(align) { this.textVisuals.align = it }
-            set(wrap) {
-                this.textVisuals.wrap = it
-                invalidateLayout()
-            }
-            set(ellipsis) {
-                this.textVisuals.ellipsis = it
-                invalidateLayout()
-            }
-            set(modifier) {
+            set(color) { this.textColor = it }
+            set(font) { this.font = it }
+            set(align) { this.align = it }
+            set(wrap) { this.wrap = it }
+            set(effectiveModifier) {
                 it.applyTo(this)
                 invalidateLayout()
             }
         }
-    )
-}
-
-/**
- * ## MonoText
- *
- * Declarative clean technical monospace text rendering component.
- * Uses [Fonts.monospace] if available, falling back to [Fonts.def] for crystal clear readability.
- *
- * @param text Content string to display.
- * @param modifier Chainable [UIModifier].
- * @param color Text tint color.
- * @param scale Font scale multiplier (default 1.0f).
- * @param align Horizontal text alignment ([Align.left], [Align.center], [Align.right]).
- * @param wrap Whether to enable multi-line text wrapping.
- * @param ellipsis Truncation string for single-line text (defaults to "..."). Set to null to disable truncation.
- */
-@Composable
-fun MonoText(
-    text: String,
-    modifier: UIModifier = UIModifier,
-    color: Color = Color.White,
-    scale: Float = 1.0f,
-    align: Int = Align.left,
-    wrap: Boolean = false,
-    ellipsis: String? = "..."
-) {
-    val cleanFont = Fonts.monospace ?: Fonts.def
-    Text(
-        text = text,
-        modifier = modifier,
-        color = color,
-        font = cleanFont,
-        scale = scale,
-        align = align,
-        wrap = wrap,
-        ellipsis = ellipsis
     )
 }
