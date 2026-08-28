@@ -44,18 +44,16 @@ fun NekoApp() {
                 alignment = Alignment.TopStart,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text {
-                    span("NekoMod ", color = Color(0.52f, 0.75f, 0.86f, 1.0f))
-                    span("v2.0", color = Color(0.95f, 0.75f, 0.40f, 1.0f))
-                }
+                Text(
+                    text = "[#85c1dc]NekoMod[] [#e5c890]v2.0[]",
+                    color = Color.White
+                )
 
-                Text(wrap = true) {
-                    append("He thong UI ")
-                    span("1-Draw-Call", color = Color(0.65f, 0.82f, 0.54f, 1.0f))
-                    append(" sieu muot tren nen tang ")
-                    span("Uber Shader Batcher", color = Color(0.80f, 0.70f, 0.95f, 1.0f))
-                    append(" & Dual-Kawase Frosted Glass.")
-                }
+                Text(
+                    text = "He thong UI [#a6d189]1-Draw-Call[] sieu muot tren nen tang [#ca9ee6]Uber Shader Batcher[] & Dual-Kawase Frosted Glass.",
+                    color = Color(0.85f, 0.85f, 0.90f, 1.0f),
+                    wrap = true
+                )
 
                 Row(
                     arrangement = Arrangement.spacedBy(10.0f),
