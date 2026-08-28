@@ -1,72 +1,78 @@
 package org.mdt.core.ui.render
 
-import arc.Core
 import arc.graphics.gl.Shader
+import arc.util.Disposable
 import arc.util.Log
-import mindustry.Vars
+import org.mdt.core.ui.EngineRuntime
 
-object Shaders {
-    const val VERT_BOX = "shaders/box.vert"
-    const val FRAG_BOX = "shaders/box.frag"
+/**
+ * ## Shaders
+ *
+ * Master GPU Shader lifecycle coordinator for NekoMod.
+ * Manages compile, cache, and disposal of the unified [uberShader] and [blurShader].
+ *
+ * See: docs/rendering-shaders/rendering_shaders_en.md
+ */
+object Shaders : Disposable {
+
+    // --- SHADER PATH CONSTANTS ---
+
+    const val VERT_UBER = "shaders/uber_ui.vert"
+    const val FRAG_UBER = "shaders/uber_ui.frag"
     const val VERT_BLUR = "shaders/blur.vert"
     const val FRAG_BLUR = "shaders/blur.frag"
 
-    const val TEX_UNIT_FILL = 2
-    const val TEX_UNIT_BACKDROP = 3
+    // --- SHADER INSTANCES ---
 
-    var mainShader: Shader? = null
+    var uberShader: Shader? = null
+        private set
+
     var blurShader: Shader? = null
-    var loaded = false
+        private set
 
+    var isLoaded: Boolean = false
+        private set
+
+    // --- LIFECYCLE & INITIALIZATION ---
+
+    /**
+     * Lazily compiles and initializes the GPU shaders if not already loaded.
+     */
     fun ensure() {
-        if (loaded) return
+        if (isLoaded) return
 
         try {
-            mainShader = Shader(readString(VERT_BOX), readString(FRAG_BOX)).apply {
+            val vertUberSource = readString(VERT_UBER)
+            val fragUberSource = readString(FRAG_UBER)
+            uberShader = Shader(vertUberSource, fragUberSource).apply {
                 bind()
-                setUniformi("u_fillTexture", TEX_UNIT_FILL)
-                setUniformi("u_backdropTex", TEX_UNIT_BACKDROP)
+                setUniformi("u_atlas", 0)
+                setUniformi("u_gameBlur", 2)
             }
 
-            blurShader = Shader(readString(VERT_BLUR), readString(FRAG_BLUR)).apply {
+            val vertBlurSource = readString(VERT_BLUR)
+            val fragBlurSource = readString(FRAG_BLUR)
+            blurShader = Shader(vertBlurSource, fragBlurSource).apply {
                 bind()
                 setUniformi("u_texture", 0)
             }
 
-            loaded = true
-            Log.info("[NekoMod] Shaders loaded successfully.")
-        } catch (e: Throwable) {
-            Log.err("[NekoMod] Failed to compile shaders!", e)
+            isLoaded = true
+            Log.info("[NekoMod] Uber UI Shaders compiled and initialized successfully.")
+        } catch (compileError: Throwable) {
+            Log.err("[NekoMod] Failed to compile Uber UI Shaders!", compileError)
         }
     }
 
-    fun dispose() {
-        mainShader?.dispose()
-        mainShader = null
+    override fun dispose() {
+        uberShader?.dispose()
+        uberShader = null
         blurShader?.dispose()
         blurShader = null
-        loaded = false
+        isLoaded = false
     }
 
-    internal fun readString(path: String): String {
-        // 1. Try classloader / classpath resource
-        val stream = Shaders::class.java.classLoader.getResourceAsStream(path)
-        if (stream != null) {
-            return stream.bufferedReader().use { it.readText() }
-        }
+    // --- HELPERS ---
 
-        // 2. Try Mindustry tree
-        val treeFi = Vars.tree?.get(path)
-        if (treeFi != null && treeFi.exists()) {
-            return treeFi.readString()
-        }
-
-        // 3. Try Arc internal files
-        val internalFi = Core.files?.internal(path)
-        if (internalFi != null && internalFi.exists()) {
-            return internalFi.readString()
-        }
-
-        throw IllegalStateException("Shader file not found in resources or asset tree: $path")
-    }
+    internal fun readString(path: String): String = EngineRuntime.host.readShaderSource(path)
 }

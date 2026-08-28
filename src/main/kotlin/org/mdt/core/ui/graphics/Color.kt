@@ -16,70 +16,76 @@ import arc.util.Tmp
 @JvmInline
 value class Color(val value: ULong) {
 
+    // --- PROPERTIES & CHANNEL ACCESSORS ---
+
     /** Alpha channel component in 0.0f..1.0f range. */
-    val a: Float get() = ((value shr 56) and 0xFFuL).toFloat() / 255.0f
+    val alpha: Float get() = ((value shr 56) and 0xFFuL).toFloat() / 255.0f
 
     /** Red channel component in 0.0f..1.0f range. */
-    val r: Float get() = ((value shr 48) and 0xFFuL).toFloat() / 255.0f
+    val red: Float get() = ((value shr 48) and 0xFFuL).toFloat() / 255.0f
 
     /** Green channel component in 0.0f..1.0f range. */
-    val g: Float get() = ((value shr 40) and 0xFFuL).toFloat() / 255.0f
+    val green: Float get() = ((value shr 40) and 0xFFuL).toFloat() / 255.0f
 
     /** Blue channel component in 0.0f..1.0f range. */
-    val b: Float get() = ((value shr 32) and 0xFFuL).toFloat() / 255.0f
+    val blue: Float get() = ((value shr 32) and 0xFFuL).toFloat() / 255.0f
 
-    // Semantic alias properties
-    val alpha: Float get() = a
-    val red: Float get() = r
-    val green: Float get() = g
-    val blue: Float get() = b
+    // Short property aliases for mathematical expressions
+    val a: Float get() = alpha
+    val r: Float get() = red
+    val g: Float get() = green
+    val b: Float get() = blue
 
-    constructor(r: Float, g: Float, b: Float, a: Float = 1.0f) : this(
+    // --- CONSTRUCTORS ---
+
+    constructor(red: Float, green: Float, blue: Float, alpha: Float = 1.0f) : this(
         pack(
-            (a.coerceIn(0f, 1f) * 255.0f + 0.5f).toInt(),
-            (r.coerceIn(0f, 1f) * 255.0f + 0.5f).toInt(),
-            (g.coerceIn(0f, 1f) * 255.0f + 0.5f).toInt(),
-            (b.coerceIn(0f, 1f) * 255.0f + 0.5f).toInt()
+            (alpha.coerceIn(0.0f, 1.0f) * 255.0f + 0.5f).toInt(),
+            (red.coerceIn(0.0f, 1.0f) * 255.0f + 0.5f).toInt(),
+            (green.coerceIn(0.0f, 1.0f) * 255.0f + 0.5f).toInt(),
+            (blue.coerceIn(0.0f, 1.0f) * 255.0f + 0.5f).toInt()
         )
     )
 
-    constructor(r: Int, g: Int, b: Int, a: Int = 255) : this(
+    constructor(red: Int, green: Int, blue: Int, alpha: Int = 255) : this(
         pack(
-            a.coerceIn(0, 255),
-            r.coerceIn(0, 255),
-            g.coerceIn(0, 255),
-            b.coerceIn(0, 255)
+            alpha.coerceIn(0, 255),
+            red.coerceIn(0, 255),
+            green.coerceIn(0, 255),
+            blue.coerceIn(0, 255)
         )
     )
 
     constructor(argbHex: UInt) : this((argbHex.toULong() and 0xFFFFFFFFuL) shl 32)
 
+    // --- COLOR TRANSFORMATIONS & MATH ---
+
     /**
      * Returns a new Color with modified channel values (Zero-GC).
      */
     fun copy(
-        r: Float = this.r,
-        g: Float = this.g,
-        b: Float = this.b,
-        a: Float = this.a
-    ): Color = Color(r, g, b, a)
+        red: Float = this.red,
+        green: Float = this.green,
+        blue: Float = this.blue,
+        alpha: Float = this.alpha
+    ): Color = Color(red, green, blue, alpha)
 
     /**
      * Returns a copy with modified alpha channel (Zero-GC).
      */
-    fun withAlpha(newAlpha: Float): Color = Color(r, g, b, newAlpha)
+    fun withAlpha(newAlpha: Float): Color = Color(red, green, blue, newAlpha)
 
     /**
-     * Smooth linear interpolation between this color and [target] with fraction [t] in 0.0f..1.0f (Zero-GC).
+     * Smooth linear interpolation between this color and [target] with [fraction] in 0.0f..1.0f (Zero-GC).
      */
-    fun lerp(target: Color, t: Float): Color {
-        val fraction = t.coerceIn(0f, 1f)
-        val inv = 1.0f - fraction
+    fun lerp(target: Color, fraction: Float): Color {
+        val clampedFraction = fraction.coerceIn(0.0f, 1.0f)
+        val inverseFraction = 1.0f - clampedFraction
         return Color(
-            r = this.r * inv + target.r * fraction,
-            g = this.g * inv + target.g * fraction,
-            b = this.b * inv + target.b * fraction,
-            a = this.a * inv + target.a * fraction
+            red = this.red * inverseFraction + target.red * clampedFraction,
+            green = this.green * inverseFraction + target.green * clampedFraction,
+            blue = this.blue * inverseFraction + target.blue * clampedFraction,
+            alpha = this.alpha * inverseFraction + target.alpha * clampedFraction
         )
     }
 
@@ -87,106 +93,124 @@ value class Color(val value: ULong) {
      * Multiplies RGB channels by [factor] (Zero-GC).
      */
     fun mul(factor: Float): Color = Color(
-        r = (this.r * factor).coerceIn(0f, 1f),
-        g = (this.g * factor).coerceIn(0f, 1f),
-        b = (this.b * factor).coerceIn(0f, 1f),
-        a = this.a
+        red = (this.red * factor).coerceIn(0.0f, 1.0f),
+        green = (this.green * factor).coerceIn(0.0f, 1.0f),
+        blue = (this.blue * factor).coerceIn(0.0f, 1.0f),
+        alpha = this.alpha
     )
 
     /**
      * Multiplies all RGBA channels by [target] color channels (Zero-GC).
      */
     fun mul(target: Color): Color = Color(
-        r = (this.r * target.r).coerceIn(0f, 1f),
-        g = (this.g * target.g).coerceIn(0f, 1f),
-        b = (this.b * target.b).coerceIn(0f, 1f),
-        a = (this.a * target.a).coerceIn(0f, 1f)
+        red = (this.red * target.red).coerceIn(0.0f, 1.0f),
+        green = (this.green * target.green).coerceIn(0.0f, 1.0f),
+        blue = (this.blue * target.blue).coerceIn(0.0f, 1.0f),
+        alpha = (this.alpha * target.alpha).coerceIn(0.0f, 1.0f)
     )
 
     /**
      * Composite (alpha blend) this foreground color over [background] color (Zero-GC).
      */
     fun compositeOver(background: Color): Color {
-        val srcA = this.a
-        val dstA = background.a
-        val outA = srcA + dstA * (1f - srcA)
-        if (outA <= 0.0001f) return Clear
+        val sourceAlpha = this.alpha
+        val destinationAlpha = background.alpha
+        val outputAlpha = sourceAlpha + destinationAlpha * (1.0f - sourceAlpha)
+        if (outputAlpha <= 0.0001f) return Clear
 
-        val outR = (this.r * srcA + background.r * dstA * (1f - srcA)) / outA
-        val outG = (this.g * srcA + background.g * dstA * (1f - srcA)) / outA
-        val outB = (this.b * srcA + background.b * dstA * (1f - srcA)) / outA
-        return Color(outR, outG, outB, outA)
+        val outputRed = (this.red * sourceAlpha + background.red * destinationAlpha * (1.0f - sourceAlpha)) / outputAlpha
+        val outputGreen = (this.green * sourceAlpha + background.green * destinationAlpha * (1.0f - sourceAlpha)) / outputAlpha
+        val outputBlue = (this.blue * sourceAlpha + background.blue * destinationAlpha * (1.0f - sourceAlpha)) / outputAlpha
+        return Color(outputRed, outputGreen, outputBlue, outputAlpha)
     }
 
     /**
      * Computes relative luminance (0.0 = black, 1.0 = pure white).
      */
-    fun luminance(): Float = 0.2126f * r + 0.7152f * g + 0.0722f * b
+    fun luminance(): Float = 0.2126f * red + 0.7152f * green + 0.0722f * blue
+
+    // --- OPENGL & ARC INTEROP ---
 
     /**
      * Converts to Arc color object using Anuke's pooled [arc.util.Tmp.c1] (Zero-GC).
      */
     fun toArcColor(target: arc.graphics.Color = Tmp.c1): arc.graphics.Color =
-        target.set(r, g, b, a)
+        target.set(red, green, blue, alpha)
+
+    /**
+     * Packs RGBA channels into a single 32-bit float in ABGR format for direct OpenGL vertex packing.
+     * Compatible with [arc.graphics.Color.toFloatBits] and `GL_UNSIGNED_BYTE` normalized vertex attributes.
+     */
+    fun toGLPackedFloat(): Float {
+        val alphaByte = ((value shr 56) and 0xFFuL).toInt()
+        val redByte = ((value shr 48) and 0xFFuL).toInt()
+        val greenByte = ((value shr 40) and 0xFFuL).toInt()
+        val blueByte = ((value shr 32) and 0xFFuL).toInt()
+        val abgrPacked = (alphaByte shl 24) or (blueByte shl 16) or (greenByte shl 8) or redByte
+        return java.lang.Float.intBitsToFloat(abgrPacked and 0xFEFFFFFF.toInt())
+    }
 
     override fun toString(): String =
-        "Color(r=${(r * 255).toInt()}, g=${(g * 255).toInt()}, b=${(b * 255).toInt()}, a=${(a * 255).toInt()})"
+        "Color(red=${(red * 255).toInt()}, green=${(green * 255).toInt()}, blue=${(blue * 255).toInt()}, alpha=${(alpha * 255).toInt()})"
+
+    // --- COMPANION OBJECT & FACTORIES ---
 
     companion object {
         val Unspecified: Color = Color(0UL)
-        val Transparent: Color = Color(0f, 0f, 0f, 0f)
-        val Clear: Color = Color(0f, 0f, 0f, 0f)
-        val White: Color = Color(1f, 1f, 1f, 1f)
-        val Black: Color = Color(0f, 0f, 0f, 1f)
-        val Red: Color = Color(1f, 0f, 0f, 1f)
-        val Green: Color = Color(0f, 1f, 0f, 1f)
-        val Blue: Color = Color(0f, 0f, 1f, 1f)
-        val Yellow: Color = Color(1f, 1f, 0f, 1f)
-        val Cyan: Color = Color(0f, 1f, 1f, 1f)
-        val Magenta: Color = Color(1f, 0f, 1f, 1f)
+        val Transparent: Color = Color(0.0f, 0.0f, 0.0f, 0.0f)
+        val Clear: Color = Color(0.0f, 0.0f, 0.0f, 0.0f)
+        val White: Color = Color(1.0f, 1.0f, 1.0f, 1.0f)
+        val Black: Color = Color(0.0f, 0.0f, 0.0f, 1.0f)
+        val Red: Color = Color(1.0f, 0.0f, 0.0f, 1.0f)
+        val Green: Color = Color(0.0f, 1.0f, 0.0f, 1.0f)
+        val Blue: Color = Color(0.0f, 0.0f, 1.0f, 1.0f)
+        val Yellow: Color = Color(1.0f, 1.0f, 0.0f, 1.0f)
+        val Cyan: Color = Color(0.0f, 1.0f, 1.0f, 1.0f)
+        val Magenta: Color = Color(1.0f, 0.0f, 1.0f, 1.0f)
 
         /** Creates a Compose [Color] from an Arc [arc.graphics.Color]. */
-        fun fromArc(c: arc.graphics.Color): Color = Color(c.r, c.g, c.b, c.a)
+        fun fromArc(arcColor: arc.graphics.Color): Color = Color(arcColor.r, arcColor.g, arcColor.b, arcColor.a)
 
-        private fun pack(a: Int, r: Int, g: Int, b: Int): ULong =
-            (((a and 0xFF).toULong() shl 56) or
-             ((r and 0xFF).toULong() shl 48) or
-             ((g and 0xFF).toULong() shl 40) or
-             ((b and 0xFF).toULong() shl 32))
+        private fun pack(alpha: Int, red: Int, green: Int, blue: Int): ULong =
+            (((alpha and 0xFF).toULong() shl 56) or
+             ((red and 0xFF).toULong() shl 48) or
+             ((green and 0xFF).toULong() shl 40) or
+             ((blue and 0xFF).toULong() shl 32))
 
         /**
          * Parses a hex color string (#RGB, #RGBA, #RRGGBB, #RRGGBBAA, or raw hex without #).
          */
         fun parse(hex: String): Color {
-            var s = hex.trim()
-            if (s.startsWith("#")) s = s.substring(1)
+            var trimmedHex = hex.trim()
+            if (trimmedHex.startsWith("#")) trimmedHex = trimmedHex.substring(1)
+
             return try {
-                when (s.length) {
+                when (trimmedHex.length) {
                     3 -> { // RGB
-                        val r = s.substring(0, 1).repeat(2).toInt(16)
-                        val g = s.substring(1, 2).repeat(2).toInt(16)
-                        val b = s.substring(2, 3).repeat(2).toInt(16)
-                        Color(r, g, b, 255)
+                        val parsedRed = trimmedHex.substring(0, 1).repeat(2).toInt(16)
+                        val parsedGreen = trimmedHex.substring(1, 2).repeat(2).toInt(16)
+                        val parsedBlue = trimmedHex.substring(2, 3).repeat(2).toInt(16)
+                        Color(parsedRed, parsedGreen, parsedBlue, 255)
                     }
                     4 -> { // RGBA
-                        val r = s.substring(0, 1).repeat(2).toInt(16)
-                        val g = s.substring(1, 2).repeat(2).toInt(16)
-                        val b = s.substring(2, 3).repeat(2).toInt(16)
-                        val a = s.substring(3, 4).repeat(2).toInt(16)
-                        Color(r, g, b, a)
+                        val parsedRed = trimmedHex.substring(0, 1).repeat(2).toInt(16)
+                        val parsedGreen = trimmedHex.substring(1, 2).repeat(2).toInt(16)
+                        val parsedBlue = trimmedHex.substring(2, 3).repeat(2).toInt(16)
+                        val parsedAlpha = trimmedHex.substring(3, 4).repeat(2).toInt(16)
+                        Color(parsedRed, parsedGreen, parsedBlue, parsedAlpha)
                     }
                     6 -> { // RRGGBB
-                        val r = s.substring(0, 2).toInt(16)
-                        val g = s.substring(2, 4).toInt(16)
-                        val b = s.substring(4, 6).toInt(16)
-                        Color(r, g, b, 255)
+                        val parsedRed = trimmedHex.substring(0, 2).toInt(16)
+                        val parsedGreen = trimmedHex.substring(2, 4).toInt(16)
+                        val parsedBlue = trimmedHex.substring(4, 6).toInt(16)
+                        Color(parsedRed, parsedGreen, parsedBlue, 255)
                     }
                     8 -> { // RRGGBBAA
-                        val r = s.substring(0, 2).toInt(16)
-                        val g = s.substring(2, 4).toInt(16)
-                        val b = s.substring(4, 6).toInt(16)
-                        val a = s.substring(6, 8).toInt(16)
-                        Color(r, g, b, a)
+                        val parsedRed = trimmedHex.substring(0, 2).toInt(16)
+                        val parsedGreen = trimmedHex.substring(2, 4).toInt(16)
+                        val parsedBlue = trimmedHex.substring(4, 6).toInt(16)
+                        val parsedAlpha = trimmedHex.substring(6, 8).toInt(16)
+                        Color(parsedRed, parsedGreen, parsedBlue, parsedAlpha)
                     }
                     else -> White
                 }
@@ -201,6 +225,8 @@ value class Color(val value: ULong) {
         fun valueOf(hex: String): Color = parse(hex)
     }
 }
+
+// --- TOP-LEVEL EXTENSIONS ---
 
 /**
  * Top-level factory constructor for 64-bit Long hex values: `Color(0xFF0A84FFL)`.
