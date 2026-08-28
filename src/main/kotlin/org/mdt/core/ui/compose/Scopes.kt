@@ -11,15 +11,21 @@ import org.mdt.core.ui.layout.VerticalAlign
  *
  * Scoping annotation ensuring Compose UI builder lambdas do not unintentionally
  * cross-access nested modifier scopes.
+ *
+ * See: docs/compose-dsl/compose_dsl_en.md
  */
 @DslMarker
 annotation class UIDslMarker
 
-// =========================================================================
-// I. Scope-Specific Typed Modifiers
-// =========================================================================
+// --- SCOPE-SPECIFIC TYPED MODIFIERS ---
 
-/** Typed modifier element applying box content alignment. */
+/**
+ * ## BoxAlignModifier
+ *
+ * Typed modifier element applying box content alignment.
+ *
+ * See: docs/compose-dsl/compose_dsl_en.md
+ */
 data class BoxAlignModifier(val alignment: Alignment) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         when (alignment.horizontal) {
@@ -37,7 +43,13 @@ data class BoxAlignModifier(val alignment: Alignment) : UIModifier.Element {
     }
 }
 
-/** Typed modifier element applying row vertical cross-alignment. */
+/**
+ * ## RowAlignModifier
+ *
+ * Typed modifier element applying row vertical cross-alignment.
+ *
+ * See: docs/compose-dsl/compose_dsl_en.md
+ */
 data class RowAlignModifier(val alignment: VerticalAlign) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         when (alignment) {
@@ -49,7 +61,13 @@ data class RowAlignModifier(val alignment: VerticalAlign) : UIModifier.Element {
     }
 }
 
-/** Typed modifier element applying column horizontal cross-alignment. */
+/**
+ * ## ColumnAlignModifier
+ *
+ * Typed modifier element applying column horizontal cross-alignment.
+ *
+ * See: docs/compose-dsl/compose_dsl_en.md
+ */
 data class ColumnAlignModifier(val alignment: HorizontalAlign) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         when (alignment) {
@@ -61,11 +79,15 @@ data class ColumnAlignModifier(val alignment: HorizontalAlign) : UIModifier.Elem
     }
 }
 
-// =========================================================================
-// II. Compose Scope Interfaces
-// =========================================================================
+// --- COMPOSE SCOPE INTERFACES ---
 
-/** Scope receiver for children inside a `Box` container. */
+/**
+ * ## BoxScope
+ *
+ * Scope receiver for children inside a `Box` container.
+ *
+ * See: docs/compose-dsl/compose_dsl_en.md
+ */
 @UIDslMarker
 interface BoxScope {
     /** Aligns child node within the parent box boundaries. */
@@ -74,7 +96,13 @@ interface BoxScope {
     companion object Instance : BoxScope
 }
 
-/** Scope receiver for children inside a horizontal `Row` container. */
+/**
+ * ## RowScope
+ *
+ * Scope receiver for children inside a horizontal `Row` container.
+ *
+ * See: docs/compose-dsl/compose_dsl_en.md
+ */
 @UIDslMarker
 interface RowScope {
     /** Allocates available horizontal flex space proportionally by [weight] ratio. */
@@ -86,7 +114,13 @@ interface RowScope {
     companion object Instance : RowScope
 }
 
-/** Scope receiver for children inside a vertical `Column` container. */
+/**
+ * ## ColumnScope
+ *
+ * Scope receiver for children inside a vertical `Column` container.
+ *
+ * See: docs/compose-dsl/compose_dsl_en.md
+ */
 @UIDslMarker
 interface ColumnScope {
     /** Allocates available vertical flex space proportionally by [weight] ratio. */
@@ -98,7 +132,13 @@ interface ColumnScope {
     companion object Instance : ColumnScope
 }
 
-/** Scope receiver for children inside a `Grid` container. */
+/**
+ * ## GridScope
+ *
+ * Scope receiver for children inside a `Grid` container.
+ *
+ * See: docs/compose-dsl/compose_dsl_en.md
+ */
 @UIDslMarker
 interface GridScope {
     companion object Instance : GridScope
