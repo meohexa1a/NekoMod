@@ -10,9 +10,9 @@ import arc.util.Log
 import kotlinx.coroutines.*
 import org.mdt.core.engine.LocalPlatformHost
 import org.mdt.core.ui.EngineRuntime
-import org.mdt.core.ui.UINode
-import org.mdt.core.ui.overlay.LocalOverlayHost
-import org.mdt.core.ui.overlay.OverlayHost
+import org.mdt.core.ui.node.LocalOverlayHost
+import org.mdt.core.ui.node.OverlayHost
+import org.mdt.core.ui.node.UINode
 
 // --- COMPOSITION MANAGER & FRAME CLOCK ---
 

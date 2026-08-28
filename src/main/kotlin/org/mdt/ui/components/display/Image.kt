@@ -8,7 +8,7 @@ import org.mdt.core.engine.LocalPlatformHost
 import org.mdt.core.ui.compose.UIModifier
 import org.mdt.core.ui.compose.background
 import org.mdt.core.ui.compose.texture
-import org.mdt.core.ui.graphics.Color
+import org.mdt.core.ui.unit.Color
 import org.mdt.ui.components.layout.Box
 
 /**

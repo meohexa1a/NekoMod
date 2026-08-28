@@ -1,7 +1,6 @@
-package org.mdt.core.ui.overlay
+package org.mdt.core.ui.node
 
 import androidx.compose.runtime.staticCompositionLocalOf
-import org.mdt.core.ui.UINode
 
 /**
  * ## OverlayHost

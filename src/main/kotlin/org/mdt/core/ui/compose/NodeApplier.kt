@@ -1,7 +1,7 @@
 package org.mdt.core.ui.compose
 
 import androidx.compose.runtime.AbstractApplier
-import org.mdt.core.ui.UINode
+import org.mdt.core.ui.node.UINode
 
 /**
  * ## NodeApplier

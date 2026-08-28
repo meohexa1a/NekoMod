@@ -8,6 +8,7 @@ import org.mdt.core.ui.compose.BoxScope
 import org.mdt.core.ui.compose.NodeApplier
 import org.mdt.core.ui.compose.UIModifier
 import org.mdt.core.ui.layout.BoxMeasurePolicy
+import org.mdt.core.ui.node.LayoutNode
 
 /**
  * ## Box

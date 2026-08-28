@@ -1,23 +1,23 @@
-package org.mdt.ui.components.layout
+package org.mdt.core.ui.node
 
 import arc.graphics.g2d.TextureRegion
-import org.mdt.core.ui.UINode
-import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.BoxMeasurePolicy
 import org.mdt.core.ui.layout.MeasurePolicy
 import org.mdt.core.ui.render.UIBatch
+import org.mdt.core.ui.unit.Color
 
 /**
  * ## LayoutNode
  *
- * Primary container Virtual DOM node.
- * Unifies flex/box layout delegation with direct [UIBatch.drawBox] rendering.
+ * Core primitive container Virtual DOM node.
+ * Unifies flex/box layout delegation with direct [UIBatch.drawBox] GPU rendering.
+ * Unstyled by default (zero default background, border, or corner radius).
  *
  * See: docs/layout-engine/layout_engine_en.md
  */
 open class LayoutNode : UINode() {
 
-    // --- PROPERTIES & VISUAL STYLING ---
+    // --- PROPERTIES & VISUAL STYLING (Unstyled by default) ---
 
     var measurePolicy: MeasurePolicy = BoxMeasurePolicy
         set(value) {
@@ -27,7 +27,7 @@ open class LayoutNode : UINode() {
             }
         }
 
-    // Direct visual styling fields
+    // Direct visual styling fields (Set strictly via UIModifiers or explicit composable properties)
     var radius: Float = 0.0f
     var color: Color = Color.Clear
     var borderWidth: Float = 0.0f

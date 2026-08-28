@@ -1,4 +1,4 @@
-package org.mdt.core.ui.graphics
+package org.mdt.core.ui.unit
 
 import arc.util.Tmp
 

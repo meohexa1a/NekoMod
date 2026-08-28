@@ -10,7 +10,7 @@ import arc.math.Mat
 import arc.util.Disposable
 import java.nio.FloatBuffer
 import org.mdt.core.ui.EngineRuntime
-import org.mdt.core.ui.graphics.Color
+import org.mdt.core.ui.unit.Color
 
 /**
  * ## UIBatch
@@ -88,7 +88,7 @@ object UIBatch : Disposable {
         mesh = Mesh(false, MAX_VERTICES, MAX_INDICES, *attributes).apply {
             setIndices(indices)
         }
-        verticesBuffer = mesh.getVerticesBuffer()
+        verticesBuffer = mesh.verticesBuffer
     }
 
     // --- FRAME LIFECYCLE ---
@@ -380,7 +380,7 @@ object UIBatch : Disposable {
 
         val shader = Shaders.uberShader ?: return
 
-        mesh.getVerticesBuffer()
+        mesh.verticesBuffer
         verticesBuffer.position(0)
         verticesBuffer.limit(vertexIndex)
 

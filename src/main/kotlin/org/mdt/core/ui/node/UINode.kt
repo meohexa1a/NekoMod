@@ -1,4 +1,4 @@
-package org.mdt.core.ui
+package org.mdt.core.ui.node
 
 import arc.input.KeyCode
 import arc.math.geom.Vec2
@@ -6,6 +6,7 @@ import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.layout.AnchorData
 import org.mdt.core.ui.render.UIBatch
+import org.mdt.core.ui.unit.Rect
 
 /**
  * ## UINode (Virtual UI Node)
@@ -179,7 +180,7 @@ open class UINode {
     /** Invoked on single left click. */
     var onClick: (() -> Unit)? = null
 
-    /** Invoked on double click within double-click threshold. */
+    /** Invoked on double click within a double-click threshold. */
     var onDoubleClick: (() -> Unit)? = null
 
     /** Invoked on pointer press down. */
@@ -289,7 +290,7 @@ open class UINode {
 
     /** Renders all visible children in order. */
     protected open fun drawChildren() {
-        for (i in 0 until children.size) {
+        for (i in children.indices) {
             val child = children[i]
             if (child.visible) child.draw()
         }

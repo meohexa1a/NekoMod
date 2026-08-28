@@ -1,6 +1,6 @@
 package org.mdt.core.ui.layout
 
-import org.mdt.ui.components.layout.LayoutNode
+import org.mdt.core.ui.node.LayoutNode
 
 /**
  * ## MeasurePolicy

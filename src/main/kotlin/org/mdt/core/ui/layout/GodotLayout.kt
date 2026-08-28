@@ -1,6 +1,7 @@
 package org.mdt.core.ui.layout
 
-import org.mdt.core.ui.UINode
+import org.mdt.core.ui.node.TextNode
+import org.mdt.core.ui.node.UINode
 
 /**
  * ## GodotLayout
@@ -55,7 +56,7 @@ object GodotLayout {
         val computedWidth: Float = when {
             child.width > 0.0f -> child.width
             (horizontalFlags and SizeFlags.FILL) != 0 -> slotInnerWidth
-            child is org.mdt.ui.components.text.TextNode && child.wrap -> slotInnerWidth
+            child is TextNode && child.wrap -> slotInnerWidth
             else -> minOf(slotInnerWidth, childPureMinWidth)
         }
 

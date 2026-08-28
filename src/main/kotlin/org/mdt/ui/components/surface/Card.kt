@@ -4,7 +4,7 @@ package org.mdt.ui.components.surface
 
 import androidx.compose.runtime.Composable
 import org.mdt.core.ui.compose.*
-import org.mdt.core.ui.graphics.Color
+import org.mdt.core.ui.unit.Color
 import org.mdt.ui.components.layout.Box
 
 /**

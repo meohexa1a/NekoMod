@@ -1,8 +1,7 @@
-package org.mdt.core.ui
+package org.mdt.core.ui.node
 
 import org.mdt.core.ui.layout.GodotLayout
 import org.mdt.core.ui.layout.SizeFlags
-import org.mdt.core.ui.overlay.OverlayHost
 
 /**
  * ## CanvasNode

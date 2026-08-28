@@ -5,8 +5,8 @@ package org.mdt.ui.components.surface
 import androidx.compose.runtime.*
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.ui.compose.*
-import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.layout.Alignment
+import org.mdt.core.ui.unit.Color
 import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.text.Text

@@ -1,17 +1,16 @@
-package org.mdt.ui.components.text
+package org.mdt.core.ui.node
 
 import arc.graphics.g2d.Font
 import arc.util.Align
 import org.mdt.core.ui.EngineRuntime
-import org.mdt.core.ui.HitTestBehavior
-import org.mdt.core.ui.graphics.Color
 import org.mdt.core.ui.render.UIFontDrawer
-import org.mdt.ui.components.layout.LayoutNode
+import org.mdt.core.ui.unit.Color
 
 /**
  * ## TextNode
  *
- * Virtual DOM node rendering BMFont text glyphs directly through [UIFontDrawer] and [org.mdt.core.ui.render.UIBatch].
+ * Core primitive Virtual DOM node rendering BMFont text glyphs directly through [UIFontDrawer] and [org.mdt.core.ui.render.UIBatch].
+ * Unstyled by default.
  *
  * See: docs/design-system/design_system_en.md
  */
@@ -22,8 +21,6 @@ open class TextNode(
     init {
         hitTestBehavior = HitTestBehavior.TRANSLUCENT
     }
-
-    // --- PROPERTIES & STATE ---
 
     var text: String = text
         set(value) {
@@ -53,15 +50,11 @@ open class TextNode(
             }
         }
 
-    // --- INTRINSIC MEASUREMENT ---
-
     override fun getPrefWidth(): Float {
         if (width >= 0.0f) return width
-
         if (wrap) return (if (minWidth >= 0.0f) minWidth else 0.0f) + padL + padR
 
         val currentFont = activeFont ?: return padL + padR
-
         val measuredWidth = UIFontDrawer.getPrefWidth(currentFont, text, 0.0f, false)
         val baseWidth = if (minWidth >= 0.0f) maxOf(measuredWidth, minWidth) else measuredWidth
         return baseWidth + padL + padR
@@ -71,7 +64,6 @@ open class TextNode(
         if (height >= 0.0f) return height
 
         val currentFont = activeFont ?: return padT + padB
-
         val targetWidth = when {
             availableWidth >= 0.0f -> availableWidth - padL - padR
             bounds.width > 0.0f -> bounds.width - padL - padR
@@ -84,12 +76,9 @@ open class TextNode(
         return baseHeight + padT + padB
     }
 
-    // --- RENDERING ---
-
     override fun drawSelf() {
         super.drawSelf()
         if (text.isEmpty()) return
-
         val currentFont = activeFont ?: return
 
         val innerX = bounds.x + padL

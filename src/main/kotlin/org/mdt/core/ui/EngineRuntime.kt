@@ -7,6 +7,7 @@ import org.mdt.core.engine.PlatformHost
 import org.mdt.core.ui.compose.CompositionManager
 import org.mdt.core.ui.compose.UIComposition
 import org.mdt.core.ui.input.EngineInputProcessor
+import org.mdt.core.ui.node.CanvasNode
 import org.mdt.core.ui.render.UIBatch
 
 /**

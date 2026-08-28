@@ -1,10 +1,11 @@
 package org.mdt.core.ui.compose
 
-import org.mdt.core.ui.UINode
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.HorizontalAlign
 import org.mdt.core.ui.layout.SizeFlags
 import org.mdt.core.ui.layout.VerticalAlign
+import org.mdt.core.ui.node.UINode
+import org.mdt.core.ui.unit.Color
 
 /**
  * ## UIDslMarker
@@ -143,3 +144,67 @@ interface ColumnScope {
 interface GridScope {
     companion object Instance : GridScope
 }
+
+/**
+ * ## TextScope
+ *
+ * Declarative DSL builder for rich formatted text, color tags, and inline spans.
+ *
+ * See: docs/compose-dsl/compose_dsl_en.md
+ */
+@UIDslMarker
+interface TextScope {
+
+    /** Appends raw text content. */
+    fun append(text: CharSequence): TextScope
+
+    /** Appends text with an explicit [Color]. */
+    fun span(text: CharSequence, color: Color): TextScope
+
+    /** Appends text wrapped in a color block `[#RRGGBBAA]...[]`. */
+    fun color(color: Color, block: () -> Unit)
+
+    /** Appends an inline icon/glyph tag by name. */
+    fun icon(iconName: String): TextScope
+}
+
+/**
+ * High-performance builder implementation of [TextScope].
+ */
+class TextScopeImpl : TextScope {
+    val buffer = StringBuilder()
+
+    override fun append(text: CharSequence): TextScope {
+        buffer.append(text)
+        return this
+    }
+
+    override fun span(text: CharSequence, color: Color): TextScope {
+        val r = (color.r * 255.0f).toInt().coerceIn(0, 255)
+        val g = (color.g * 255.0f).toInt().coerceIn(0, 255)
+        val b = (color.b * 255.0f).toInt().coerceIn(0, 255)
+        val a = (color.a * 255.0f).toInt().coerceIn(0, 255)
+        val hex = String.format("%02x%02x%02x%02x", r, g, b, a)
+        buffer.append("[#").append(hex).append("]").append(text).append("[]")
+        return this
+    }
+
+    override fun color(color: Color, block: () -> Unit) {
+        val r = (color.r * 255.0f).toInt().coerceIn(0, 255)
+        val g = (color.g * 255.0f).toInt().coerceIn(0, 255)
+        val b = (color.b * 255.0f).toInt().coerceIn(0, 255)
+        val a = (color.a * 255.0f).toInt().coerceIn(0, 255)
+        val hex = String.format("%02x%02x%02x%02x", r, g, b, a)
+        buffer.append("[#").append(hex).append("]")
+        block()
+        buffer.append("[]")
+    }
+
+    override fun icon(iconName: String): TextScope {
+        buffer.append("@").append(iconName)
+        return this
+    }
+
+    fun build(): String = buffer.toString()
+}
+

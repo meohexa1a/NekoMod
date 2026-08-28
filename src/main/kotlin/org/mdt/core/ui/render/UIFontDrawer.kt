@@ -3,7 +3,7 @@ package org.mdt.core.ui.render
 import arc.graphics.g2d.Font
 import arc.graphics.g2d.GlyphLayout
 import arc.util.Align
-import org.mdt.core.ui.graphics.Color
+import org.mdt.core.ui.unit.Color
 
 /**
  * ## UIFontDrawer

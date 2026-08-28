@@ -9,7 +9,8 @@ import arc.util.Align
 import org.mdt.core.ui.compose.NodeApplier
 import org.mdt.core.ui.compose.UIModifier
 import org.mdt.core.ui.compose.fillMaxWidth
-import org.mdt.core.ui.graphics.Color
+import org.mdt.core.ui.node.TextNode
+import org.mdt.core.ui.unit.Color
 
 /**
  * ## Text
@@ -56,5 +57,35 @@ fun Text(
                 invalidateLayout()
             }
         }
+    )
+}
+
+/**
+ * ## Text (Rich Text Builder Overload)
+ *
+ * Declarative BMFont rich text composable building content through [TextScope].
+ *
+ * See: docs/components-guide/components_guide_en.md
+ */
+@Composable
+fun Text(
+    modifier: UIModifier = UIModifier,
+    color: Color = Color.White,
+    font: Font? = null,
+    align: Int = Align.left,
+    wrap: Boolean = false,
+    content: org.mdt.core.ui.compose.TextScope.() -> Unit
+) {
+    val builder = org.mdt.core.ui.compose.TextScopeImpl()
+    builder.content()
+    val builtText = builder.build()
+
+    Text(
+        text = builtText,
+        modifier = modifier,
+        color = color,
+        font = font,
+        align = align,
+        wrap = wrap
     )
 }

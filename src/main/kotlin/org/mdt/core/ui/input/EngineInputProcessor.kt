@@ -2,9 +2,9 @@ package org.mdt.core.ui.input
 
 import arc.input.InputProcessor
 import arc.input.KeyCode
-import org.mdt.core.ui.CanvasNode
 import org.mdt.core.ui.EngineRuntime
-import org.mdt.core.ui.UINode
+import org.mdt.core.ui.node.CanvasNode
+import org.mdt.core.ui.node.UINode
 
 /**
  * ## EngineInputProcessor
