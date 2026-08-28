@@ -2,10 +2,12 @@ package org.mdt.core.ui.input
 
 import arc.input.KeyCode
 
+// --- POINTER EVENTS ---
+
 /**
  * ## PointerEvent
  *
- * Represents a pointer/mouse interaction event dispatched across the [org.mdt.core.ui.UINode] tree.
+ * Represents a pointer/mouse interaction event dispatched across the Virtual DOM tree.
  *
  * @param x Screen X coordinate in pixels.
  * @param y Screen Y coordinate in pixels (bottom-left origin).
@@ -21,7 +23,12 @@ class PointerEvent(
     val pointer: Int = 0,
     val button: KeyCode = KeyCode.mouseLeft,
     var isConsumed: Boolean = false
-)
+) {
+    val screenX: Float get() = x
+    val screenY: Float get() = y
+}
+
+// --- SCROLL EVENTS ---
 
 /**
  * ## ScrollEvent
@@ -31,12 +38,16 @@ class PointerEvent(
  * @param amountX Horizontal scroll delta.
  * @param amountY Vertical scroll delta.
  * @param isConsumed Whether this event has been intercepted and consumed.
+ *
+ * See: docs/ui-engine/ui_engine_en.md
  */
 class ScrollEvent(
     val amountX: Float,
     val amountY: Float,
     var isConsumed: Boolean = false
 )
+
+// --- KEYBOARD EVENTS ---
 
 /**
  * ## KeyEvent
@@ -45,6 +56,8 @@ class ScrollEvent(
  *
  * @param keyCode KeyCode enumeration value.
  * @param isConsumed Whether this event has been intercepted and consumed.
+ *
+ * See: docs/ui-engine/ui_engine_en.md
  */
 class KeyEvent(
     val keyCode: KeyCode,

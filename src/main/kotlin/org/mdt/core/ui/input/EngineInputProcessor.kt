@@ -1,21 +1,24 @@
 package org.mdt.core.ui.input
 
-import arc.Core
 import arc.input.InputProcessor
 import arc.input.KeyCode
-import arc.util.Time
 import org.mdt.core.ui.CanvasNode
+import org.mdt.core.ui.EngineRuntime
 import org.mdt.core.ui.UINode
 
 /**
  * ## EngineInputProcessor
  *
- * Core Arc [InputProcessor] implementation routing hardware pointer, scroll,
+ * Core Arc [InputProcessor] routing hardware pointer, scroll,
  * and keyboard events into the declarative [UINode] tree.
+ *
+ * Seamlessly passes unhandled events through to Mindustry gameplay.
  *
  * See: docs/ui-engine/ui_engine_en.md
  */
 class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
+
+    // --- PROPERTIES & STATE ---
 
     var hoveredNode: UINode? = null
     var pressedNode: UINode? = null
@@ -27,9 +30,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
 
     private fun toLocalY(screenY: Int): Float = screenY.toFloat()
 
-    // =========================================================================
-    // I. Focus Management
-    // =========================================================================
+    // --- FOCUS MANAGEMENT ---
 
     fun requestFocus(node: UINode?) {
         if (focusedNode === node) return
@@ -41,25 +42,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
 
     fun clearFocus() = requestFocus(null)
 
-    // =========================================================================
-    // II. Hit Testing & Node Matching
-    // =========================================================================
-
-    private fun findActionableNode(hit: UINode?): UINode? {
-        var current = hit
-        while (current != null && current !== canvas) {
-            if (current.onClick != null || current.onDoubleClick != null ||
-                current.onPointerDown != null || current.onPointerUp != null ||
-                current.onPointerDrag != null || current.onHover != null ||
-                current.onPointerEnter != null || current.onPointerExit != null ||
-                current.onScroll != null || current.cursor != null || current.isFocusable
-            ) {
-                return current
-            }
-            current = current.parent
-        }
-        return null
-    }
+    // --- HIT TESTING & NODE MATCHING ---
 
     private fun isDescendantOrSelf(child: UINode?, ancestor: UINode?): Boolean {
         if (child == null || ancestor == null) return false
@@ -72,32 +55,25 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
         return false
     }
 
-    // =========================================================================
-    // III. Pointer & Touch Events
-    // =========================================================================
+    // --- POINTER & TOUCH EVENTS ---
 
     override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: KeyCode): Boolean {
         val clickX = screenX.toFloat()
         val clickY = toLocalY(screenY)
 
         val hitNode = canvas.hitTest(clickX, clickY)
+
         if (hitNode != null && hitNode !== canvas) {
-            val actionable = findActionableNode(hitNode)
-            if (actionable != null) {
-                pressedNode = actionable
+            pressedNode = hitNode
 
-                if (actionable.isFocusable) {
-                    requestFocus(actionable)
-                } else {
-                    clearFocus()
-                }
-
-                val event = PointerEvent(clickX, clickY, pointer, button)
-                actionable.onPointerDown?.invoke(event)
-                return true
+            if (hitNode.isFocusable) {
+                requestFocus(hitNode)
+            } else {
+                clearFocus()
             }
 
-            clearFocus()
+            val event = PointerEvent(clickX, clickY, pointer, button)
+            hitNode.onPointerDown?.invoke(event)
             return true
         }
 
@@ -119,7 +95,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
             pressed.onPointerUp?.invoke(event)
 
             if (isDescendantOrSelf(hitNode, pressed) || hitNode === pressed) {
-                val now = Time.millis()
+                val now = EngineRuntime.host.nowMillis()
                 if (lastClickNode === pressed && now - lastClickTime < 350) {
                     pressed.onDoubleClick?.invoke()
                     lastClickTime = 0
@@ -134,7 +110,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
             return true
         }
 
-        return hitNode != null && hitNode !== canvas
+        return false
     }
 
     override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
@@ -148,7 +124,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
             return true
         }
 
-        return mouseMoved(screenX, screenY)
+        return false
     }
 
     override fun mouseMoved(screenX: Int, screenY: Int): Boolean {
@@ -156,45 +132,44 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
         val moveY = toLocalY(screenY)
 
         val hitNode = canvas.hitTest(moveX, moveY)
-        val actionable = if (hitNode !== canvas) findActionableNode(hitNode) else null
+        val target = if (hitNode !== canvas) hitNode else null
 
-        if (actionable !== hoveredNode) {
+        if (target !== hoveredNode) {
             hoveredNode?.let {
                 it.isHovered = false
                 it.onPointerExit?.invoke()
             }
-            actionable?.let {
+            target?.let {
                 it.isHovered = true
                 it.onPointerEnter?.invoke()
             }
-            hoveredNode = actionable
+            hoveredNode = target
 
             // Update System Mouse Cursor
-            if (actionable != null) {
-                if (actionable.cursor != null) {
-                    arc.Core.graphics?.cursor(actionable.cursor)
-                } else if (actionable.onClick != null) {
-                    arc.Core.graphics?.cursor(arc.Graphics.Cursor.SystemCursor.hand)
+            if (target != null) {
+                if (target.cursor != null) {
+                    EngineRuntime.host.setCursor(target.cursor)
+                } else if (target.onClick != null) {
+                    EngineRuntime.host.setCursorHand()
                 } else {
-                    arc.Core.graphics?.restoreCursor()
+                    EngineRuntime.host.restoreCursor()
                 }
             } else {
-                arc.Core.graphics?.restoreCursor()
+                EngineRuntime.host.restoreCursor()
             }
         }
 
-        return hitNode != null && hitNode !== canvas
+        return target != null
     }
 
-    // =========================================================================
-    // IV. Scroll Events
-    // =========================================================================
+    // --- SCROLL EVENTS ---
 
     override fun scrolled(amountX: Float, amountY: Float): Boolean {
-        val scrollX = if (Core.input != null) Core.input.mouseX().toFloat() else 0f
-        val scrollY = if (Core.input != null) toLocalY(Core.input.mouseY()) else 0f
+        val scrollX = EngineRuntime.host.mouseX
+        val scrollY = EngineRuntime.host.mouseY
 
         val hitNode = canvas.hitTest(scrollX, scrollY) ?: hoveredNode ?: return false
+
         val event = ScrollEvent(amountX, amountY)
 
         var current: UINode? = hitNode
@@ -209,12 +184,10 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
         return false
     }
 
-    // =========================================================================
-    // V. Keyboard Events
-    // =========================================================================
+    // --- KEYBOARD EVENTS ---
 
     override fun keyDown(keyCode: KeyCode): Boolean {
-        // 1. Try bubbling up from focused node
+        // 1. Try focused node
         focusedNode?.let { start ->
             var current: UINode? = start
             while (current != null) {
@@ -223,7 +196,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
             }
         }
 
-        // 2. Try bubbling up from hovered node
+        // 2. Try hovered node
         hoveredNode?.let { start ->
             var current: UINode? = start
             while (current != null) {
@@ -232,15 +205,6 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
             }
         }
 
-        // 3. Universal Fallback: Dispatch to canvas root and its direct tree
-        return dispatchKeyDownRecursive(canvas, keyCode)
-    }
-
-    private fun dispatchKeyDownRecursive(node: UINode, keyCode: KeyCode): Boolean {
-        if (node.onKeyDown?.invoke(keyCode) == true) return true
-        for (child in node.children) {
-            if (dispatchKeyDownRecursive(child, keyCode)) return true
-        }
         return false
     }
 
