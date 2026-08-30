@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 @file:Suppress("unused")
 
 package org.mdt.core.ui.layout
@@ -67,23 +69,17 @@ enum class VerticalAlign {
 }
 
 /**
- * ## Alignment [2D Box Alignment Model]
+ * ## Alignment
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Defines 2D positioning ([horizontal] and [vertical]) for aligning child elements within layout containers.
+ * Provides standard static presets ([Center], [TopStart], [BottomEnd], [Fill]).
  *
- * ### 1. Purpose
- * - Defines 2D positioning (`horizontal` and `vertical`) for aligning child elements within layout containers.
- * - Provides standard static presets (e.g., `Center`, `TopStart`, `BottomEnd`, `Fill`).
+ * @property horizontal Horizontal axis alignment placement ([HorizontalAlign]).
+ * @property vertical Vertical axis alignment placement ([VerticalAlign]).
  *
- * ### 2. Key Rules & Checklist
- * - [x] Standard presets map correctly to the expected `HorizontalAlign` and `VerticalAlign` pairs.
- * - [x] Use companion object constants to avoid allocating new `Alignment` instances at runtime.
- *
- * ### 3. Related Files
- * - Layout Engine: `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
- * - Measure Policy: `src/main/kotlin/org/mdt/core/ui/layout/MeasurePolicy.kt`
- * - Box Component: `src/main/kotlin/org/mdt/ui/components/layout/Box.kt`
+ * @see HorizontalAlign
+ * @see VerticalAlign
+ * @see org.mdt.core.ui.layout.BoxMeasurePolicy
  */
 data class Alignment(
     val horizontal: HorizontalAlign = HorizontalAlign.START,

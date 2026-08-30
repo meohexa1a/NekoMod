@@ -1,30 +1,20 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.layout
 
 import org.mdt.core.ui.node.TextNode
 import org.mdt.core.ui.node.UINode
 
 /**
- * ## GodotLayout [Layout Engine]
+ * ## GodotLayout
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Core layout math engine calculating positions and dimensions for child UI nodes.
+ * Handles Box layouts (Row/Column flex weights), FlowRows, Grids, and dual-axis Anchors in OpenGL bottom-left coordinates.
  *
- * ### 1. Purpose
- * - Calculates positions and dimensions for child UI nodes using Godot-style layout policies.
- * - Handles Box layouts (Row/Column flex weights), Grids, and dual-axis Anchors.
- * - Supports padding, margins, and size flags (`FILL`, `EXPAND`, `SHRINK_CENTER`).
- *
- * ### 2. Key Rules & Checklist
- * - [x] All layout calculations must use OpenGL bottom-left origin (`y=0` bottom, `y=parentH` top).
- * - [x] Use indexed `for` loops instead of lambdas (`.filter {}`, `.map {}`) to avoid per-frame GC allocations.
- * - [x] Unconstrained containers must hug content size by default.
- * - [x] `layoutBox` distributes free main-axis space proportionally based on child `stretchRatio` when `EXPAND` is set.
- *
- * ### 3. Related Files
- * - Measure Policy: `src/main/kotlin/org/mdt/core/ui/layout/MeasurePolicy.kt`
- * - Layout Virtual Node: `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`
- * - Base Virtual Node: `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
- * - Root Screen Node: `src/main/kotlin/org/mdt/core/ui/node/CanvasNode.kt`
+ * @see MeasurePolicy
+ * @see org.mdt.core.ui.node.LayoutNode
+ * @see org.mdt.core.ui.node.UINode
+ * @see AnchorData
  */
 object GodotLayout {
 

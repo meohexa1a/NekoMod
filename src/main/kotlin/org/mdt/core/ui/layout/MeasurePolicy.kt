@@ -1,76 +1,20 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.layout
 
 import org.mdt.core.ui.node.LayoutNode
 
 /**
- * Lightweight Zero-GC reusable primitive Int buffer for layout measurements.
- */
-internal class IntList(initialCapacity: Int = 16) {
-    var size: Int = 0
-        private set
-    var items: IntArray = IntArray(initialCapacity)
-        private set
-
-    val isEmpty: Boolean get() = size == 0
-
-    fun add(value: Int) {
-        if (size >= items.size) {
-            items = items.copyOf(items.size * 2)
-        }
-        items[size++] = value
-    }
-
-    fun get(index: Int): Int = items[index]
-
-    fun clear() {
-        size = 0
-    }
-}
-
-/**
- * Lightweight Zero-GC reusable primitive Float buffer for layout measurements.
- */
-internal class FloatList(initialCapacity: Int = 16) {
-    var size: Int = 0
-        private set
-    var items: FloatArray = FloatArray(initialCapacity)
-        private set
-
-    val isEmpty: Boolean get() = size == 0
-
-    fun add(value: Float) {
-        if (size >= items.size) {
-            items = items.copyOf(items.size * 2)
-        }
-        items[size++] = value
-    }
-
-    fun get(index: Int): Float = items[index]
-
-    fun clear() {
-        size = 0
-    }
-}
-
-/**
- * ## MeasurePolicy [Layout Strategy]
+ * ## MeasurePolicy
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Defines measurement and layout strategies for container nodes ([LayoutNode]).
+ * Calculates preferred dimensions (hug content) and arranges child nodes within container bounds.
  *
- * ### 1. Purpose
- * - Defines measurement and layout logic for container nodes ([LayoutNode]).
- * - Calculates preferred width/height (hug content) and arranges child nodes within container bounds.
- *
- * ### 2. Key Rules & Checklist
- * - [x] Do not allocate temporary lists during frame measurements (Zero-GC).
- * - [x] Default measurement hugs content size factoring in padding and child sizes.
- * - [x] `layout()` positions all visible children correctly within inner bounds.
- *
- * ### 3. Related Files
- * - Layout Virtual Node: `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`
- * - Layout Engine: `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
- * - Box Component: `src/main/kotlin/org/mdt/ui/components/layout/Box.kt`
+ * @see BoxMeasurePolicy
+ * @see RowMeasurePolicy
+ * @see ColumnMeasurePolicy
+ * @see FlowRowMeasurePolicy
+ * @see LayoutNode
  */
 interface MeasurePolicy {
 
@@ -87,9 +31,12 @@ interface MeasurePolicy {
 // --- BOX MEASURE POLICY ---
 
 /**
- * ## BoxMeasurePolicy [Stack / Box Layout Policy]
+ * ## BoxMeasurePolicy
  *
  * Layout policy supporting Hug Content (intrinsic sizing), Godot anchors, and content alignment.
+ *
+ * @see MeasurePolicy
+ * @see LayoutNode
  */
 object BoxMeasurePolicy : MeasurePolicy {
 
@@ -146,9 +93,16 @@ object BoxMeasurePolicy : MeasurePolicy {
 // --- COLUMN MEASURE POLICY ---
 
 /**
- * ## ColumnMeasurePolicy [Vertical Flex Layout Policy]
+ * ## ColumnMeasurePolicy
  *
- * Vertical linear layout policy arranging children top-to-bottom with Hug Content and Weight distribution.
+ * Vertical linear layout policy arranging children top-to-bottom with Hug Content and proportional Weight distribution.
+ *
+ * @property gap Inward spacing between adjacent children (pixels).
+ * @property arrangement Main-axis distribution strategy ([Arrangement.Start], [Arrangement.Center], etc.).
+ * @property alignment Cross-axis alignment placement ([Alignment.TopStart], [Alignment.CenterStart], etc.).
+ *
+ * @see RowMeasurePolicy
+ * @see MeasurePolicy
  */
 data class ColumnMeasurePolicy(
     val gap: Float = 0.0f,
@@ -211,9 +165,16 @@ data class ColumnMeasurePolicy(
 // --- ROW MEASURE POLICY ---
 
 /**
- * ## RowMeasurePolicy [Horizontal Flex Layout Policy]
+ * ## RowMeasurePolicy
  *
- * Horizontal linear layout policy arranging children left-to-right with Hug Content and Weight distribution.
+ * Horizontal linear layout policy arranging children left-to-right with Hug Content and proportional Weight distribution.
+ *
+ * @property gap Inward spacing between adjacent children (pixels).
+ * @property arrangement Main-axis distribution strategy ([Arrangement.Start], [Arrangement.Center], etc.).
+ * @property alignment Cross-axis alignment placement ([Alignment.CenterStart], [Alignment.TopStart], etc.).
+ *
+ * @see ColumnMeasurePolicy
+ * @see MeasurePolicy
  */
 data class RowMeasurePolicy(
     val gap: Float = 0.0f,
@@ -270,10 +231,18 @@ data class RowMeasurePolicy(
 // --- FLOW ROW MEASURE POLICY (FLEX WRAP) ---
 
 /**
- * ## FlowRowMeasurePolicy [Multi-Line Wrapping Flex Layout Policy]
+ * ## FlowRowMeasurePolicy
  *
  * Arranges children horizontally from left to right, automatically wrapping onto the next line
  * when available width is exceeded. Implements Godot Engine's `HFlowContainer` 2-pass algorithm.
+ *
+ * @property horizontalGap Horizontal spacing between adjacent items on the same line (pixels).
+ * @property verticalGap Vertical spacing between wrapped lines (pixels).
+ * @property arrangement Main-axis line distribution strategy.
+ * @property alignment Cross-axis item alignment within each line.
+ *
+ * @see RowMeasurePolicy
+ * @see MeasurePolicy
  */
 data class FlowRowMeasurePolicy(
     val horizontalGap: Float = 0.0f,

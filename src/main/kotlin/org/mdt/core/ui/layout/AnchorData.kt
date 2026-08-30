@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.layout
 
 // --- SIZE FLAGS & SLOTS ---
@@ -71,24 +73,26 @@ enum class GrowDirection {
 }
 
 /**
- * ## AnchorData [Anchor Positioning Model]
+ * ## AnchorData
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Stores responsive anchor ratios (`0.0f..1.0f`) and pixel offsets ([offsetLeft]..[offsetBottom]).
+ * Controls how a UI element pins to or stretches across its parent container's edges in Godot-style 2D layouts.
  *
- * ### 1. Purpose
- * - Stores responsive anchor ratios (`0.0f..1.0f`) and pixel offsets (`offsetLeft`..`offsetBottom`).
- * - Controls how a UI element pins to or stretches across its parent container's edges.
+ * @property isEnabled Whether explicit anchor positioning is active for this node.
+ * @property anchorLeft Left anchor ratio normalized `0.0f..1.0f`.
+ * @property anchorTop Top anchor ratio normalized `0.0f..1.0f`.
+ * @property anchorRight Right anchor ratio normalized `0.0f..1.0f`.
+ * @property anchorBottom Bottom anchor ratio normalized `0.0f..1.0f`.
+ * @property offsetLeft Left pixel offset from anchor point.
+ * @property offsetTop Top pixel offset from anchor point.
+ * @property offsetRight Right pixel offset from anchor point.
+ * @property offsetBottom Bottom pixel offset from anchor point.
+ * @property growHorizontal Horizontal expansion direction ([GrowDirection]).
+ * @property growVertical Vertical expansion direction ([GrowDirection]).
  *
- * ### 2. Key Rules & Checklist
- * - [x] `isEnabled` explicitly controls whether anchor calculations run for the node.
- * - [x] `setPreset` enables anchor mode (`isEnabled = true`) and sets default grow directions.
- * - [x] `reset()` resets `isEnabled = false` and clears all ratios and pixel offsets to `0.0f`.
- *
- * ### 3. Related Files
- * - Layout Engine: `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
- * - Virtual Node: `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
- * - Root Screen Node: `src/main/kotlin/org/mdt/core/ui/node/CanvasNode.kt`
+ * @see LayoutPreset
+ * @see GrowDirection
+ * @see GodotLayout
  */
 class AnchorData {
 
