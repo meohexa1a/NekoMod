@@ -1,9 +1,13 @@
-@file:Suppress("FunctionName", "unused")
-
 package org.mdt.ui.components.surface
 
 import androidx.compose.runtime.Composable
-import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.compose.background
+import org.mdt.core.ui.compose.border
+import org.mdt.core.ui.compose.glass
+import org.mdt.core.ui.compose.opaque
+import org.mdt.core.ui.compose.pad
+import org.mdt.core.ui.compose.radius
 import org.mdt.core.ui.unit.Color
 import org.mdt.ui.components.layout.Box
 
@@ -23,7 +27,7 @@ fun Card(
     borderWidth: Float = 1.0f,
     borderColor: Color = Color(1.0f, 1.0f, 1.0f, 0.18f),
     isGlass: Boolean = true,
-    content: @Composable BoxScope.() -> Unit
+    content: @Composable () -> Unit
 ) {
     Box(
         modifier = UIModifier

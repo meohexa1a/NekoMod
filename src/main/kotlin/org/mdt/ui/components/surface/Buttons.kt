@@ -2,9 +2,25 @@
 
 package org.mdt.ui.components.surface
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import arc.graphics.g2d.TextureRegion
-import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.compose.align
+import org.mdt.core.ui.compose.background
+import org.mdt.core.ui.compose.border
+import org.mdt.core.ui.compose.clickable
+import org.mdt.core.ui.compose.glass
+import org.mdt.core.ui.compose.hoverable
+import org.mdt.core.ui.compose.onClick
+import org.mdt.core.ui.compose.onHover
+import org.mdt.core.ui.compose.opaque
+import org.mdt.core.ui.compose.pad
+import org.mdt.core.ui.compose.radius
+import org.mdt.core.ui.compose.size
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.unit.Color
 import org.mdt.ui.components.display.Image
@@ -42,7 +58,7 @@ fun Button(
     modifier: UIModifier = UIModifier,
     variant: ButtonVariant = ButtonVariant.FILLED,
     enabled: Boolean = true,
-    content: @Composable BoxScope.() -> Unit
+    content: @Composable () -> Unit
 ) {
     var isHovered by remember { mutableStateOf(false) }
     var isPressed by remember { mutableStateOf(false) }
@@ -51,36 +67,36 @@ fun Button(
     val glassBg = Color(0.25f, 0.25f, 0.35f, 0.35f)
 
     val currentBg = when (variant) {
-        ButtonVariant.FILLED -> {
-            if (isPressed) accentBlue.mul(0.8f)
-            else if (isHovered) accentBlue.mul(1.15f)
-            else accentBlue
+        ButtonVariant.FILLED -> when {
+            isPressed -> accentBlue.mul(0.8f)
+            isHovered -> accentBlue.mul(1.15f)
+            else -> accentBlue
         }
-        ButtonVariant.TINTED -> {
-            if (isPressed) accentBlue.withAlpha(0.35f)
-            else if (isHovered) accentBlue.withAlpha(0.25f)
-            else accentBlue.withAlpha(0.15f)
+        ButtonVariant.TINTED -> when {
+            isPressed -> accentBlue.withAlpha(0.35f)
+            isHovered -> accentBlue.withAlpha(0.25f)
+            else -> accentBlue.withAlpha(0.15f)
         }
-        ButtonVariant.GLASS -> {
-            if (isPressed) glassBg.withAlpha(0.65f)
-            else if (isHovered) glassBg.withAlpha(0.50f)
-            else glassBg
+        ButtonVariant.GLASS -> when {
+            isPressed -> glassBg.withAlpha(0.65f)
+            isHovered -> glassBg.withAlpha(0.50f)
+            else -> glassBg
         }
-        ButtonVariant.OUTLINED -> {
-            if (isPressed) Color(1.0f, 1.0f, 1.0f, 0.15f)
-            else if (isHovered) Color(1.0f, 1.0f, 1.0f, 0.08f)
-            else Color.Clear
+        ButtonVariant.OUTLINED -> when {
+            isPressed -> Color(1.0f, 1.0f, 1.0f, 0.15f)
+            isHovered -> Color(1.0f, 1.0f, 1.0f, 0.08f)
+            else -> Color.Clear
         }
     }
 
     val currentBorder = when (variant) {
-        ButtonVariant.GLASS -> {
-            if (isHovered) Color(1.0f, 1.0f, 1.0f, 0.45f)
-            else Color(1.0f, 1.0f, 1.0f, 0.25f)
+        ButtonVariant.GLASS -> when {
+            isHovered -> Color(1.0f, 1.0f, 1.0f, 0.45f)
+            else -> Color(1.0f, 1.0f, 1.0f, 0.25f)
         }
-        ButtonVariant.OUTLINED -> {
-            if (isHovered) accentBlue
-            else Color(1.0f, 1.0f, 1.0f, 0.3f)
+        ButtonVariant.OUTLINED -> when {
+            isHovered -> accentBlue
+            else -> Color(1.0f, 1.0f, 1.0f, 0.3f)
         }
         else -> Color.Clear
     }

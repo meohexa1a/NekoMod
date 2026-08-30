@@ -2,35 +2,32 @@
 
 package org.mdt.ui.components.display
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
-import org.mdt.core.ui.compose.*
+import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.compose.align
+import org.mdt.core.ui.compose.background
+import org.mdt.core.ui.compose.border
+import org.mdt.core.ui.compose.glass
+import org.mdt.core.ui.compose.margin
+import org.mdt.core.ui.compose.onHover
+import org.mdt.core.ui.compose.pad
+import org.mdt.core.ui.compose.radius
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.unit.Color
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.text.Text
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * ## TooltipBox [Declarative Self-Managed Tooltip Composable]
+ * ## TooltipBox
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Declarative, self-contained tooltip wrapper managing hover recognition, delay timer, and overlay presentation.
- * - Encapsulates its own local state (isHovered, delay ~350ms) using coroutines and standard Compose snapshot state.
- * - Renders a stylized floating bubble with rounded corners, subtle border, and text styling.
- *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Declarative State Isolation):** State is scoped locally to the Composable, leaving Core UI 100% agnostic of tooltips.
- * - **Rule 2 (UIModifier Chaining):** Callers can append custom modifiers via .then(modifier).
- *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - 🎨 **Composable Box:** src/main/kotlin/org/mdt/ui/components/layout/Box.kt
- * - 🎨 **Composable Text:** src/main/kotlin/org/mdt/ui/components/text/Text.kt
- * - 🌲 **Virtual Node:** src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt
- *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] Hovering over target content starts delay timer (350ms) before revealing tooltip.
- * - [x] Exiting hover area immediately conceals tooltip bubble.
- * - [x] Custom tooltip composable slot or plain text string overload supported.
+ * Declarative tooltip container that shows a floating tooltip overlay after hovering for [delayMs].
  */
 @Composable
 fun TooltipBox(
@@ -43,11 +40,12 @@ fun TooltipBox(
     var isVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(isHovered) {
-        if (isHovered) {
-            delay(delayMs)
-            isVisible = true
-        } else {
-            isVisible = false
+        when {
+            isHovered -> {
+                delay(delayMs.milliseconds)
+                isVisible = true
+            }
+            else -> isVisible = false
         }
     }
 

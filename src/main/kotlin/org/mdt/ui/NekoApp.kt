@@ -1,11 +1,20 @@
 package org.mdt.ui
 
-import androidx.compose.runtime.*
-import org.mdt.core.ui.compose.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import org.mdt.core.platform.render.blur.SceneBlur
+import org.mdt.core.ui.compose.Modifier
+import org.mdt.core.ui.compose.align
+import org.mdt.core.ui.compose.fillMaxSize
+import org.mdt.core.ui.compose.fillMaxWidth
+import org.mdt.core.ui.compose.width
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
-import org.mdt.core.ui.render.GameBlurService
 import org.mdt.core.ui.unit.Color
+import org.mdt.ui.components.input.TextField
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Column
 import org.mdt.ui.components.layout.Row
@@ -15,7 +24,7 @@ import org.mdt.ui.components.surface.Card
 import org.mdt.ui.components.text.Text
 
 /**
- * ## NekoApp
+ * ## NekoApp [Root UI Application Entry]
  *
  * Root UI composable bootstrapping NekoMod's 1-Draw-Call pure GPU rendering pipeline.
  *
@@ -25,6 +34,7 @@ import org.mdt.ui.components.text.Text
 fun NekoApp() {
     var clickCount by remember { mutableStateOf(0) }
     var blurActive by remember { mutableStateOf(false) }
+    var inputText by remember { mutableStateOf("") }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -55,9 +65,7 @@ fun NekoApp() {
                     wrap = true
                 )
 
-                var inputText by remember { mutableStateOf("") }
-
-                org.mdt.ui.components.input.TextField(
+                TextField(
                     value = inputText,
                     onValueChange = { inputText = it },
                     placeholder = "Nhap lenh hoac van ban o day...",
@@ -69,12 +77,18 @@ fun NekoApp() {
                     alignment = Alignment.CenterStart
                 ) {
                     Button(
-                        text = if (blurActive) "Tat Blur" else "Bat Blur",
+                        text = when {
+                            blurActive -> "Tat Blur"
+                            else -> "Bat Blur"
+                        },
                         onClick = {
                             blurActive = !blurActive
-                            GameBlurService.isEnabled = blurActive
+                            SceneBlur.isEnabled = blurActive
                         },
-                        variant = if (blurActive) ButtonVariant.FILLED else ButtonVariant.TINTED
+                        variant = when {
+                            blurActive -> ButtonVariant.FILLED
+                            else -> ButtonVariant.TINTED
+                        }
                     )
 
                     Button(

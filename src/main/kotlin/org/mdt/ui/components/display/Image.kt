@@ -4,7 +4,7 @@ package org.mdt.ui.components.display
 
 import androidx.compose.runtime.Composable
 import arc.graphics.g2d.TextureRegion
-import org.mdt.core.engine.LocalPlatformHost
+import org.mdt.core.platform.LocalPlatformHost
 import org.mdt.core.ui.compose.UIModifier
 import org.mdt.core.ui.compose.background
 import org.mdt.core.ui.compose.texture
