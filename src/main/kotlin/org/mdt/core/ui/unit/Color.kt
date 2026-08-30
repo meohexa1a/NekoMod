@@ -1,26 +1,22 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.unit
 
 import arc.util.Tmp
 
 /**
- * ## Color [Zero-GC Color Value Class]
+ * ## Color
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Packed 64-bit unsigned integer color stored in CPU registers without heap allocations (Zero-GC).
+ * Provides color math, linear interpolation (`lerp`), alpha blending, hex parsing, and OpenGL vertex packing.
  *
- * ### 1. Purpose
- * - Packed 64-bit unsigned integer color stored in CPU registers without heap allocations (Zero-GC).
- * - Provides color math, linear interpolation (`lerp`), alpha blending, hex parsing, and OpenGL vertex packing.
+ * @property value Packed 64-bit ARGB unsigned integer value.
+ * @property alpha Alpha channel component in `0.0f..1.0f` range.
+ * @property red Red channel component in `0.0f..1.0f` range.
+ * @property green Green channel component in `0.0f..1.0f` range.
+ * @property blue Blue channel component in `0.0f..1.0f` range.
  *
- * ### 2. Key Rules & Checklist
- * - [x] Must remain an `@JvmInline value class` to avoid heap allocations in render loops.
- * - [x] All channel getters (`red`, `green`, `blue`, `alpha`) must return `Float` in range `0.0f..1.0f`.
- * - [x] `toGLPackedFloat()` packages color bits in ABGR order for OpenGL shaders.
- * - [x] `Color.parse()` parses 3, 4, 6, and 8-digit hex strings with or without `#`.
- *
- * ### 3. Related Files
- * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
- * - Font Renderer: `src/main/kotlin/org/mdt/core/platform/render/FontRenderer.kt`
+ * @see org.mdt.core.platform.render.UIBatch
  */
 @JvmInline
 value class Color(val value: ULong) {

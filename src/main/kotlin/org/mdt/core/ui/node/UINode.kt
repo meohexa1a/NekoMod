@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.node
 
 import arc.input.KeyCode
@@ -13,27 +15,38 @@ import org.mdt.core.ui.layout.AnchorData
 import org.mdt.core.ui.unit.Rect
 
 /**
- * ## UINode [Virtual DOM Base Node]
+ * ## UINode
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Base virtual DOM element managing hierarchy relationships ([parent], [children]), box bounds,
+ * margins, paddings, pointer/keyboard event filters, and OpenGL coordinate transformations.
  *
- * ### 1. Purpose
- * - Base class for all elements in the virtual UI tree.
- * - Manages tree relationships (`parent`, `children`), box bounds, padding/margins, event handlers, and focus state.
- * - Handles hit testing, drawing lifecycle, and local/global coordinate conversions.
+ * @property id Unique query identifier in the Virtual DOM tree.
+ * @property name Human-readable display label for debugging.
+ * @property parent Parent node owning this node in the UI hierarchy.
+ * @property children List of child nodes belonging to this node.
+ * @property bounds Absolute screen boundary rectangle in OpenGL bottom-left coordinates.
+ * @property width Fixed desired width in pixels (`-1.0f` for intrinsic content sizing).
+ * @property height Fixed desired height in pixels (`-1.0f` for intrinsic content sizing).
+ * @property minWidth Minimum width bound in pixels (`-1.0f` for unconstrained).
+ * @property minHeight Minimum height bound in pixels (`-1.0f` for unconstrained).
+ * @property maxWidth Maximum width bound in pixels (`-1.0f` for unconstrained).
+ * @property maxHeight Maximum height bound in pixels (`-1.0f` for unconstrained).
+ * @property visible Whether this node is visible and consumes layout space.
+ * @property touchable Whether this node can receive pointer events during hit testing.
+ * @property isFocusable Whether this node can accept keyboard focus.
+ * @property isFocused Whether this node currently holds keyboard focus.
+ * @property opacity Alpha transparency multiplier in range `0.0f..1.0f`.
+ * @property zIndex Sorting index for drawing order.
+ * @property clip Whether child rendering is scissor-clipped to this node's bounds.
+ * @property isLayoutDirty Dirty flag indicating layout recalculation is required.
+ * @property cursor Custom mouse cursor displayed when pointer hovers over this node.
+ * @property hitTestBehavior Hit-testing transparency behavior mode ([HitTestBehavior]).
+ * @property tag Generic user payload attached to this node.
  *
- * ### 2. Key Rules & Checklist
- * - [x] All positions, dimensions, margins, and paddings must use `Float` with OpenGL bottom-left origin.
- * - [x] `hitTest` traverses children in reverse order (topmost first) and checks scissor boundaries.
- * - [x] Modifying children or bounds dimensions must call `invalidateLayout()`.
- * - [x] `localToGlobal` and `globalToLocal` transform coordinates accurately without extra heap allocations.
- *
- * ### 3. Related Files
- * - Node Subclasses: `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`
- * - Input Processor: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
- * - Node Applier: `src/main/kotlin/org/mdt/core/ui/compose/NodeApplier.kt`
- * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
+ * @see LayoutNode
+ * @see InputNode
+ * @see TextNode
+ * @see CanvasNode
  */
 open class UINode {
 
@@ -185,6 +198,12 @@ open class UINode {
     var isFocused: Boolean = false
         internal set
 
+    /** Alpha rendering opacity in range 0.0f..1.0f. */
+    var opacity: Float = 1.0f
+
+    /** Explicit Z-index rendering order sorting value. */
+    var zIndex: Float = 0.0f
+
     /** Whether child rendering should be clipped to this node's bounding box. */
     var clip: Boolean = false
 
@@ -329,6 +348,9 @@ open class UINode {
             pointerFilters.add(filter)
         }
     }
+
+    /** Compatibility alias for [addPointerFilter]. */
+    fun addPointerInputFilter(filter: PointerInputFilter) = addPointerFilter(filter)
 
     fun removePointerFilter(filter: PointerInputFilter) {
         pointerFilters.remove(filter)

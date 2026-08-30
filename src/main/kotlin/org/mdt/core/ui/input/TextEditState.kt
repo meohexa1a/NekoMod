@@ -1,30 +1,28 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.input
 
 import arc.input.KeyCode
 import org.mdt.core.ui.EngineRuntime
 
 /**
- * ## TextEditState [Text Editing State Machine]
+ * ## TextEditState
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * State machine managing cursor movement, text selection, typing, clipboard actions, and IME composition for text fields.
+ * Controls caret blinking timers and keyboard shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X).
  *
- * ### 1. Purpose
- * - Manages cursor movement, text selection, typing, clipboard actions, and IME composition for text fields.
- * - Controls caret blinking timers and keyboard shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X).
+ * @param onTextChange Callback invoked whenever text content changes.
  *
- * ### 2. Key Rules & Checklist
- * - [x] All clipboard operations and modifier checks (Ctrl, Shift) must go through [EngineRuntime.host].
- * - [x] Handle `Backspace` only in `onKeyDown`; ignore `\b` in `onKeyTyped` to avoid double-deletion bugs in IME.
- * - [x] `selectAll()` sets selection across the whole text length (`0..text.length`).
- * - [x] `backspace()` / `delete()` removes selected text first if a selection exists.
- * - [x] Caret blink timer resets immediately when typing or moving cursor.
+ * @property text Current committed text string.
+ * @property cursor Caret position index within [text].
+ * @property selectionStart Starting index of current selection range (`-1` if no selection).
+ * @property compositionText Transient IME composition candidate string.
+ * @property isFocused Whether the text field currently holds active input focus.
+ * @property isMultiline Whether multi-line text input and newline insertion are enabled.
  *
- * ### 3. Related Files
- * - Text Input Node: `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`
- * - Focus Coordinator: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
- * - Text Field UI: `src/main/kotlin/org/mdt/ui/components/input/TextField.kt`
- * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
+ * @see org.mdt.core.ui.node.InputNode
+ * @see EngineInputProcessor
+ * @see org.mdt.ui.components.input.TextField
  */
 class TextEditState(
     var onTextChange: ((String) -> Unit)? = null

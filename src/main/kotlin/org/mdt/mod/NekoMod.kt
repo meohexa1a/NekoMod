@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.mod
 
 import arc.Core
@@ -11,21 +13,12 @@ import org.mdt.core.ui.EngineRuntime
 import org.mdt.ui.NekoApp
 
 /**
- * ## NekoMod [Mod Entry Point]
+ * ## NekoMod
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Main Mindustry mod entry point that bootstraps the UI engine and mounts [NekoApp].
  *
- * ### 1. Purpose
- * - Main Mindustry mod entry point that bootstraps the UI engine and mounts [NekoApp].
- *
- * ### 2. Key Rules & Checklist
- * - [x] Listens for `ClientLoadEvent` to set up UI on the main thread.
- * - [x] Mounts root app composable via `EngineRuntime.setContent`.
- *
- * ### 3. Related Files
- * - UI Runtime: `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
- * - Root UI App: `src/main/kotlin/org/mdt/ui/NekoApp.kt`
+ * @see org.mdt.core.ui.EngineRuntime
+ * @see NekoApp
  */
 class NekoMod : Mod() {
 

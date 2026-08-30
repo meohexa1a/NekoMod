@@ -1,24 +1,23 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.port
 
 import arc.input.InputProcessor
 
 /**
- * ## InputPort [Pointer & Hardware Input Contract]
+ * ## InputPort
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Defines the abstract contract for pointer coordinates, keyboard modifier states, and input processor dispatch chains.
+ * Includes a built-in [NoOp] stub for headless execution or unit testing.
  *
- * ### 1. Purpose
- * - Defines the abstract contract for pointer coordinates, keyboard modifier states, and input processor dispatch chains.
- * - Includes a built-in [NoOp] stub for headless execution or unit testing.
+ * @property mouseX Current pointer X position in screen coordinates.
+ * @property mouseY Current pointer Y position in screen coordinates.
+ * @property isCtrlPressed Whether the Ctrl (or Cmd on macOS) key is currently held down.
+ * @property isShiftPressed Whether the Shift key is currently held down.
+ * @property isAltPressed Whether the Alt key is currently held down.
  *
- * ### 2. Key Rules & Checklist
- * - [x] Pointer coordinates must use OpenGL bottom-left coordinates (`0.0f` at bottom).
- * - [x] Processor chains must safely handle concurrent addition/removal.
- *
- * ### 3. Related Files
- * - Implementation: `src/main/kotlin/org/mdt/core/platform/impl/MindustryInputPort.kt`
- * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
+ * @see org.mdt.core.platform.impl.MindustryInputPort
+ * @see org.mdt.core.platform.PlatformHost
  */
 interface InputPort {
 

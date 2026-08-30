@@ -1,27 +1,19 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.compose
 
 import androidx.compose.runtime.AbstractApplier
 import org.mdt.core.ui.node.UINode
 
 /**
- * ## NodeApplier [Compose Applier Bridge]
+ * ## NodeApplier
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Connects the Compose runtime tree operations directly to the [UINode] tree.
+ * Handles inserting, moving, removing, and clearing virtual nodes during recomposition.
  *
- * ### 1. Purpose
- * - Connects the Compose runtime tree operations directly to the [UINode] tree.
- * - Handles inserting, moving, removing, and clearing virtual nodes during recomposition.
- *
- * ### 2. Key Rules & Checklist
- * - [x] Nodes must be inserted top-down so parent references exist before children layout.
- * - [x] `remove` safely checks bounds to prevent index out-of-bounds errors.
- * - [x] `onClear` resets and clears all children from the root node.
- *
- * ### 3. Related Files
- * - Base Virtual Node: `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
- * - Composition Host: `src/main/kotlin/org/mdt/core/ui/compose/UIComposition.kt`
- * - Runtime Orchestrator: `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
+ * @see UINode
+ * @see UIComposition
+ * @see org.mdt.core.ui.EngineRuntime
  */
 class NodeApplier(root: UINode) : AbstractApplier<UINode>(root) {
 

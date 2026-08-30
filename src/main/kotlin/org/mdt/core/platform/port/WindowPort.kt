@@ -1,24 +1,20 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.port
 
 import arc.Graphics.Cursor
 
 /**
- * ## WindowPort [Display & Viewport Contract]
+ * ## WindowPort
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Defines the abstract contract for display surface dimensions, window resize events, and system cursor control.
+ * Includes a built-in [NoOp] stub for headless execution or unit testing.
  *
- * ### 1. Purpose
- * - Defines the abstract contract for display surface dimensions, window resize events, and system cursor control.
- * - Includes a built-in [NoOp] stub for headless execution or unit testing.
+ * @property width Current display surface width in pixels.
+ * @property height Current display surface height in pixels.
  *
- * ### 2. Key Rules & Checklist
- * - [x] `width` and `height` must return `Float` in screen pixel coordinates.
- * - [x] Resize callbacks must be thread-safe.
- *
- * ### 3. Related Files
- * - Implementation: `src/main/kotlin/org/mdt/core/platform/impl/MindustryWindowPort.kt`
- * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
+ * @see org.mdt.core.platform.impl.MindustryWindowPort
+ * @see org.mdt.core.platform.PlatformHost
  */
 interface WindowPort {
 

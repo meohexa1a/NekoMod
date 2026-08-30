@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui
 
 import androidx.compose.runtime.Composable
@@ -11,29 +13,22 @@ import org.mdt.core.ui.node.CanvasNode
 import org.mdt.core.platform.render.UIBatch
 
 /**
- * ## EngineRuntime [Master UI Orchestrator & Frame Coordinator]
+ * ## EngineRuntime
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Master singleton controlling the UI engine lifecycle, input handling, and frame rendering loop.
+ * Connects [PlatformHost] to the root virtual DOM ([CanvasNode]) and coordinates Compose recomposition ([ComposePipeline]).
+ * Draws UI via [UIBatch] at the end of each game frame.
  *
- * ### 1. Purpose
- * - Master singleton controlling the UI engine lifecycle, input handling, and frame rendering loop.
- * - Connects [PlatformHost] to the root virtual DOM ([CanvasNode]) and manages Compose recomposition ([ComposePipeline]).
- * - Draws UI via [UIBatch] at the end of each game frame.
+ * @property canvas Root virtual screen node ([CanvasNode]) containing the entire UI hierarchy.
+ * @property inputProcessor Master input processor routing pointer, touch, scroll, and key events.
+ * @property host Active platform host implementation providing window, asset, input, and system ports.
+ * @property isInitialized Whether the engine runtime has been initialized and platform hooks registered.
  *
- * ### 2. Key Rules & Checklist
- * - [x] All platform operations (screen size, input registration, frame hooks) must go through [host].
- * - [x] Render errors inside `draw()` must be caught and logged safely to avoid crashing the game.
- * - [x] `setContent()` must auto-initialize the engine and dispose previous compositions.
- * - [x] `init()` registers `inputProcessor`, `resizeListener`, and `frameEndListener`.
- * - [x] `dispose()` releases Compose pipeline, platform listeners, and GPU resources.
- *
- * ### 3. Related Files
- * - Platform Bridge: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
- * - Root Screen Node: `src/main/kotlin/org/mdt/core/ui/node/CanvasNode.kt`
- * - Input Routing: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
- * - Compose Pipeline: `src/main/kotlin/org/mdt/core/ui/compose/ComposePipeline.kt`
- * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
+ * @see PlatformHost
+ * @see CanvasNode
+ * @see EngineInputProcessor
+ * @see ComposePipeline
+ * @see UIBatch
  */
 object EngineRuntime {
 

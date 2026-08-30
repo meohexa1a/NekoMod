@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform
 
 import org.mdt.core.platform.ime.ImePort
@@ -12,25 +14,22 @@ import org.mdt.core.platform.port.SystemPort
 import org.mdt.core.platform.port.WindowPort
 
 /**
- * ## MindustryPlatformHost [Default Mindustry / Arc Host Bridge]
+ * ## MindustryPlatformHost
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Default [PlatformHost] implementation composing standard Mindustry and Arc platform ports.
  *
- * ### 1. Purpose
- * - Default [PlatformHost] implementation composing Mindustry and Arc platform ports.
+ * @property window Mindustry window and viewport port ([MindustryWindowPort]).
+ * @property input Mindustry input multiplexer port ([MindustryInputPort]).
+ * @property assets Mindustry asset atlas and font port ([MindustryAssetPort]).
+ * @property system Mindustry time, settings, and main thread port ([MindustrySystemPort]).
+ * @property ime SDL native IME reflection port ([SdlReflectionImePort]).
  *
- * ### 2. Key Rules & Checklist
- * - [x] Composed purely by wiring sub-ports; contains zero monolithic inline logic.
- * - [x] Any sub-port can be individually overridden or mocked in constructor.
- *
- * ### 3. Related Files
- * - Platform Facade: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
- * - Window Port: `src/main/kotlin/org/mdt/core/platform/impl/MindustryWindowPort.kt`
- * - Input Port: `src/main/kotlin/org/mdt/core/platform/impl/MindustryInputPort.kt`
- * - Asset Port: `src/main/kotlin/org/mdt/core/platform/impl/MindustryAssetPort.kt`
- * - System Port: `src/main/kotlin/org/mdt/core/platform/impl/MindustrySystemPort.kt`
- * - IME Port: `src/main/kotlin/org/mdt/core/platform/ime/SdlReflectionImePort.kt`
+ * @see PlatformHost
+ * @see MindustryWindowPort
+ * @see MindustryInputPort
+ * @see MindustryAssetPort
+ * @see MindustrySystemPort
+ * @see SdlReflectionImePort
  */
 open class MindustryPlatformHost(
     override val window: WindowPort = MindustryWindowPort(),

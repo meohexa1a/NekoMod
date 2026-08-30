@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.node
 
 import arc.graphics.g2d.Font
@@ -11,28 +13,25 @@ import org.mdt.core.platform.render.FontRenderer
 import org.mdt.core.ui.unit.Color
 
 /**
- * ## InputNode [Text Input Virtual Node]
+ * ## InputNode
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Virtual DOM node rendering interactive single-line and multi-line text input fields.
+ * Handles selection boxes, horizontal scrolling, IME composition markers, and blinking cursor rendering.
  *
- * ### 1. Purpose
- * - Virtual DOM node rendering interactive single-line and multi-line text input fields.
- * - Handles selection boxes, horizontal scrolling, IME composition markers, and blinking cursor rendering.
+ * @property editState Underlying text editing state machine ([TextEditState]).
+ * @property placeholder Placeholder hint string displayed when text is empty.
+ * @property placeholderColor Fill color for placeholder text.
+ * @property textColor Text rendering color.
+ * @property cursorColor Caret vertical bar indicator color.
+ * @property selectionColor Highlight selection background box color.
+ * @property compositionColor Underline/highlight box color for active IME candidate text.
+ * @property font BMFont used for text rasterization and glyph measurement.
+ * @property isMultiline Whether multi-line text input and auto-wrapping are enabled.
  *
- * ### 2. Key Rules & Checklist
- * - [x] Query platform host for font, frame delta, and shift key status via [EngineRuntime.host].
- * - [x] Handle `Backspace` only in `onKeyDown`.
- * - [x] Double-click selects word; triple-click selects entire text.
- * - [x] Caret blinks every 0.32s when focused and pauses during active typing.
- * - [x] Push scissor clip before drawing selection/text/caret and pop immediately afterwards.
- *
- * ### 3. Related Files
- * - Composable UI: `src/main/kotlin/org/mdt/ui/components/input/TextField.kt`
- * - State Machine: `src/main/kotlin/org/mdt/core/ui/input/TextEditState.kt`
- * - Focus Coordinator: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
- * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
- * - Font Drawer: `src/main/kotlin/org/mdt/core/platform/render/FontRenderer.kt`
+ * @see LayoutNode
+ * @see TextEditState
+ * @see org.mdt.ui.components.input.TextField
+ * @see FontRenderer
  */
 open class InputNode : LayoutNode() {
 

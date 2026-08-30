@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.input
 
 import arc.input.KeyCode
@@ -38,23 +40,23 @@ enum class PointerEventType {
 // --- POINTER INPUT CHANGE ---
 
 /**
- * ## PointerInputChange [Pointer State Change]
+ * ## PointerInputChange
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Holds the state changes for a pointer (position, deltas, button states, scroll) in a frame.
+ * Tracks whether the event has been consumed by a UI node via [isConsumed].
  *
- * ### 1. Purpose
- * - Holds the state changes for a pointer (mouse/finger position, deltas, buttons, scroll) in a frame.
- * - Tracks whether the event has been consumed by a UI node via [isConsumed].
+ * @property id Pointer finger / mouse button identifier.
+ * @property uptimeMillis Timestamp of this state change in milliseconds.
+ * @property x Current pointer X coordinate in OpenGL screen pixels.
+ * @property y Current pointer Y coordinate in OpenGL screen pixels.
+ * @property prevX Pointer X coordinate in the previous frame.
+ * @property prevY Pointer Y coordinate in the previous frame.
+ * @property pressed Whether the pointer button/touch is currently down.
+ * @property scrollX Horizontal wheel scroll delta.
+ * @property scrollY Vertical wheel scroll delta.
  *
- * ### 2. Key Rules & Checklist
- * - [x] All positions and deltas use `Float` in OpenGL bottom-left screen coordinates (`y=0` bottom).
- * - [x] Calling `consume()` marks `isConsumed = true` to stop propagation.
- * - [x] `dx` and `dy` return `(x - prevX)` and `(y - prevY)` accurately.
- *
- * ### 3. Related Files
- * - Master Input Processor: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
- * - Virtual Node: `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
+ * @see PointerEvent
+ * @see EngineInputProcessor
  */
 class PointerInputChange(
     val id: Long = 0L,

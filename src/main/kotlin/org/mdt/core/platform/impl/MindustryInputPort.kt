@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.impl
 
 import arc.Core
@@ -7,22 +9,12 @@ import arc.util.Log
 import org.mdt.core.platform.port.InputPort
 
 /**
- * ## MindustryInputPort [Mindustry / Arc Input Implementation]
+ * ## MindustryInputPort
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Implements [InputPort] by bridging to Arc's `Core.input` and injecting a local [InputMultiplexer].
  *
- * ### 1. Purpose
- * - Implements [InputPort] by bridging to Arc's `Core.input` and injecting a local [InputMultiplexer].
- *
- * ### 2. Key Rules & Checklist
- * - [x] Injects [localMultiplexer] at index 0 of `Core.input.inputProcessors`.
- * - [x] Returns safe fallback values if `Core.input` is uninitialized.
- * - [x] Keep initialization flat and explicit without excessive inline scope functions.
- *
- * ### 3. Related Files
- * - Input Port: `src/main/kotlin/org/mdt/core/platform/port/InputPort.kt`
- * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
+ * @see InputPort
+ * @see org.mdt.core.platform.PlatformHost
  */
 class MindustryInputPort : InputPort {
 

@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.impl
 
 import arc.Core
@@ -8,22 +10,13 @@ import mindustry.ui.Fonts
 import org.mdt.core.platform.port.AssetPort
 
 /**
- * ## MindustryAssetPort [Mindustry / Arc Asset Implementation]
+ * ## MindustryAssetPort
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Implements [AssetPort] by resolving textures from `Core.atlas`, fonts from `mindustry.ui.Fonts`, and shader sources from classpath / mod tree.
+ * Caches static UI texture regions via [lazy] to avoid repeated hashmap lookups per frame/draw call.
  *
- * ### 1. Purpose
- * - Implements [AssetPort] by resolving textures from `Core.atlas`, fonts from `mindustry.ui.Fonts`, and shader texts from classpath / mod tree.
- * - Caches static UI texture regions ([cachedWhiteRegion], [cachedFallbackRegion]) via [lazy] to avoid repeated hashmap lookups per frame/draw call.
- *
- * ### 2. Key Rules & Checklist
- * - [x] `readShaderSource` automatically strips UTF-8 BOM (`\uFEFF`) to prevent GLSL syntax errors.
- * - [x] `resolveFallbackRegion` and `resolveWhiteRegion` return cached $O(1)$ references.
- *
- * ### 3. Related Files
- * - Asset Port: `src/main/kotlin/org/mdt/core/platform/port/AssetPort.kt`
- * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
+ * @see AssetPort
+ * @see org.mdt.core.platform.PlatformHost
  */
 class MindustryAssetPort : AssetPort {
 

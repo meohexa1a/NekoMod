@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.ime
 
 import arc.Core
@@ -7,25 +9,14 @@ import arc.util.Log
 import java.lang.reflect.Field
 
 /**
- * ## SdlReflectionImePort [SDL Reflection Proxy IME Bridge]
+ * ## SdlReflectionImePort
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Connects native SDL IME composition events to the UI engine using an in-memory Reflection proxy on `SdlInput.stringEditEvents`.
+ * Bypasses Arc Scene2D (`arc.scene.ui.TextField`) and avoids hijacking `Core.scene.keyboardFocus`.
+ * Routes IME composition candidates directly to the active text field while passing through events to Mindustry when idle.
  *
- * ### 1. Purpose
- * - Connects native SDL IME composition events to the UI engine using an in-memory Reflection proxy on `SdlInput.stringEditEvents`.
- * - Bypasses Arc Scene2D (`arc.scene.ui.TextField`) and avoids hijacking `Core.scene.keyboardFocus`.
- * - Routes IME composition candidates directly to the active NekoMod text field while passing through events to Mindustry when idle.
- *
- * ### 2. Key Rules & Checklist
- * - [x] Reflection fields (`stringEditEvents`, `EditEvent.text`) must be looked up once and cached.
- * - [x] Screen coordinates must be transformed from OpenGL bottom-left to SDL top-left before calling `SDL_SetTextInputRect`.
- * - [x] Logs platform/JNI failures via [Log.warn] or [Log.err] rather than swallowing errors silently.
- *
- * ### 3. Related Files
- * - IME Port: `src/main/kotlin/org/mdt/core/platform/ime/ImePort.kt`
- * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
- * - Input Processor: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
+ * @see ImePort
+ * @see PlatformHost
  */
 class SdlReflectionImePort : ImePort {
 

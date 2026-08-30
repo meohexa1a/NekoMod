@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.impl
 
 import arc.Core
@@ -8,22 +10,12 @@ import mindustry.game.EventType.ResizeEvent
 import org.mdt.core.platform.port.WindowPort
 
 /**
- * ## MindustryWindowPort [Mindustry / Arc Window Implementation]
+ * ## MindustryWindowPort
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Implements [WindowPort] by bridging to Arc's `Core.graphics` and Mindustry's `ResizeEvent`.
  *
- * ### 1. Purpose
- * - Implements [WindowPort] by bridging to Arc's `Core.graphics` and Mindustry's `ResizeEvent`.
- *
- * ### 2. Key Rules & Checklist
- * - [x] Resize listeners must be thread-safe ([CopyOnWriteArrayList]).
- * - [x] Fall back safely to `0.0f` if graphics context is uninitialized.
- * - [x] Keep initialization flat and explicit without excessive inline scope functions.
- *
- * ### 3. Related Files
- * - Window Port: `src/main/kotlin/org/mdt/core/platform/port/WindowPort.kt`
- * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
+ * @see WindowPort
+ * @see org.mdt.core.platform.PlatformHost
  */
 class MindustryWindowPort : WindowPort {
 

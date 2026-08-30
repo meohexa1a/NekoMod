@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.ui
 
 import androidx.compose.runtime.Composable
@@ -5,7 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.mdt.core.platform.render.blur.SceneBlur
+import org.mdt.core.platform.render.SceneBlur
 import org.mdt.core.ui.compose.Modifier
 import org.mdt.core.ui.compose.align
 import org.mdt.core.ui.compose.fillMaxSize

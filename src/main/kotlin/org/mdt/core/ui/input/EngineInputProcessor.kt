@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.input
 
 import arc.input.InputProcessor
@@ -8,27 +10,21 @@ import org.mdt.core.ui.node.InputNode
 import org.mdt.core.ui.node.UINode
 
 /**
- * ## EngineInputProcessor [Input Router & Focus Coordinator]
+ * ## EngineInputProcessor
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Routes pointer clicks, drags, hover state, wheel scrolling, and keyboard events into the virtual UI tree.
+ * Uses a 3-pass event pipeline: `INITIAL` (tunneling), `MAIN` (bubbling), and `FINAL` (cursor/hover update).
+ * Coordinates keyboard focus and OS IME sessions with [org.mdt.core.platform.PlatformHost].
  *
- * ### 1. Purpose
- * - Routes mouse clicks, drags, hovering, wheel scrolling, and keyboard events to the UI tree.
- * - Uses a 3-pass event pipeline: `INITIAL` (tunneling), `MAIN` (bubbling), and `FINAL` (cursor/hover update).
- * - Coordinates keyboard focus and OS IME sessions with [PlatformHost].
+ * @property canvas Target root virtual screen node ([CanvasNode]).
+ * @property hoveredNode Virtual node currently under the pointer cursor.
+ * @property pressedNode Virtual node currently receiving active pointer drag/press gestures.
+ * @property focusedNode Virtual node currently holding keyboard input focus.
  *
- * ### 2. Key Rules & Checklist
- * - [x] Reuses `hitPathBuffer` without allocating new lists on every touch/mouse event.
- * - [x] Returning `true` from `touchDown` consumes the event and blocks clicks from reaching the game.
- * - [x] Detects double-clicks accurately within the 280ms time window.
- * - [x] Updates mouse hover, triggers enter/exit events, and changes the system cursor.
- *
- * ### 3. Related Files
- * - Event Models: `src/main/kotlin/org/mdt/core/ui/input/InputEvents.kt`
- * - Root Screen Node: `src/main/kotlin/org/mdt/core/ui/node/CanvasNode.kt`
- * - Text Input Node: `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`
- * - Platform Bridge: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
+ * @see CanvasNode
+ * @see PointerEvent
+ * @see InputNode
+ * @see org.mdt.core.platform.PlatformHost
  */
 class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
 

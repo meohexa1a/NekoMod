@@ -1,25 +1,18 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.port
 
 import arc.graphics.g2d.Font
 import arc.graphics.g2d.TextureRegion
 
 /**
- * ## AssetPort [Asset & Resource Resolution Contract]
+ * ## AssetPort
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Defines the abstract contract for resolving sprite atlas regions, typography fonts, raw asset bytes, and shader sources.
+ * Includes a built-in [NoOp] stub for headless execution or unit testing.
  *
- * ### 1. Purpose
- * - Defines the abstract contract for resolving sprite atlas regions, typography fonts, raw asset bytes, and shader sources.
- * - Includes a built-in [NoOp] stub for headless execution or unit testing.
- *
- * ### 2. Key Rules & Checklist
- * - [x] `readShaderSource` automatically strips UTF-8 BOM (`\uFEFF`) to prevent GLSL compiler errors.
- * - [x] `resolveFallbackRegion` and `resolveWhiteRegion` must always return a non-null [TextureRegion].
- *
- * ### 3. Related Files
- * - Implementation: `src/main/kotlin/org/mdt/core/platform/impl/MindustryAssetPort.kt`
- * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
+ * @see org.mdt.core.platform.impl.MindustryAssetPort
+ * @see org.mdt.core.platform.PlatformHost
  */
 interface AssetPort {
 

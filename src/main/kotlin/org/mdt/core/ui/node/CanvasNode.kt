@@ -1,28 +1,22 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.node
 
 import org.mdt.core.ui.layout.GodotLayout
 import org.mdt.core.ui.layout.SizeFlags
 
 /**
- * ## CanvasNode [Root Screen Node]
+ * ## CanvasNode
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Root virtual DOM container representing the full display surface / viewport.
+ * Manages window resizing and drives multi-pass layout recalculation before rendering child nodes.
  *
- * ### 1. Purpose
- * - Root virtual DOM container representing the full game display surface / viewport.
- * - Manages window resizing and drives layout passes before rendering child nodes.
+ * @property screenWidth Current viewport width in pixels.
+ * @property screenHeight Current viewport height in pixels.
  *
- * ### 2. Key Rules & Checklist
- * - [x] Full screen bounds start at OpenGL bottom-left `(0, 0)` with width/height matching viewport pixels.
- * - [x] Capped to a maximum of 3 layout passes per frame to prevent infinite layout loops.
- * - [x] `resize(width, height)` updates `bounds`, `screenWidth`, and `screenHeight` and invalidates layout.
- *
- * ### 3. Related Files
- * - Runtime Orchestrator: `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
- * - Layout Engine: `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
- * - Input Processor: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
- * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
+ * @see UINode
+ * @see org.mdt.core.ui.EngineRuntime
+ * @see GodotLayout
  */
 class CanvasNode : UINode() {
 

@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.impl
 
 import arc.Core
@@ -11,22 +13,12 @@ import okio.Path.Companion.toPath
 import org.mdt.core.platform.port.SystemPort
 
 /**
- * ## MindustrySystemPort [Mindustry / Arc System Implementation]
+ * ## MindustrySystemPort
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Implements [SystemPort] by bridging to Arc's `Core.app`, `Core.settings`, and `Events.run(Trigger.uiDrawEnd)`.
  *
- * ### 1. Purpose
- * - Implements [SystemPort] by bridging to Arc's `Core.app`, `Core.settings`, and `Events.run(Trigger.uiDrawEnd)`.
- *
- * ### 2. Key Rules & Checklist
- * - [x] `frameEndListeners` must use thread-safe [CopyOnWriteArrayList].
- * - [x] Handles uninitialized `Core.app` safely without throwing null pointer exceptions.
- * - [x] Keep initialization flat and explicit without excessive inline scope functions.
- *
- * ### 3. Related Files
- * - System Port: `src/main/kotlin/org/mdt/core/platform/port/SystemPort.kt`
- * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
+ * @see SystemPort
+ * @see org.mdt.core.platform.PlatformHost
  */
 class MindustrySystemPort : SystemPort {
 
@@ -73,10 +65,7 @@ class MindustrySystemPort : SystemPort {
     }
 
     override fun setClipboard(text: String) {
-        val app = Core.app
-        if (app != null) {
-            app.clipboardText = text
-        }
+        Core.app?.clipboardText = text
     }
 
     override fun openURI(uri: String): Boolean {

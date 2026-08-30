@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.compose
 
 import androidx.compose.runtime.BroadcastFrameClock
@@ -12,23 +14,16 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * ## ComposePipeline [Compose Runtime Host]
+ * ## ComposePipeline
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Manages the Compose runtime lifecycle, including [Recomposer], [BroadcastFrameClock], and [CoroutineScope].
+ * Dispatches frame ticks to trigger UI recomposition during the engine render loop.
  *
- * ### 1. Purpose
- * - Manages the Compose runtime lifecycle, including [Recomposer], [BroadcastFrameClock], and [CoroutineScope].
- * - Dispatches frame ticks to trigger UI recomposition during the engine render loop.
+ * @property clock Broadcast frame clock driving compose recomposition passes.
+ * @property recomposer Compose recomposer instance executing recomposition jobs.
  *
- * ### 2. Key Rules & Checklist
- * - [x] Each pipeline instance owns an isolated coroutine scope that cancels cleanly on `dispose()`.
- * - [x] `frame()` dispatches pending snapshot state changes and sends frame times to the clock.
- * - [x] Snapshot write observers are registered safely only once per process.
- *
- * ### 3. Related Files
- * - Runtime Orchestrator: `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
- * - UI Composition: `src/main/kotlin/org/mdt/core/ui/compose/UIComposition.kt`
+ * @see org.mdt.core.ui.EngineRuntime
+ * @see UIComposition
  */
 class ComposePipeline {
     val clock = BroadcastFrameClock()

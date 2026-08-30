@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.node
 
 import arc.graphics.g2d.TextureRegion
@@ -10,25 +12,34 @@ import org.mdt.core.platform.render.UIBatch
 import org.mdt.core.ui.unit.Color
 
 /**
- * ## LayoutNode [Container & Scrolling Virtual Node]
+ * ## LayoutNode
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Core layout container node delegating sizing and layout to [MeasurePolicy] strategies ([BoxMeasurePolicy], [RowMeasurePolicy], etc.).
+ * Supports visual styling (background, border, corner radius, drop-shadow, frosted glass) and native 2D scrolling.
  *
- * ### 1. Purpose
- * - Main container node delegating sizing and layout to [MeasurePolicy] strategies.
- * - Handles background color, rounded corners, borders, textures, and frosted glass effects via [UIBatch].
- * - Supports built-in 2D scrolling, scissor clipping, and auto-fading scrollbars.
+ * @property measurePolicy Active measurement and layout strategy for arranging children.
+ * @property radius Corner radius in pixels for rounded SDF rendering.
+ * @property color Background fill color.
+ * @property borderWidth Outline border stroke width in pixels.
+ * @property borderColor Outline border stroke color.
+ * @property isGlass Whether Dual-Kawase frosted glass background blur sampling is active.
+ * @property region Texture region rendered inside container bounds.
+ * @property shadowRadius Drop-shadow blur radius in pixels.
+ * @property shadowColor Drop-shadow color and opacity.
+ * @property shadowOffsetX Horizontal drop-shadow offset in pixels.
+ * @property shadowOffsetY Vertical drop-shadow offset in pixels.
+ * @property scrollable Whether interactive 2D scrolling and viewport clipping are enabled.
+ * @property enableVerticalScroll Whether vertical scroll gesture is enabled.
+ * @property enableHorizontalScroll Whether horizontal scroll gesture is enabled.
+ * @property scrollX Current horizontal scroll offset in pixels.
+ * @property scrollY Current vertical scroll offset in pixels.
+ * @property maxScrollX Maximum horizontal scrollable overflow range in pixels.
+ * @property maxScrollY Maximum vertical scrollable overflow range in pixels.
  *
- * ### 2. Key Rules & Checklist
- * - [x] Zero performance overhead when `scrollable` is false.
- * - [x] Use OpenGL bottom-left origin for all scrolling, viewport, and scrollbar math.
- * - [x] `hitTest` rejects events outside the inner scissor clip area when scrollable.
- * - [x] Changing `measurePolicy` or scroll bounds must call `invalidateLayout()`.
- * ### 3. Related Files
- * - Composable Containers: `src/main/kotlin/org/mdt/ui/components/layout/Box.kt`
- * - Measure Policies: `src/main/kotlin/org/mdt/core/ui/layout/MeasurePolicy.kt`
- * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
+ * @see MeasurePolicy
+ * @see BoxMeasurePolicy
+ * @see UINode
+ * @see InputNode
  */
 open class LayoutNode : UINode() {
 
@@ -49,6 +60,12 @@ open class LayoutNode : UINode() {
     var borderColor: Color = Color.Clear
     var isGlass: Boolean = false
     var region: TextureRegion? = null
+
+    // Drop Shadow Properties
+    var shadowRadius: Float = 0.0f
+    var shadowColor: Color = Color.Clear
+    var shadowOffsetX: Float = 0.0f
+    var shadowOffsetY: Float = 0.0f
 
     // --- NATIVE SCROLLING & FLOATING SCROLLBAR STATE ---
 

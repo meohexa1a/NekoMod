@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 @file:Suppress("FunctionName", "unused")
 
 package org.mdt.ui.components.surface

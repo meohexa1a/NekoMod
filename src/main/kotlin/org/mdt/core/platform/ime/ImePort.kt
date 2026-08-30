@@ -1,25 +1,16 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.ime
 
 /**
- * ## ImePort [Platform IME Contract]
+ * ## ImePort
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Defines the platform-agnostic contract for native OS IME text composition sessions.
+ * Bridges text field focus and screen coordinates with operating system IME candidate windows.
+ * Includes a built-in [NoOp] implementation for headless servers, unit testing, or mock environments.
  *
- * ### 1. Purpose
- * - Defines the platform-agnostic contract for native OS IME text composition sessions.
- * - Bridges text field focus and screen coordinates with operating system IME candidate windows.
- * - Includes a built-in [NoOp] implementation for headless servers, unit testing, or mock environments.
- *
- * ### 2. Key Rules & Checklist
- * - [x] All screen coordinates and bounds must use `Float` with OpenGL bottom-left origin.
- * - [x] `startSession` must handle ongoing sessions gracefully and set active composition listeners.
- * - [x] `stopSession` clears active callbacks and requests the OS to hide the virtual keyboard / IME box.
- *
- * ### 3. Related Files
- * - Sdl Reflection Port: `src/main/kotlin/org/mdt/core/platform/ime/SdlReflectionImePort.kt`
- * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
- * - Input Processor: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
+ * @see SdlReflectionImePort
+ * @see PlatformHost
  */
 interface ImePort {
 

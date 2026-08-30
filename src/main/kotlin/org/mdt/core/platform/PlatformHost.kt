@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform
 
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -13,26 +15,23 @@ import org.mdt.core.platform.port.SystemPort
 import org.mdt.core.platform.port.WindowPort
 
 /**
- * ## PlatformHost [Platform Composite Facade & Isolation Contract]
+ * ## PlatformHost
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Master composite facade coordinating platform sub-ports ([window], [input], [assets], [system], and [ime]).
+ * Keeps UI and rendering layers 100% agnostic of specific game engines or native OS backends.
  *
- * ### 1. Purpose
- * - Master composite facade coordinating platform sub-ports ([window], [input], [assets], [system], and [ime]).
- * - Keeps UI and rendering layers 100% agnostic of specific game engines or OS backends.
+ * @property window Sub-port managing window sizing, resize listeners, and system cursor icons.
+ * @property input Sub-port managing pointer coordinates, modifier keys, and Arc input processors.
+ * @property assets Sub-port resolving textures, fonts, byte buffers, and shader texts.
+ * @property system Sub-port managing monotonic frame ticks, clipboard, data paths, and main-thread dispatches.
+ * @property ime Sub-port managing native on-screen/SDL Input Method Editor composition sessions.
  *
- * ### 2. Key Rules & Checklist
- * - [x] Composed purely of focused domain sub-ports without monolithic implementation bloat.
- * - [x] All sub-ports are accessible directly or through convenience facade delegations.
- *
- * ### 3. Related Files
- * - Composite Host: `src/main/kotlin/org/mdt/core/platform/MindustryPlatformHost.kt`
- * - Window Port: `src/main/kotlin/org/mdt/core/platform/port/WindowPort.kt`
- * - Input Port: `src/main/kotlin/org/mdt/core/platform/port/InputPort.kt`
- * - Asset Port: `src/main/kotlin/org/mdt/core/platform/port/AssetPort.kt`
- * - System Port: `src/main/kotlin/org/mdt/core/platform/port/SystemPort.kt`
- * - IME Port: `src/main/kotlin/org/mdt/core/platform/ime/ImePort.kt`
+ * @see MindustryPlatformHost
+ * @see WindowPort
+ * @see InputPort
+ * @see AssetPort
+ * @see SystemPort
+ * @see ImePort
  */
 interface PlatformHost {
 

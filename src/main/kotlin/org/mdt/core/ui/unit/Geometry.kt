@@ -1,23 +1,19 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.unit
 
 /**
- * ## Rect [2D Bounding Box]
+ * ## Rect
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Mutable 2D bounding box defined by `(x, y)` origin and `(width, height)` dimensions in OpenGL bottom-left screen coordinates.
  *
- * ### 1. Purpose
- * - Mutable 2D bounding box defined by `(x, y)` origin and `(width, height)` dimensions.
- * - Provides hit testing (`contains`) and collision detection (`intersects`).
+ * @property x Bottom-left X coordinate in pixels.
+ * @property y Bottom-left Y coordinate in pixels.
+ * @property width Rectangle width in pixels.
+ * @property height Rectangle height in pixels.
  *
- * ### 2. Key Rules & Checklist
- * - [x] All dimensions and coordinates must use `Float` with OpenGL bottom-left origin.
- * - [x] `contains()` performs inclusive boundary checks.
- * - [x] `intersects()` accurately tests overlapping AABB rectangles.
- *
- * ### 3. Related Files
- * - Virtual Node: `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
- * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
+ * @see Insets
+ * @see org.mdt.core.ui.node.UINode
  */
 data class Rect(
     var x: Float = 0.0f,

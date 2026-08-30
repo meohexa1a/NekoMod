@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.ui.node
 
 import arc.graphics.g2d.Font
@@ -7,25 +9,23 @@ import org.mdt.core.platform.render.FontRenderer
 import org.mdt.core.ui.unit.Color
 
 /**
- * ## TextNode [BMFont Text Virtual Node]
+ * ## TextNode
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Virtual DOM node that renders bitmap fonts (BMFont) using [FontRenderer] and [org.mdt.core.platform.render.UIBatch].
+ * Supports text wrapping, ellipsis truncation, alignment, and intrinsic text size measurements.
  *
- * ### 1. Purpose
- * - Virtual DOM node that renders bitmap fonts (BMFont) using [FontRenderer] and [org.mdt.core.platform.render.UIBatch].
- * - Supports text wrapping, ellipsis truncation, alignment, and intrinsic text size measurements.
+ * @param text Initial text string content.
  *
- * ### 2. Key Rules & Checklist
- * - [x] Draw bitmap fonts at integer scale (natural `scale = 1.0f`), avoiding fractional scaling.
- * - [x] Calculate vertical baseline correctly using OpenGL bottom-left coordinates.
- * - [x] Changing `text`, `font`, `wrap`, or `ellipsis` must trigger `invalidateLayout()`.
- * - [x] Pass container inner width during height calculation when `wrap = true`.
+ * @property text Current text string rendered by this node.
+ * @property textColor Text rendering color.
+ * @property font BMFont instance used for measurement and drawing.
+ * @property wrap Whether text should automatically wrap to multiple lines within available width.
+ * @property ellipsis Whether overflowing text should be truncated with an ellipsis (`...`).
+ * @property align Text alignment flag inside line bounds (e.g., `arc.util.Align.left`, `arc.util.Align.center`).
  *
- * ### 3. Related Files
- * - Composable UI: `src/main/kotlin/org/mdt/ui/components/text/Text.kt`
- * - Font Drawer: `src/main/kotlin/org/mdt/core/platform/render/FontRenderer.kt`
- * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
+ * @see LayoutNode
+ * @see FontRenderer
+ * @see org.mdt.ui.components.text.Text
  */
 open class TextNode(
     text: String = ""

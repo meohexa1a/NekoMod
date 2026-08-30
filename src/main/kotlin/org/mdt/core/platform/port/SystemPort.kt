@@ -1,25 +1,21 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.port
 
 import okio.Path
 import okio.Path.Companion.toPath
 
 /**
- * ## SystemPort [OS, Timing & Dispatch Contract]
+ * ## SystemPort
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Defines the abstract contract for frame timing, main thread dispatch, clipboard, URI opening, and data persistence paths.
+ * Includes a built-in [NoOp] stub for headless execution or unit testing.
  *
- * ### 1. Purpose
- * - Defines the abstract contract for frame timing, main thread dispatch, clipboard, URI opening, and data persistence paths.
- * - Includes a built-in [NoOp] stub for headless execution or unit testing.
+ * @property frameId Monotonically increasing frame counter for frame-indexing and caching.
+ * @property deltaTime Time elapsed between the previous frame and current frame in seconds.
  *
- * ### 2. Key Rules & Checklist
- * - [x] `frameId` must be monotonically increasing.
- * - [x] `deltaTime` must return a non-zero positive Float during active rendering.
- *
- * ### 3. Related Files
- * - Implementation: `src/main/kotlin/org/mdt/core/platform/impl/MindustrySystemPort.kt`
- * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
+ * @see org.mdt.core.platform.impl.MindustrySystemPort
+ * @see org.mdt.core.platform.PlatformHost
  */
 interface SystemPort {
 
