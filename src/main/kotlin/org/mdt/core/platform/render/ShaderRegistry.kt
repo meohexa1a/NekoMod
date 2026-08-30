@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.render
 
 import arc.graphics.gl.Shader
@@ -6,24 +8,17 @@ import arc.util.Log
 import org.mdt.core.ui.EngineRuntime
 
 /**
- * ## ShaderRegistry [GLSL Shader Manager & Registry]
+ * ## ShaderRegistry
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Compiles, caches, and disposes UI GLSL shaders ([uberShader] and [blurShader]).
+ * Configures shader uniforms for texture samplers (`u_atlas = 0`, `u_gameBlur = 2`).
  *
- * ### 1. Purpose
- * - Compiles, manages, and cleans up UI GLSL shaders ([uberShader] and [blurShader]).
- * - Configures shader uniforms for texture samplers (`u_atlas = 0`, `u_gameBlur = 2`).
+ * @property uberShader Master 2D Uber UI shader instance for rendering quads, SDF boxes, borders, and text glyphs.
+ * @property blurShader Dual-Kawase downsample/upsample shader instance for scene background blurring.
+ * @property isLoaded Whether shaders have been compiled and bound to the GPU context.
  *
- * ### 2. Key Rules & Checklist
- * - [x] Raw shader files must never declare manual `#version` or `#ifdef GL_ES` headers.
- * - [x] Shaders load lazily on first access via `ensure()`.
- * - [x] `dispose()` safely destroys GPU shader programs.
- *
- * ### 3. Related Files
- * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
- * - Scene Blur: `src/main/kotlin/org/mdt/core/platform/render/blur/SceneBlur.kt`
- * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
+ * @see UIBatch
+ * @see SceneBlur
  */
 object ShaderRegistry : Disposable {
 

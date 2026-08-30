@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.render
 
 import arc.graphics.g2d.Font
@@ -6,25 +8,14 @@ import arc.util.Align
 import org.mdt.core.ui.unit.Color
 
 /**
- * ## FontRenderer [BMFont Rasterizer & Measurement Engine]
+ * ## FontRenderer
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Emits bitmap font (BMFont) glyph quads directly into [UIBatch] for 1-Draw-Call GPU batch rendering.
+ * Measures text dimensions, performs multi-line text wrapping, and truncates text with ellipsis.
  *
- * ### 1. Purpose
- * - Emits bitmap font (BMFont) glyph quads directly into [UIBatch] for 1-Draw-Call rendering.
- * - Measures text dimensions, performs multi-line text wrapping, and truncates text with ellipsis.
- *
- * ### 2. Key Rules & Checklist
- * - [x] Draw BMFonts at integer scale (natural `1.0f`), avoiding fractional scaling.
- * - [x] `getPrefHeight` clamps height to at least one `font.lineHeight`.
- * - [x] `truncateWithEllipsis` truncates string and appends `...` within target width.
- * - [x] `draw` maps glyph coordinates and texture UVs into [UIBatch.drawGlyph].
- *
- * ### 3. Related Files
- * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
- * - Text Node: `src/main/kotlin/org/mdt/core/ui/node/TextNode.kt`
- * - Composable Text: `src/main/kotlin/org/mdt/ui/components/text/Text.kt`
+ * @see UIBatch
+ * @see org.mdt.core.ui.node.TextNode
+ * @see org.mdt.ui.components.text.Text
  */
 object FontRenderer {
 

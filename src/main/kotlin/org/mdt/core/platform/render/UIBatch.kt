@@ -1,3 +1,5 @@
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform.render
 
 import arc.graphics.Gl
@@ -9,33 +11,25 @@ import arc.graphics.g2d.TextureRegion
 import arc.math.Mat
 import arc.util.Disposable
 import java.nio.FloatBuffer
-import org.mdt.core.platform.render.blur.SceneBlur
 import org.mdt.core.ui.EngineRuntime
 import org.mdt.core.ui.unit.Color
 
 /**
- * ## UIBatch [Master 1-Draw-Call GPU UI Batch Renderer]
+ * ## UIBatch
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Master 1-Draw-Call GPU UI Batch Renderer.
+ * Batches text glyphs, rounded SDF boxes, borders, textures, and frosted glass into a single draw call.
+ * Streams 14-float vertex data into a pre-allocated mesh buffer and executes per-pixel analytical scissor clipping in shaders.
  *
- * ### 1. Purpose
- * - Batches text glyphs, rounded boxes, borders, textures, and frosted glass into a single draw call.
- * - Streams 14-float vertex data into a pre-allocated mesh buffer.
- * - Implements per-pixel analytical scissor clipping in shaders without hardware scissor changes.
+ * @property isDrawing Whether the batch is currently recording draw commands between [begin] and [end].
+ * @property totalQuads Total number of quads queued in the current frame batch.
+ * @property totalDrawCalls Total number of GPU draw calls dispatched in the current frame.
  *
- * ### 2. Key Rules & Checklist
- * - [x] All UI drawing operations between `begin()` and `end()` must be batched together.
- * - [x] Always bind textures with `Gl.activeTexture(Gl.texture0 + unit)` (never `Gl.texture2d + unit`).
- * - [x] All coordinates, dimensions, and shader uniform values must use `Float`.
- * - [x] `pushClip()` and `popClip()` manage analytical clip rects without breaking the batch.
- * - [x] `end()` renders the queued mesh and restores default OpenGL state.
- *
- * ### 3. Related Files
- * - Shader Registry: `src/main/kotlin/org/mdt/core/platform/render/ShaderRegistry.kt`
- * - Scene Blur: `src/main/kotlin/org/mdt/core/platform/render/blur/SceneBlur.kt`
- * - Font Renderer: `src/main/kotlin/org/mdt/core/platform/render/FontRenderer.kt`
- * - Virtual Nodes: `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/TextNode.kt`
+ * @see ShaderRegistry
+ * @see SceneBlur
+ * @see FontRenderer
+ * @see org.mdt.core.ui.node.LayoutNode
+ * @see org.mdt.core.ui.node.TextNode
  */
 object UIBatch : Disposable {
 

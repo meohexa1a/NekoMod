@@ -1,4 +1,6 @@
-package org.mdt.core.platform.render.blur
+﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
+package org.mdt.core.platform.render
 
 import arc.graphics.Gl
 import arc.graphics.Mesh
@@ -7,29 +9,21 @@ import arc.graphics.VertexAttribute
 import arc.graphics.gl.FrameBuffer
 import arc.util.Disposable
 import arc.util.Log
-import org.mdt.core.platform.render.ShaderRegistry
 import org.mdt.core.ui.EngineRuntime
 
 /**
- * ## SceneBlur [Dual-Kawase Scene Blur Pipeline & Coordinator]
+ * ## SceneBlur
  *
- * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
- * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+ * Executes real-time background blur captures using the 5-pass Dual-Kawase pyramid downsample/upsample algorithm.
+ * Coordinates frame deduplication and interval throttling (~33ms / 30 FPS) to eliminate GPU fillrate bottlenecks.
+ * Directly manages OpenGL FBOs and quad rasterization without unnecessary intermediate abstraction layers.
  *
- * ### 1. Purpose
- * - Executes real-time background blur captures using the 5-pass Dual-Kawase pyramid downsample/upsample algorithm.
- * - Coordinates frame deduplication and interval throttling (~33ms / 30 FPS) to eliminate GPU fillrate bottlenecks.
- * - Directly manages OpenGL FBOs and quad rasterization without unnecessary abstraction layers.
+ * @property isEnabled Master toggle for background blur rendering.
+ * @property updateIntervalMs Refresh throttle in milliseconds (~33ms = 30 FPS update rate).
+ * @property blurRadius Blur spread radius multiplier for upsampling passes.
  *
- * ### 2. Key Rules & Checklist
- * - [x] Guarded by monotonic `frameId` to run at most once per frame or throttle interval.
- * - [x] Always bind textures with `Gl.activeTexture(Gl.texture0 + unit)` (never `Gl.texture2d + unit`).
- * - [x] Automatically disposes and recreates scratch framebuffers on viewport resize.
- * - [x] Log any shader or framebuffer creation errors via platform logger.
- *
- * ### 3. Related Files
- * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
- * - Shader Registry: `src/main/kotlin/org/mdt/core/platform/render/ShaderRegistry.kt`
+ * @see UIBatch
+ * @see ShaderRegistry
  */
 object SceneBlur : Disposable {
 
