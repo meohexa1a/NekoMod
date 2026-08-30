@@ -3,37 +3,42 @@
 package org.mdt.core.ui.compose
 
 import arc.graphics.g2d.TextureRegion
+import org.mdt.core.ui.input.KeyEvent
 import org.mdt.core.ui.input.PointerEvent
+import org.mdt.core.ui.input.PointerEventPass
+import org.mdt.core.ui.input.PointerEventType
+import org.mdt.core.ui.input.PointerInputFilter
 import org.mdt.core.ui.input.ScrollEvent
+import org.mdt.core.ui.layout.Alignment
+import org.mdt.core.ui.layout.HorizontalAlign
 import org.mdt.core.ui.layout.LayoutPreset
 import org.mdt.core.ui.layout.SizeFlags
+import org.mdt.core.ui.layout.VerticalAlign
 import org.mdt.core.ui.node.HitTestBehavior
 import org.mdt.core.ui.node.LayoutNode
 import org.mdt.core.ui.node.UINode
 import org.mdt.core.ui.unit.Color
 
 /**
- * ## UIModifier [Modifier Specification & Chain Protocol]
+ * ## UIModifier [Modifier Chain & Styling Protocol]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Immutable, type-safe modifier sequence representing layout constraints, visual styles, and input listeners.
- * - Applies configured properties directly onto virtual [UINode] instances during composition passes.
- * - Optimized with typed modifier elements and a flattened [ModifierChain] array to eliminate binary tree recursion,
- *   achieving high L1 CPU cache locality and instant Compose recomposition skipping via value-based equality.
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Zero-GC / Value-Based Equality):** All atomic modifier elements must be `data class` implementing [UIModifier.Element].
- * - **Rule 2 (Flat Chaining):** `then()` automatically flattens nested chains into a single contiguous array.
+ * ### 1. Purpose
+ * - Defines an immutable chain of layout constraints, visual styles, and input listeners.
+ * - Applies configured properties onto virtual [UINode] instances during composition.
+ * - Uses flat arrays (`ModifierChain`) and `data class` elements for zero-GC recomposition skipping.
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - 🌲 **Target Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
- * - 🎨 **Composable Components:** `src/main/kotlin/org/mdt/ui/components/surface/Card.kt`, `src/main/kotlin/org/mdt/ui/components/input/TextField.kt`
- * - 📐 **Layout Engine:** `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
+ * ### 2. Key Rules & Checklist
+ * - [x] All atomic modifier elements must be `data class` implementing [UIModifier.Element].
+ * - [x] `then()` flattens nested chains into a single flat array without binary tree nesting.
+ * - [x] Chaining with `UIModifier.None` returns the other operand without allocating.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] Chaining with `UIModifier.None` returns the opposite operand without allocating.
- * - [x] `ModifierChain.concat` unrolls elements into an indexed array of length $N$.
- * - [x] Equals and hashCode support structural array equality for smart Compose recomposition skipping.
+ * ### 3. Related Files
+ * - Target Virtual Node: `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
+ * - Layout Engine: `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
+ * - Components: `src/main/kotlin/org/mdt/ui/components/surface/Card.kt`
  */
 interface UIModifier {
 
@@ -176,40 +181,79 @@ data class WeightModifier(val ratio: Float) : UIModifier.Element {
     }
 }
 
+data class BoxAlignModifier(val alignment: Alignment) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        when (alignment.horizontal) {
+            HorizontalAlign.START -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal = SizeFlags.SHRINK_BEGIN
+            HorizontalAlign.CENTER -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal = SizeFlags.SHRINK_CENTER
+            HorizontalAlign.END -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal = SizeFlags.SHRINK_END
+            HorizontalAlign.FILL -> node.sizeFlagsHorizontal = SizeFlags.FILL
+        }
+        when (alignment.vertical) {
+            VerticalAlign.TOP -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical = SizeFlags.SHRINK_BEGIN
+            VerticalAlign.CENTER -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical = SizeFlags.SHRINK_CENTER
+            VerticalAlign.BOTTOM -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical = SizeFlags.SHRINK_END
+            VerticalAlign.FILL -> node.sizeFlagsVertical = SizeFlags.FILL
+        }
+    }
+}
+
+data class RowAlignModifier(val alignment: VerticalAlign) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        when (alignment) {
+            VerticalAlign.TOP -> node.sizeFlagsVertical = SizeFlags.SHRINK_BEGIN
+            VerticalAlign.CENTER -> node.sizeFlagsVertical = SizeFlags.SHRINK_CENTER
+            VerticalAlign.BOTTOM -> node.sizeFlagsVertical = SizeFlags.SHRINK_END
+            VerticalAlign.FILL -> node.sizeFlagsVertical = SizeFlags.FILL
+        }
+    }
+}
+
+data class ColumnAlignModifier(val alignment: HorizontalAlign) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        when (alignment) {
+            HorizontalAlign.START -> node.sizeFlagsHorizontal = SizeFlags.SHRINK_BEGIN
+            HorizontalAlign.CENTER -> node.sizeFlagsHorizontal = SizeFlags.SHRINK_CENTER
+            HorizontalAlign.END -> node.sizeFlagsHorizontal = SizeFlags.SHRINK_END
+            HorizontalAlign.FILL -> node.sizeFlagsHorizontal = SizeFlags.FILL
+        }
+    }
+}
+
 data class AnchorPresetModifier(val preset: LayoutPreset) : UIModifier.Element {
     override fun applyTo(node: UINode) = node.anchorData.setPreset(preset)
 }
 
 data class BackgroundModifier(val color: Color) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        (node as? LayoutNode)?.color = color
+        if (node is LayoutNode) node.color = color
     }
 }
 
 data class RadiusModifier(val radius: Float) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        (node as? LayoutNode)?.radius = radius
+        if (node is LayoutNode) node.radius = radius
     }
 }
 
 data class BorderModifier(val width: Float, val color: Color) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        (node as? LayoutNode)?.let {
-            it.borderWidth = width
-            it.borderColor = color
+        if (node is LayoutNode) {
+            node.borderWidth = width
+            node.borderColor = color
         }
     }
 }
 
 data class GlassModifier(val isGlass: Boolean = true) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        (node as? LayoutNode)?.isGlass = isGlass
+        if (node is LayoutNode) node.isGlass = isGlass
     }
 }
 
 data class TextureModifier(val region: TextureRegion) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        (node as? LayoutNode)?.region = region
+        if (node is LayoutNode) node.region = region
     }
 }
 
@@ -231,24 +275,47 @@ data class HitTestBehaviorModifier(val behavior: HitTestBehavior) : UIModifier.E
     }
 }
 
+data class PointerInputModifier(val filter: PointerInputFilter) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        node.addPointerFilter(filter)
+    }
+}
+
 data class ClickableModifier(
     val onClick: () -> Unit,
     val onPressStateChanged: ((Boolean) -> Unit)? = null
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
+        // onClick is kept on the node so EngineInputProcessor handles click/double-click timing.
         node.onClick = onClick
         node.hitTestBehavior = HitTestBehavior.OPAQUE
+
+        // The filter is only responsible for press/release animation state feedback.
         if (onPressStateChanged != null) {
-            val prevDown = node.onPointerDown
-            val prevUp = node.onPointerUp
-            node.onPointerDown = {
-                prevDown?.invoke(it)
-                onPressStateChanged.invoke(true)
+            val filter = object : PointerInputFilter {
+                private var isPressedInside = false
+
+                override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
+                    if (pass == PointerEventPass.MAIN) {
+                        when (event.type) {
+                            PointerEventType.Press -> {
+                                if (!event.isConsumed && node.bounds.contains(event.x, event.y)) {
+                                    isPressedInside = true
+                                    onPressStateChanged.invoke(true)
+                                }
+                            }
+                            PointerEventType.Release, PointerEventType.Cancel -> {
+                                if (isPressedInside) {
+                                    isPressedInside = false
+                                    onPressStateChanged.invoke(false)
+                                }
+                            }
+                            else -> {}
+                        }
+                    }
+                }
             }
-            node.onPointerUp = {
-                prevUp?.invoke(it)
-                onPressStateChanged.invoke(false)
-            }
+            node.addPointerFilter(filter)
         }
     }
 }
@@ -263,30 +330,147 @@ data class DoubleClickModifier(val onDoubleClick: () -> Unit) : UIModifier.Eleme
 data class HoverableModifier(val onHover: (Boolean) -> Unit) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         node.onHover = onHover
+        val filter = object : PointerInputFilter {
+            private var wasHovered = false
+
+            override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
+                if (pass == PointerEventPass.FINAL) {
+                    val isInside = node.bounds.contains(event.x, event.y)
+                    if (isInside != wasHovered) {
+                        wasHovered = isInside
+                        onHover(isInside)
+                    }
+                }
+            }
+        }
+        node.addPointerFilter(filter)
+    }
+}
+
+data class DraggableModifier(
+    val onDragStart: ((Float, Float) -> Unit)? = null,
+    val onDrag: (dx: Float, dy: Float) -> Unit,
+    val onDragEnd: (() -> Unit)? = null,
+    val onDragCancel: (() -> Unit)? = null,
+    val touchSlop: Float = 4.0f
+) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        node.hitTestBehavior = HitTestBehavior.OPAQUE
+        val filter = object : PointerInputFilter {
+            private var isDragging = false
+            private var startX = 0.0f
+            private var startY = 0.0f
+            private var totalDx = 0.0f
+            private var totalDy = 0.0f
+
+            override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
+                if (pass == PointerEventPass.MAIN) {
+                    when (event.type) {
+                        PointerEventType.Press -> {
+                            if (!event.isConsumed && node.bounds.contains(event.x, event.y)) {
+                                startX = event.x
+                                startY = event.y
+                                totalDx = 0.0f
+                                totalDy = 0.0f
+                                isDragging = false
+                            }
+                        }
+                        PointerEventType.Drag -> {
+                            if (startX != 0.0f || startY != 0.0f) {
+                                totalDx += event.dx
+                                totalDy += event.dy
+                                val distSq = totalDx * totalDx + totalDy * totalDy
+                                if (!isDragging && distSq >= touchSlop * touchSlop) {
+                                    isDragging = true
+                                    onDragStart?.invoke(startX, startY)
+                                }
+                                if (isDragging) {
+                                    onDrag(event.dx, event.dy)
+                                    event.consume()
+                                }
+                            }
+                        }
+                        PointerEventType.Release -> {
+                            if (isDragging) {
+                                isDragging = false
+                                onDragEnd?.invoke()
+                                event.consume()
+                            }
+                            startX = 0.0f
+                            startY = 0.0f
+                        }
+                        PointerEventType.Cancel -> {
+                            if (isDragging) {
+                                isDragging = false
+                                onDragCancel?.invoke()
+                            }
+                            startX = 0.0f
+                            startY = 0.0f
+                        }
+                        else -> {}
+                    }
+                }
+            }
+        }
+        node.addPointerFilter(filter)
     }
 }
 
 data class PointerDownModifier(val onDown: (PointerEvent) -> Unit) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         node.onPointerDown = onDown
+        val filter = object : PointerInputFilter {
+            override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
+                if (pass == PointerEventPass.MAIN && event.type == PointerEventType.Press && node.bounds.contains(event.x, event.y)) {
+                    onDown(event)
+                }
+            }
+        }
+        node.addPointerFilter(filter)
     }
 }
 
 data class PointerUpModifier(val onUp: (PointerEvent) -> Unit) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         node.onPointerUp = onUp
+        val filter = object : PointerInputFilter {
+            override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
+                if (pass == PointerEventPass.MAIN && event.type == PointerEventType.Release && node.bounds.contains(event.x, event.y)) {
+                    onUp(event)
+                }
+            }
+        }
+        node.addPointerFilter(filter)
     }
 }
 
 data class PointerDragModifier(val onDrag: (PointerEvent) -> Unit) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         node.onPointerDrag = onDrag
+        val filter = object : PointerInputFilter {
+            override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
+                if (pass == PointerEventPass.MAIN && event.type == PointerEventType.Drag) {
+                    onDrag(event)
+                }
+            }
+        }
+        node.addPointerFilter(filter)
     }
 }
 
 data class ScrollModifier(val onScroll: (ScrollEvent) -> Unit) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         node.onScroll = onScroll
+        val filter = object : PointerInputFilter {
+            override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
+                if (pass == PointerEventPass.MAIN && event.type == PointerEventType.Scroll) {
+                    val scrollEvt = ScrollEvent(event.scrollX, event.scrollY)
+                    onScroll(scrollEvt)
+                    if (scrollEvt.isConsumed) event.consume()
+                }
+            }
+        }
+        node.addPointerFilter(filter)
     }
 }
 
@@ -399,8 +583,11 @@ fun UIModifier.expand(horizontal: Boolean = true, vertical: Boolean = true, rati
 fun UIModifier.weight(ratio: Float): UIModifier = then(WeightModifier(ratio))
 fun UIModifier.weight(ratio: Int): UIModifier = weight(ratio.toFloat())
 
-// 6. Anchors
+// 6. Anchors & Alignment
 fun UIModifier.anchor(preset: LayoutPreset): UIModifier = then(AnchorPresetModifier(preset))
+fun UIModifier.align(alignment: Alignment): UIModifier = then(BoxAlignModifier(alignment))
+fun UIModifier.align(alignment: VerticalAlign): UIModifier = then(RowAlignModifier(alignment))
+fun UIModifier.align(alignment: HorizontalAlign): UIModifier = then(ColumnAlignModifier(alignment))
 
 // 7. Visual Styles & Colors
 fun UIModifier.background(color: Color): UIModifier = then(BackgroundModifier(color))
@@ -433,6 +620,23 @@ fun UIModifier.onDoubleClick(block: () -> Unit): UIModifier = then(DoubleClickMo
 fun UIModifier.hoverable(onHover: (Boolean) -> Unit): UIModifier = then(HoverableModifier(onHover))
 fun UIModifier.onHover(block: (Boolean) -> Unit): UIModifier = hoverable(block)
 
+fun UIModifier.pointerInput(filter: PointerInputFilter): UIModifier = then(PointerInputModifier(filter))
+fun UIModifier.draggable(
+    onDragStart: ((Float, Float) -> Unit)? = null,
+    onDragEnd: (() -> Unit)? = null,
+    onDragCancel: (() -> Unit)? = null,
+    touchSlop: Float = 4.0f,
+    onDrag: (dx: Float, dy: Float) -> Unit
+): UIModifier = then(
+    DraggableModifier(
+        onDragStart = onDragStart,
+        onDrag = onDrag,
+        onDragEnd = onDragEnd,
+        onDragCancel = onDragCancel,
+        touchSlop = touchSlop
+    )
+)
+
 fun UIModifier.onPointerDown(block: (PointerEvent) -> Unit): UIModifier = then(PointerDownModifier(block))
 fun UIModifier.onPointerUp(block: (PointerEvent) -> Unit): UIModifier = then(PointerUpModifier(block))
 fun UIModifier.onPointerDrag(block: (PointerEvent) -> Unit): UIModifier = then(PointerDragModifier(block))
@@ -461,18 +665,18 @@ data class ScrollableModifier(
     val scrollSpeed: Float? = null
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        (node as? LayoutNode)?.let {
-            it.scrollable = scrollable
-            it.enableVerticalScroll = enableVertical
-            it.enableHorizontalScroll = enableHorizontal
-            if (thumbColor != null) it.scrollbarThumbColor = thumbColor
-            if (trackColor != null) it.scrollbarTrackColor = trackColor
-            if (thickness != null) it.scrollbarThickness = thickness
-            if (radius != null) it.scrollbarRadius = radius
-            if (autoHide != null) it.scrollbarAutoHide = autoHide
-            if (idleTimeoutMs != null) it.scrollbarIdleTimeoutMs = idleTimeoutMs
-            if (fadeDurationMs != null) it.scrollbarFadeDurationMs = fadeDurationMs
-            if (scrollSpeed != null) it.scrollSpeed = scrollSpeed
+        if (node is LayoutNode) {
+            node.scrollable = scrollable
+            node.enableVerticalScroll = enableVertical
+            node.enableHorizontalScroll = enableHorizontal
+            if (thumbColor != null) node.scrollbarThumbColor = thumbColor
+            if (trackColor != null) node.scrollbarTrackColor = trackColor
+            if (thickness != null) node.scrollbarThickness = thickness
+            if (radius != null) node.scrollbarRadius = radius
+            if (autoHide != null) node.scrollbarAutoHide = autoHide
+            if (idleTimeoutMs != null) node.scrollbarIdleTimeoutMs = idleTimeoutMs
+            if (fadeDurationMs != null) node.scrollbarFadeDurationMs = fadeDurationMs
+            if (scrollSpeed != null) node.scrollSpeed = scrollSpeed
         }
     }
 }

@@ -6,25 +6,22 @@ import org.mdt.core.ui.node.UINode
 /**
  * ## NodeApplier [Compose Applier Bridge]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Direct custom [AbstractApplier] bridging the Jetpack Compose Runtime slot table to the [UINode] Virtual DOM tree.
- * - Handles top-down node insertions (`insertTopDown`), tree mutations (`move`, `remove`), and structural clearings (`onClear`).
- * - Dispatches node attach/detach lifecycle hooks automatically during tree tree alterations.
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Top-Down Construction):** Node children must be inserted top-down so parent context is established before child layout calculation.
- * - **Rule 2 (Zero-GC Safe Index Clamping):** Removals and moves must respect current children list bounds.
+ * ### 1. Purpose
+ * - Connects the Compose runtime tree operations directly to the [UINode] tree.
+ * - Handles inserting, moving, removing, and clearing virtual nodes during recomposition.
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - 🌲 **Base Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
- * - 🔄 **Composition Host:** `src/main/kotlin/org/mdt/core/ui/compose/UIComposition.kt`
- * - ⚙️ **Runtime Orchestrator:** `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
+ * ### 2. Key Rules & Checklist
+ * - [x] Nodes must be inserted top-down so parent references exist before children layout.
+ * - [x] `remove` safely checks bounds to prevent index out-of-bounds errors.
+ * - [x] `onClear` resets and clears all children from the root node.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] `insertTopDown` invokes `current.addChildAt(index, instance)`.
- * - [x] `remove` safely removes `count` nodes without index out-of-bounds errors.
- * - [x] `move` invokes `current.moveChild(from, to, count)`.
- * - [x] `onClear` invokes `current.clearChildren()`.
+ * ### 3. Related Files
+ * - Base Virtual Node: `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
+ * - Composition Host: `src/main/kotlin/org/mdt/core/ui/compose/UIComposition.kt`
+ * - Runtime Orchestrator: `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
  */
 class NodeApplier(root: UINode) : AbstractApplier<UINode>(root) {
 
