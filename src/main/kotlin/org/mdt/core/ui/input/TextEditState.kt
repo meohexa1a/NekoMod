@@ -4,31 +4,27 @@ import arc.input.KeyCode
 import org.mdt.core.ui.EngineRuntime
 
 /**
- * ## TextEditState [Headless Text Editing State Machine]
+ * ## TextEditState [Text Editing State Machine]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Headless string manipulation state machine managing interactive text editing across UI components.
- * - Handles text insertion, deletion, backspace, selection ranges (`selectionStart`..`cursor`), and word/line boundaries.
- * - Maintains active IME composition candidate buffers (`compositionText`) and computes effective cursor positions.
- * - Manages caret blink timer cycles (0.32s interval) with auto-reset on typing or navigation.
- * - Bridges to OS clipboard (`copy`, `cut`, `paste`) exclusively via [EngineRuntime.host].
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Zero Platform Bypass):** Clipboard operations and modifier keys (Ctrl, Shift) MUST route through [EngineRuntime.host].
- * - **Rule 2 (IME Double-Backspace Protection):** `onKeyTyped` strictly ignores `\b` (characters $< 32$) to prevent double-deletion. Backspace is handled exclusively in `onKeyDown`.
+ * ### 1. Purpose
+ * - Manages cursor movement, text selection, typing, clipboard actions, and IME composition for text fields.
+ * - Controls caret blinking timers and keyboard shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X).
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - 🌲 **Target Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`
- * - 🎮 **Focus Coordinator:** `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
- * - 🎨 **Composable UI:** `src/main/kotlin/org/mdt/ui/components/input/TextField.kt`
- * - 🔌 **Platform Host:** `src/main/kotlin/org/mdt/core/engine/PlatformHost.kt`
+ * ### 2. Key Rules & Checklist
+ * - [x] All clipboard operations and modifier checks (Ctrl, Shift) must go through [EngineRuntime.host].
+ * - [x] Handle `Backspace` only in `onKeyDown`; ignore `\b` in `onKeyTyped` to avoid double-deletion bugs in IME.
+ * - [x] `selectAll()` sets selection across the whole text length (`0..text.length`).
+ * - [x] `backspace()` / `delete()` removes selected text first if a selection exists.
+ * - [x] Caret blink timer resets immediately when typing or moving cursor.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] `insert(Char)` filters non-printable control characters except `\t` and `\n` (in multiline mode).
- * - [x] `backspace()` and `delete()` delete active selection if present, else delete single adjacent character.
- * - [x] `selectAll()` sets selection from 0 to `text.length`.
- * - [x] `selectWordAt(index)` expands selection to whitespace boundaries.
- * - [x] Shortcut keys (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X) execute corresponding clipboard/selection actions.
+ * ### 3. Related Files
+ * - Text Input Node: `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`
+ * - Focus Coordinator: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
+ * - Text Field UI: `src/main/kotlin/org/mdt/ui/components/input/TextField.kt`
+ * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
  */
 class TextEditState(
     var onTextChange: ((String) -> Unit)? = null
@@ -88,13 +84,13 @@ class TextEditState(
     }
 
     fun setText(newText: String, newCursor: Int = -1) {
-        if (text != newText || newCursor != -1) {
-            text = newText
-            cursor = if (newCursor >= 0) newCursor.coerceIn(0, text.length) else cursor.coerceIn(0, text.length)
-            selectionStart = -1
-            compositionText = ""
-            resetBlink()
-        }
+        if (text == newText && newCursor == -1) return
+
+        text = newText
+        cursor = if (newCursor >= 0) newCursor.coerceIn(0, text.length) else cursor.coerceIn(0, text.length)
+        selectionStart = -1
+        compositionText = ""
+        resetBlink()
     }
 
     fun resetBlink() {
@@ -227,15 +223,17 @@ class TextEditState(
     // --- CURSOR NAVIGATION ---
 
     fun moveLeft(extendSelection: Boolean = false) {
-        if (extendSelection) {
-            if (selectionStart == -1) selectionStart = cursor
-            cursor = (cursor - 1).coerceAtLeast(0)
-        } else {
-            if (hasSelection()) {
-                val range = getSelectionRange()!!
+        when {
+            extendSelection -> {
+                if (selectionStart == -1) selectionStart = cursor
+                cursor = (cursor - 1).coerceAtLeast(0)
+            }
+            hasSelection() -> {
+                val range = getSelectionRange() ?: return
                 cursor = range.first
                 selectionStart = -1
-            } else {
+            }
+            else -> {
                 cursor = (cursor - 1).coerceAtLeast(0)
             }
         }
@@ -243,15 +241,17 @@ class TextEditState(
     }
 
     fun moveRight(extendSelection: Boolean = false) {
-        if (extendSelection) {
-            if (selectionStart == -1) selectionStart = cursor
-            cursor = (cursor + 1).coerceAtMost(text.length)
-        } else {
-            if (hasSelection()) {
-                val range = getSelectionRange()!!
+        when {
+            extendSelection -> {
+                if (selectionStart == -1) selectionStart = cursor
+                cursor = (cursor + 1).coerceAtMost(text.length)
+            }
+            hasSelection() -> {
+                val range = getSelectionRange() ?: return
                 cursor = range.second
                 selectionStart = -1
-            } else {
+            }
+            else -> {
                 cursor = (cursor + 1).coerceAtMost(text.length)
             }
         }
@@ -259,20 +259,18 @@ class TextEditState(
     }
 
     fun moveToStart(extendSelection: Boolean = false) {
-        if (extendSelection) {
-            if (selectionStart == -1) selectionStart = cursor
-        } else {
-            selectionStart = -1
+        when {
+            extendSelection -> if (selectionStart == -1) selectionStart = cursor
+            else -> selectionStart = -1
         }
         cursor = 0
         resetBlink()
     }
 
     fun moveToEnd(extendSelection: Boolean = false) {
-        if (extendSelection) {
-            if (selectionStart == -1) selectionStart = cursor
-        } else {
-            selectionStart = -1
+        when {
+            extendSelection -> if (selectionStart == -1) selectionStart = cursor
+            else -> selectionStart = -1
         }
         cursor = text.length
         resetBlink()
@@ -280,10 +278,9 @@ class TextEditState(
 
     fun moveCursor(index: Int, extendSelection: Boolean = false) {
         val clampedIndex = index.coerceIn(0, text.length)
-        if (extendSelection) {
-            if (selectionStart == -1) selectionStart = cursor
-        } else {
-            selectionStart = -1
+        when {
+            extendSelection -> if (selectionStart == -1) selectionStart = cursor
+            else -> selectionStart = -1
         }
         cursor = clampedIndex
         resetBlink()
@@ -322,11 +319,11 @@ class TextEditState(
     fun onKeyTyped(character: Char): Boolean {
         if (!isFocused) return false
 
-        if (character >= ' ' || character == '\t' || (isMultiline && character == '\n')) {
-            insert(character)
-            return true
-        }
-        return false
+        val isPrintable = character >= ' ' || character == '\t' || (isMultiline && character == '\n')
+        if (!isPrintable) return false
+
+        insert(character)
+        return true
     }
 
     fun onKeyDown(key: KeyCode): Boolean {
@@ -338,15 +335,57 @@ class TextEditState(
         return when (key) {
             KeyCode.backspace -> backspace()
             KeyCode.del -> delete()
-            KeyCode.enter -> if (isMultiline) { insert('\n'); true } else false
-            KeyCode.left -> { moveLeft(isShift); true }
-            KeyCode.right -> { moveRight(isShift); true }
-            KeyCode.home -> { moveToStart(isShift); true }
-            KeyCode.end -> { moveToEnd(isShift); true }
-            KeyCode.a -> if (isCtrl) { selectAll(); true } else false
-            KeyCode.c -> if (isCtrl) { copy(); true } else false
-            KeyCode.v -> if (isCtrl) { paste(); true } else false
-            KeyCode.x -> if (isCtrl) { cut(); true } else false
+            KeyCode.enter -> when {
+                isMultiline -> {
+                    insert('\n')
+                    true
+                }
+                else -> false
+            }
+            KeyCode.left -> {
+                moveLeft(isShift)
+                true
+            }
+            KeyCode.right -> {
+                moveRight(isShift)
+                true
+            }
+            KeyCode.home -> {
+                moveToStart(isShift)
+                true
+            }
+            KeyCode.end -> {
+                moveToEnd(isShift)
+                true
+            }
+            KeyCode.a -> when {
+                isCtrl -> {
+                    selectAll()
+                    true
+                }
+                else -> false
+            }
+            KeyCode.c -> when {
+                isCtrl -> {
+                    copy()
+                    true
+                }
+                else -> false
+            }
+            KeyCode.v -> when {
+                isCtrl -> {
+                    paste()
+                    true
+                }
+                else -> false
+            }
+            KeyCode.x -> when {
+                isCtrl -> {
+                    cut()
+                    true
+                }
+                else -> false
+            }
             else -> false
         }
     }

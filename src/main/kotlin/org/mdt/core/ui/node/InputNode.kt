@@ -6,40 +6,33 @@ import org.mdt.core.ui.EngineRuntime
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.TextEditState
 import org.mdt.core.ui.layout.SizeFlags
-import org.mdt.core.ui.render.UIBatch
-import org.mdt.core.ui.render.UIFontDrawer
+import org.mdt.core.platform.render.UIBatch
+import org.mdt.core.platform.render.FontRenderer
 import org.mdt.core.ui.unit.Color
 
 /**
- * ## InputNode [Virtual DOM Interactive Text Input Node]
+ * ## InputNode [Text Input Virtual Node]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Primitive Virtual DOM node providing high-performance interactive single-line & multi-line text editing.
- * - Coordinates seamlessly with [EngineInputProcessor] and [org.mdt.core.engine.PlatformHost] for OS Native IME candidate positioning.
- * - Handles horizontal viewport scrolling for single-line inputs with analytical scissor clipping.
- * - Renders selection highlight quads, pre-edit composition buffers, text glyphs, and blinking caret via 1-Draw-Call [UIBatch].
- * - Unstyled by default (zero default background or border styling).
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Zero Platform Bypass):** Frame delta, shift key state, cursor, and fonts MUST be resolved through [EngineRuntime.host].
- * - **Rule 2 (IME Double-Backspace Protection):** Backspace is processed only in `onKeyDown`.
- * - **Rule 3 (OpenGL Bottom-Left Math):** Caret and selection quads align to baseline in bottom-left coordinates.
+ * ### 1. Purpose
+ * - Virtual DOM node rendering interactive single-line and multi-line text input fields.
+ * - Handles selection boxes, horizontal scrolling, IME composition markers, and blinking cursor rendering.
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - 🎨 **Composable UI:** `src/main/kotlin/org/mdt/ui/components/input/TextField.kt`
- * - 🎛️ **State Machine:** `src/main/kotlin/org/mdt/core/ui/input/TextEditState.kt`
- * - 🎮 **Focus Coordinator:** `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
- * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
- * - 🔤 **Font Drawer:** `src/main/kotlin/org/mdt/core/ui/render/UIFontDrawer.kt`
- * - 🔌 **Platform Host:** `src/main/kotlin/org/mdt/core/engine/PlatformHost.kt`
+ * ### 2. Key Rules & Checklist
+ * - [x] Query platform host for font, frame delta, and shift key status via [EngineRuntime.host].
+ * - [x] Handle `Backspace` only in `onKeyDown`.
+ * - [x] Double-click selects word; triple-click selects entire text.
+ * - [x] Caret blinks every 0.32s when focused and pauses during active typing.
+ * - [x] Push scissor clip before drawing selection/text/caret and pop immediately afterwards.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] Caret blinks at 0.32s intervals when focused; pauses/resets blink on typing or cursor navigation.
- * - [x] Requesting focus triggers native IME session via [EngineInputProcessor]; losing focus or detaching cleans up session.
- * - [x] Double-click selects word; triple-click selects all text.
- * - [x] Shift+Click / Pointer drag updates selection range dynamically.
- * - [x] Horizontal scroll offset keeps caret within visible viewport bounds minus 4px padding.
- * - [x] Analytical scissor clip is pushed before rendering selection/text/caret and popped immediately after.
+ * ### 3. Related Files
+ * - Composable UI: `src/main/kotlin/org/mdt/ui/components/input/TextField.kt`
+ * - State Machine: `src/main/kotlin/org/mdt/core/ui/input/TextEditState.kt`
+ * - Focus Coordinator: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
+ * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
+ * - Font Drawer: `src/main/kotlin/org/mdt/core/platform/render/FontRenderer.kt`
  */
 open class InputNode : LayoutNode() {
 
@@ -138,7 +131,7 @@ open class InputNode : LayoutNode() {
                 val targetIndex = getCharIndexAtX(dragLocalX)
                 editState.setSelection(dragSelectionAnchor, targetIndex)
                 invalidateLayout()
-                event.isConsumed = true
+                event.consume()
             }
         }
 
@@ -167,7 +160,7 @@ open class InputNode : LayoutNode() {
 
         for (i in 0..text.length) {
             val substring = text.substring(0, i)
-            val subWidth = UIFontDrawer.getPrefWidth(currentFont, substring, 0.0f, false)
+            val subWidth = FontRenderer.getPrefWidth(currentFont, substring, 0.0f, false)
             val diff = kotlin.math.abs(targetLocalX - subWidth)
             if (diff < minDiff) {
                 minDiff = diff
@@ -183,7 +176,7 @@ open class InputNode : LayoutNode() {
 
         val currentFont = activeFont ?: return padL + padR
         val text = editState.getDisplayText().ifEmpty { placeholder }
-        val textWidth = if (text.isNotEmpty()) UIFontDrawer.getPrefWidth(currentFont, text, 0.0f, false) else 0.0f
+        val textWidth = if (text.isNotEmpty()) FontRenderer.getPrefWidth(currentFont, text, 0.0f, false) else 0.0f
         val baseWidth = if (minWidth >= 0.0f) maxOf(textWidth, minWidth) else maxOf(textWidth, 40.0f)
         return baseWidth + padL + padR
     }
@@ -229,22 +222,15 @@ open class InputNode : LayoutNode() {
         val displayText = editState.getDisplayText()
 
         // 2. Compute horizontal scroll offset for single-line inputs
-        val effCursor = editState.getEffectiveCursor()
-        val cursorSub = displayText.substring(0, effCursor.coerceIn(0, displayText.length))
-        val cursorRelX = if (cursorSub.isNotEmpty()) UIFontDrawer.getPrefWidth(currentFont, cursorSub, 0.0f, false) else 0.0f
+        val effectiveCursor = editState.getEffectiveCursor()
+        val cursorSub = displayText.substring(0, effectiveCursor.coerceIn(0, displayText.length))
+        val cursorRelX = if (cursorSub.isNotEmpty()) FontRenderer.getPrefWidth(currentFont, cursorSub, 0.0f, false) else 0.0f
 
-        if (!isMultiline) {
-            if (displayText.isEmpty()) {
-                scrollOffset = 0.0f
-            } else {
-                if (cursorRelX - scrollOffset > innerWidth - 4.0f) {
-                    scrollOffset = maxOf(0.0f, cursorRelX - innerWidth + 4.0f)
-                } else if (cursorRelX - scrollOffset < 0.0f) {
-                    scrollOffset = maxOf(0.0f, cursorRelX)
-                }
-            }
-        } else {
-            scrollOffset = 0.0f
+        scrollOffset = when {
+            isMultiline || displayText.isEmpty() -> 0.0f
+            cursorRelX - scrollOffset > innerWidth - 4.0f -> maxOf(0.0f, cursorRelX - innerWidth + 4.0f)
+            cursorRelX - scrollOffset < 0.0f -> maxOf(0.0f, cursorRelX)
+            else -> scrollOffset
         }
 
         // 3. Scissor clip text inside the input box
@@ -256,14 +242,14 @@ open class InputNode : LayoutNode() {
             val selStartSub = editState.text.substring(0, range.first)
             val selEndSub = editState.text.substring(0, range.second)
 
-            val selectionStartX = innerX + UIFontDrawer.getPrefWidth(currentFont, selStartSub, 0.0f, false) - scrollOffset
-            val selectionEndX = innerX + UIFontDrawer.getPrefWidth(currentFont, selEndSub, 0.0f, false) - scrollOffset
-            val selWidth = maxOf(2.0f, selectionEndX - selectionStartX)
+            val selectionStartX = innerX + FontRenderer.getPrefWidth(currentFont, selStartSub, 0.0f, false) - scrollOffset
+            val selectionEndX = innerX + FontRenderer.getPrefWidth(currentFont, selEndSub, 0.0f, false) - scrollOffset
+            val selectionWidth = maxOf(2.0f, selectionEndX - selectionStartX)
 
             UIBatch.drawBox(
                 x = selectionStartX,
                 y = lineCenterY - lineHeight * 0.5f,
-                width = selWidth,
+                width = selectionWidth,
                 height = lineHeight,
                 color = selectionColor,
                 radius = 2.0f
@@ -276,15 +262,15 @@ open class InputNode : LayoutNode() {
             val compStartSub = displayText.substring(0, compRange.first)
             val compEndSub = displayText.substring(0, compRange.second)
 
-            val compStartX = innerX + UIFontDrawer.getPrefWidth(currentFont, compStartSub, 0.0f, false) - scrollOffset
-            val compEndX = innerX + UIFontDrawer.getPrefWidth(currentFont, compEndSub, 0.0f, false) - scrollOffset
-            val compWidth = maxOf(2.0f, compEndX - compStartX)
+            val compStartX = innerX + FontRenderer.getPrefWidth(currentFont, compStartSub, 0.0f, false) - scrollOffset
+            val compEndX = innerX + FontRenderer.getPrefWidth(currentFont, compEndSub, 0.0f, false) - scrollOffset
+            val compositionWidth = maxOf(2.0f, compEndX - compStartX)
 
             // Composition background highlight
             UIBatch.drawBox(
                 x = compStartX,
                 y = lineCenterY - lineHeight * 0.5f,
-                width = compWidth,
+                width = compositionWidth,
                 height = lineHeight,
                 color = compositionColor,
                 radius = 2.0f
@@ -294,7 +280,7 @@ open class InputNode : LayoutNode() {
             UIBatch.drawBox(
                 x = compStartX,
                 y = innerY + 2.0f,
-                width = compWidth,
+                width = compositionWidth,
                 height = 2.0f,
                 color = compositionUnderlineColor,
                 radius = 1.0f
@@ -302,10 +288,21 @@ open class InputNode : LayoutNode() {
         }
 
         // 6. Draw Text or Placeholder
-        if (displayText.isEmpty()) {
-            // Only draw placeholder when displayText is truly empty (hidden immediately on typing/composition)
-            if (placeholder.isNotEmpty()) {
-                UIFontDrawer.draw(
+        when {
+            displayText.isNotEmpty() -> {
+                FontRenderer.draw(
+                    font = currentFont,
+                    text = displayText,
+                    x = innerX - scrollOffset,
+                    y = textY,
+                    targetWidth = if (isMultiline) innerWidth else 0.0f,
+                    align = if (isMultiline) Align.topLeft else Align.left,
+                    wrap = isMultiline,
+                    color = textColor
+                )
+            }
+            placeholder.isNotEmpty() -> {
+                FontRenderer.draw(
                     font = currentFont,
                     text = placeholder,
                     x = innerX,
@@ -316,17 +313,6 @@ open class InputNode : LayoutNode() {
                     color = placeholderColor
                 )
             }
-        } else {
-            UIFontDrawer.draw(
-                font = currentFont,
-                text = displayText,
-                x = innerX - scrollOffset,
-                y = textY,
-                targetWidth = if (isMultiline) innerWidth else 0.0f,
-                align = if (isMultiline) Align.topLeft else Align.left,
-                wrap = isMultiline,
-                color = textColor
-            )
         }
 
         // 7. Draw Caret Cursor

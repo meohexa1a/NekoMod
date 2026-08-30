@@ -69,20 +69,21 @@ enum class VerticalAlign {
 /**
  * ## Alignment [2D Box Alignment Model]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - 2D box content alignment combining [HorizontalAlign] and [VerticalAlign].
- * - Configures child positioning within container slots without altering intrinsic bounds unless `FILL` is set.
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Zero-GC Predefined Constants):** Common alignments are provided as immutable static singletons in companion object.
+ * ### 1. Purpose
+ * - Defines 2D positioning (`horizontal` and `vertical`) for aligning child elements within layout containers.
+ * - Provides standard static presets (e.g., `Center`, `TopStart`, `BottomEnd`, `Fill`).
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - 📐 **Layout Engine:** `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
- * - 📐 **Measure Policy:** `src/main/kotlin/org/mdt/core/ui/layout/MeasurePolicy.kt`
- * - 🎨 **Composable Box:** `src/main/kotlin/org/mdt/ui/components/layout/Box.kt`
+ * ### 2. Key Rules & Checklist
+ * - [x] Standard presets map correctly to the expected `HorizontalAlign` and `VerticalAlign` pairs.
+ * - [x] Use companion object constants to avoid allocating new `Alignment` instances at runtime.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] Standard alignment constants (TopStart..BottomEnd, Center, Fill) map to correct horizontal/vertical pairs.
+ * ### 3. Related Files
+ * - Layout Engine: `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
+ * - Measure Policy: `src/main/kotlin/org/mdt/core/ui/layout/MeasurePolicy.kt`
+ * - Box Component: `src/main/kotlin/org/mdt/ui/components/layout/Box.kt`
  */
 data class Alignment(
     val horizontal: HorizontalAlign = HorizontalAlign.START,

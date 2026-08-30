@@ -2,38 +2,38 @@ package org.mdt.core.ui.node
 
 import arc.input.KeyCode
 import arc.math.geom.Vec2
+import org.mdt.core.platform.render.UIBatch
 import org.mdt.core.ui.EngineRuntime
+import org.mdt.core.ui.input.KeyEvent
 import org.mdt.core.ui.input.PointerEvent
+import org.mdt.core.ui.input.PointerEventPass
+import org.mdt.core.ui.input.PointerInputFilter
 import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.layout.AnchorData
-import org.mdt.core.ui.render.UIBatch
 import org.mdt.core.ui.unit.Rect
 
 /**
- * ## UINode [Virtual DOM UI Tree Base Node]
+ * ## UINode [Virtual DOM Base Node]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Base class for all elements in the declarative Virtual DOM UI tree.
- * - Manages tree hierarchy (`parent`, `children`), Box Model (Margin & Padding), intrinsic preferred dimensions,
- *   event dispatching (`onClick`, `onPointerDown`, `onKeyDown`, etc.), focus control, and coordinate transformations.
- * - Coordinates bounds in OpenGL bottom-left origin ($y=0$ bottom, $y=\text{parentH}$ top).
- * - Traverses children in reverse order during hit testing to prioritize topmost children.
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Float Everywhere):** Bounds, dimensions, margins, paddings, and opacities use `Float`.
- * - **Rule 2 (Event Bubbling & Scissor Test):** `hitTest` verifies scissor boundaries and respects [HitTestBehavior].
- * - **Rule 3 (Zero-GC Layout):** Child additions/removals automatically invalidate layout (`invalidateLayout`).
+ * ### 1. Purpose
+ * - Base class for all elements in the virtual UI tree.
+ * - Manages tree relationships (`parent`, `children`), box bounds, padding/margins, event handlers, and focus state.
+ * - Handles hit testing, drawing lifecycle, and local/global coordinate conversions.
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - 🌲 **Subclasses:** `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/TextNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/CanvasNode.kt`
- * - 🎮 **Input Processor:** `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
- * - 🌲 **Node Applier:** `src/main/kotlin/org/mdt/core/ui/compose/NodeApplier.kt`
- * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
+ * ### 2. Key Rules & Checklist
+ * - [x] All positions, dimensions, margins, and paddings must use `Float` with OpenGL bottom-left origin.
+ * - [x] `hitTest` traverses children in reverse order (topmost first) and checks scissor boundaries.
+ * - [x] Modifying children or bounds dimensions must call `invalidateLayout()`.
+ * - [x] `localToGlobal` and `globalToLocal` transform coordinates accurately without extra heap allocations.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] `setBounds(x, y, w, h)` invalidates layout if dimensions change.
- * - [x] `hitTest(x, y)` traverses children in reverse order and respects `visible` and `HitTestBehavior`.
- * - [x] `localToGlobal` and `globalToLocal` transform coordinates accurately with zero allocation outside Vec2.
+ * ### 3. Related Files
+ * - Node Subclasses: `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`
+ * - Input Processor: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
+ * - Node Applier: `src/main/kotlin/org/mdt/core/ui/compose/NodeApplier.kt`
+ * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
  */
 open class UINode {
 
@@ -264,14 +264,22 @@ open class UINode {
 
     /** Computes preferred width including inward padding. */
     open fun getPrefWidth(): Float {
-        val base = if (width >= 0.0f) width else if (minWidth >= 0.0f) minWidth else 0.0f
-        return base + padL + padR
+        val baseWidth = when {
+            width >= 0.0f -> width
+            minWidth >= 0.0f -> minWidth
+            else -> 0.0f
+        }
+        return baseWidth + padL + padR
     }
 
     /** Computes preferred height including inward padding factoring in optional [availableWidth] constraints. */
     open fun getPrefHeight(availableWidth: Float = -1.0f): Float {
-        val base = if (height >= 0.0f) height else if (minHeight >= 0.0f) minHeight else 0.0f
-        return base + padT + padB
+        val baseHeight = when {
+            height >= 0.0f -> height
+            minHeight >= 0.0f -> minHeight
+            else -> 0.0f
+        }
+        return baseHeight + padT + padB
     }
 
     /** Executes layout pass for this node and its children. */
@@ -313,15 +321,65 @@ open class UINode {
         }
     }
 
+    /** Registered composable multi-listener pointer filters. */
+    val pointerFilters: ArrayList<PointerInputFilter> = ArrayList(2)
+
+    fun addPointerFilter(filter: PointerInputFilter) {
+        if (!pointerFilters.contains(filter)) {
+            pointerFilters.add(filter)
+        }
+    }
+
+    fun removePointerFilter(filter: PointerInputFilter) {
+        pointerFilters.remove(filter)
+    }
+
+    fun clearPointerFilters() {
+        pointerFilters.clear()
+    }
+
+    /**
+     * Dispatches [event] through all registered [pointerFilters] and legacy callbacks during [pass].
+     */
+    open fun dispatchPointerEvent(event: PointerEvent, pass: PointerEventPass) {
+        for (i in pointerFilters.indices) {
+            pointerFilters[i].onPointerEvent(event, pass, this)
+        }
+    }
+
     // --- HIT TESTING & FOCUS ---
 
     /** Hit testing behavior mode. Default: [HitTestBehavior.TRANSLUCENT]. */
     var hitTestBehavior: HitTestBehavior = HitTestBehavior.TRANSLUCENT
 
+    /**
+     * Traverses the Virtual DOM tree to assemble the active [path] of nodes covering ([pointX], [pointY]).
+     * Returns true if this node or any of its descendants claimed the hit path.
+     */
+    open fun buildHitPath(pointX: Float, pointY: Float, path: ArrayList<UINode>): Boolean {
+        if (!visible || !touchable || hitTestBehavior == HitTestBehavior.NONE) return false
+        if (!bounds.contains(pointX, pointY)) return false
+
+        path.add(this)
+
+        for (i in children.indices.reversed()) {
+            val child = children[i]
+            if (child.buildHitPath(pointX, pointY, path)) {
+                return true
+            }
+        }
+
+        if (isInteractiveOrOpaque()) {
+            return true
+        }
+
+        path.removeAt(path.size - 1)
+        return false
+    }
+
     /** Performs hit testing for screen coordinate ([pointX], [pointY]). */
     open fun hitTest(pointX: Float, pointY: Float): UINode? {
         if (!visible || !touchable || hitTestBehavior == HitTestBehavior.NONE) return null
-
         if (!bounds.contains(pointX, pointY)) return null
 
         for (i in children.indices.reversed()) {
@@ -330,12 +388,27 @@ open class UINode {
             if (hit != null) return hit
         }
 
-        return when (hitTestBehavior) {
-            HitTestBehavior.OPAQUE -> this
-            HitTestBehavior.TRANSLUCENT -> null
-            HitTestBehavior.NONE -> null
+        return when {
+            isInteractiveOrOpaque() -> this
+            else -> null
         }
     }
+
+    /** Returns true if this node absorbs pointer hit-testing or responds to pointer events. */
+    open fun isInteractiveOrOpaque(): Boolean =
+        hitTestBehavior == HitTestBehavior.OPAQUE ||
+        pointerFilters.isNotEmpty() ||
+        onClick != null ||
+        onDoubleClick != null ||
+        onPointerDown != null ||
+        onPointerUp != null ||
+        onPointerDrag != null ||
+        onHover != null ||
+        onPointerEnter != null ||
+        onPointerExit != null ||
+        onScroll != null ||
+        isFocusable ||
+        cursor != null
 
     // --- TREE MANIPULATION ---
 
@@ -381,7 +454,10 @@ open class UINode {
     fun moveChild(from: Int, to: Int, count: Int = 1) {
         if (from == to || count <= 0 || from >= children.size) return
 
-        val dest = if (to > from) to - count else to
+        val dest = when {
+            to > from -> to - count
+            else -> to
+        }
         val safeDest = dest.coerceIn(0, children.size - count)
         val moved = ArrayList<UINode>(count)
         repeat(count) {

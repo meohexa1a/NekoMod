@@ -1,22 +1,23 @@
 package org.mdt.core.ui.unit
 
 /**
- * ## Rect [2D Geometric Bounding Rectangle]
+ * ## Rect [2D Bounding Box]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Mutable 2D geometric bounding rectangle defined by origin ([x], [y]) and dimensions ([width], [height]).
- * - Standardized on [Float] primitives across the entire UI engine with bottom-left OpenGL origin coordinates.
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Float Everywhere):** Geometry fields use `Float`.
+ * ### 1. Purpose
+ * - Mutable 2D bounding box defined by `(x, y)` origin and `(width, height)` dimensions.
+ * - Provides hit testing (`contains`) and collision detection (`intersects`).
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - 🌲 **Target Node:** `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
- * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
+ * ### 2. Key Rules & Checklist
+ * - [x] All dimensions and coordinates must use `Float` with OpenGL bottom-left origin.
+ * - [x] `contains()` performs inclusive boundary checks.
+ * - [x] `intersects()` accurately tests overlapping AABB rectangles.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] `contains(pointX, pointY)` performs inclusive 2D hit test.
- * - [x] `intersects(other)` detects overlapping axis-aligned bounding boxes (AABB).
+ * ### 3. Related Files
+ * - Virtual Node: `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
+ * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
  */
 data class Rect(
     var x: Float = 0.0f,

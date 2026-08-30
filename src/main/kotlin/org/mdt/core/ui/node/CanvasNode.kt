@@ -4,27 +4,25 @@ import org.mdt.core.ui.layout.GodotLayout
 import org.mdt.core.ui.layout.SizeFlags
 
 /**
- * ## CanvasNode [Root Viewport Virtual DOM Node]
+ * ## CanvasNode [Root Screen Node]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Root container Virtual DOM node representing the full game display surface / window viewport.
- * - Automatically distributes layout bounds across root children using full-screen anchors or flex fill fitting.
- * - Manages display resizing and drives iterative layout passes prior to frame rendering.
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (OpenGL Bottom-Left Origin):** Full screen bounds map from `(x=0, y=0)` with width and height matching viewport pixels.
- * - **Rule 2 (Layout Pass Cap):** Guarded to maximum 3 layout passes to prevent infinite invalidation loops.
+ * ### 1. Purpose
+ * - Root virtual DOM container representing the full game display surface / viewport.
+ * - Manages window resizing and drives layout passes before rendering child nodes.
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - ⚙️ **Runtime Host:** `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
- * - 📐 **Layout Engine:** `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
- * - 🎮 **Input Processor:** `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
- * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
- *
- * ### 4. ✅ Behavioral Verification Checklist:
+ * ### 2. Key Rules & Checklist
+ * - [x] Full screen bounds start at OpenGL bottom-left `(0, 0)` with width/height matching viewport pixels.
+ * - [x] Capped to a maximum of 3 layout passes per frame to prevent infinite layout loops.
  * - [x] `resize(width, height)` updates `bounds`, `screenWidth`, and `screenHeight` and invalidates layout.
- * - [x] Root children fill full screen width/height when explicit anchors are omitted.
- * - [x] Iterative layout pass stabilizes layout before calling `super.draw()`.
+ *
+ * ### 3. Related Files
+ * - Runtime Orchestrator: `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
+ * - Layout Engine: `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
+ * - Input Processor: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
+ * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
  */
 class CanvasNode : UINode() {
 
@@ -38,12 +36,12 @@ class CanvasNode : UINode() {
     // --- VIEWPORT & RESIZE ---
 
     fun resize(width: Float, height: Float) {
-        if (screenWidth != width || screenHeight != height) {
-            screenWidth = width
-            screenHeight = height
-            bounds.set(0.0f, 0.0f, width, height)
-            invalidateLayout()
-        }
+        if (screenWidth == width && screenHeight == height) return
+
+        screenWidth = width
+        screenHeight = height
+        bounds.set(0.0f, 0.0f, width, height)
+        invalidateLayout()
     }
 
     // --- LAYOUT & DRAW ---
@@ -62,24 +60,49 @@ class CanvasNode : UINode() {
                     anchor.anchorLeft != 0.0f || anchor.anchorRight != 0.0f || anchor.anchorTop != 0.0f || anchor.anchorBottom != 0.0f ||
                     anchor.offsetLeft != 0.0f || anchor.offsetRight != 0.0f || anchor.offsetTop != 0.0f || anchor.offsetBottom != 0.0f
 
-            if (hasExplicitAnchor) {
-                GodotLayout.layoutSingleAnchor(child, 0.0f, 0.0f, screenWidth, screenHeight)
-            } else {
-                // Root children without explicit anchors fill the full canvas viewport
-                GodotLayout.fitChildInRect(
-                    child = child,
-                    rectX = 0.0f,
-                    rectY = 0.0f,
-                    rectWidth = screenWidth,
-                    rectHeight = screenHeight,
-                    horizontalFlags = child.sizeFlagsHorizontal or SizeFlags.FILL,
-                    verticalFlags = child.sizeFlagsVertical or SizeFlags.FILL
-                )
+            when {
+                hasExplicitAnchor -> {
+                    GodotLayout.layoutSingleAnchor(child, 0.0f, 0.0f, screenWidth, screenHeight)
+                }
+                else -> {
+                    // Root children without explicit anchors fill the full canvas viewport
+                    GodotLayout.fitChildInRect(
+                        child = child,
+                        rectX = 0.0f,
+                        rectY = 0.0f,
+                        rectWidth = screenWidth,
+                        rectHeight = screenHeight,
+                        horizontalFlags = child.sizeFlagsHorizontal or SizeFlags.FILL,
+                        verticalFlags = child.sizeFlagsVertical or SizeFlags.FILL
+                    )
+                }
             }
         }
 
         super.layout()
         isLayoutDirty = false
+    }
+
+    /**
+     * Overrides [UINode.buildHitPath] to skip the root-level bounds check.
+     * The canvas represents the full viewport and should always pass children for hit-path resolution.
+     */
+    override fun buildHitPath(pointX: Float, pointY: Float, path: ArrayList<UINode>): Boolean {
+        for (i in children.indices.reversed()) {
+            if (children[i].buildHitPath(pointX, pointY, path)) return true
+        }
+        return false
+    }
+
+    /**
+     * Overrides [UINode.hitTest] to skip the root-level bounds check.
+     */
+    override fun hitTest(pointX: Float, pointY: Float): UINode? {
+        for (i in children.indices.reversed()) {
+            val hit = children[i].hitTest(pointX, pointY)
+            if (hit != null) return hit
+        }
+        return null
     }
 
     override fun draw() {

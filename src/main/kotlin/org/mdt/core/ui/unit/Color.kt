@@ -3,27 +3,24 @@ package org.mdt.core.ui.unit
 import arc.util.Tmp
 
 /**
- * ## Color [Zero-GC Inline Value Class]
+ * ## Color [Zero-GC Color Value Class]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - 64-bit packed immutable ARGB/sRGB color representation stored directly in CPU registers (Zero-GC).
- * - Stored as a packed 64-bit unsigned long integer in ARGB order: `0xAARRGGBB_00000000UL`.
- * - Provides full math operations, linear color interpolation (`lerp`), alpha compositing (`compositeOver`),
- *   and seamless ABGR vertex packing for direct OpenGL attribute streaming (`toGLPackedFloat`).
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Zero-GC Primitive):** Must remain `@JvmInline value class` to avoid object allocation in render loops.
- * - **Rule 2 (Float Everywhere):** RGBA channel getters and constructor parameters use `Float` (0.0f..1.0f).
+ * ### 1. Purpose
+ * - Packed 64-bit unsigned integer color stored in CPU registers without heap allocations (Zero-GC).
+ * - Provides color math, linear interpolation (`lerp`), alpha blending, hex parsing, and OpenGL vertex packing.
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
- * - 🔤 **Font Drawer:** `src/main/kotlin/org/mdt/core/ui/render/UIFontDrawer.kt`
- * - 🎨 **Design Tokens:** `src/main/kotlin/org/mdt/ui/theme/ThemeTokens.kt`
+ * ### 2. Key Rules & Checklist
+ * - [x] Must remain an `@JvmInline value class` to avoid heap allocations in render loops.
+ * - [x] All channel getters (`red`, `green`, `blue`, `alpha`) must return `Float` in range `0.0f..1.0f`.
+ * - [x] `toGLPackedFloat()` packages color bits in ABGR order for OpenGL shaders.
+ * - [x] `Color.parse()` parses 3, 4, 6, and 8-digit hex strings with or without `#`.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] Channel getters (`red`, `green`, `blue`, `alpha`) decode packed bits into 0.0f..1.0f floats.
- * - [x] `toGLPackedFloat()` converts ARGB to ABGR float bits for OpenGL normalized attributes.
- * - [x] `Color.parse` handles 3, 4, 6, and 8-digit hex strings with or without `#`.
+ * ### 3. Related Files
+ * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
+ * - Font Renderer: `src/main/kotlin/org/mdt/core/platform/render/FontRenderer.kt`
  */
 @JvmInline
 value class Color(val value: ULong) {

@@ -6,39 +6,29 @@ import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.layout.BoxMeasurePolicy
 import org.mdt.core.ui.layout.MeasurePolicy
-import org.mdt.core.ui.render.UIBatch
+import org.mdt.core.platform.render.UIBatch
 import org.mdt.core.ui.unit.Color
 
 /**
- * ## LayoutNode [Primitive Container Virtual DOM Node with Native Scrolling]
+ * ## LayoutNode [Container & Scrolling Virtual Node]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Foundational container Virtual DOM node unifying flex/box layout delegation, GPU batch rendering, and native scrolling.
- * - Delegates intrinsic sizing and child positioning to interchangeable [MeasurePolicy] strategies ([BoxMeasurePolicy], [ColumnMeasurePolicy], [RowMeasurePolicy], [GridMeasurePolicy]).
- * - Supports built-in 2D scrolling ([scrollable], [enableVerticalScroll], [enableHorizontalScroll]):
- *   - Auto-clips children to inner padding bounds via [UIBatch.pushClip].
- *   - Translates child layout origin seamlessly: `(innerX - scrollX, innerY + scrollY)`.
- *   - Features auto-hiding floating scrollbars with smooth alpha fade-out and customizable styling.
- *   - Supports mouse wheel scrolling (with Shift key for horizontal) and touch drag gestures.
- * - Employs [UIBatch.drawBox] for 1-Draw-Call rendering of backgrounds, rounded SDF corners, borders, textures, and frosted glass.
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Zero-Cost when Inactive):** When [scrollable] is false, scrolling math and clipping incur zero overhead.
- * - **Rule 2 (OpenGL Bottom-Left Math):** Caret, viewport, and scrollbar thumb origins map strictly to bottom-left coordinates.
- * - **Rule 3 (Scissor Boundary Hit-Testing):** Touches outside scrollable viewport boundaries are rejected in [hitTest].
+ * ### 1. Purpose
+ * - Main container node delegating sizing and layout to [MeasurePolicy] strategies.
+ * - Handles background color, rounded corners, borders, textures, and frosted glass effects via [UIBatch].
+ * - Supports built-in 2D scrolling, scissor clipping, and auto-fading scrollbars.
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - 🎨 **Composable Containers:** `src/main/kotlin/org/mdt/ui/components/layout/Box.kt`, `src/main/kotlin/org/mdt/ui/components/layout/ScrollBox.kt`
- * - 🎨 **Scrollbar Tokens:** `src/main/kotlin/org/mdt/ui/theme/ScrollbarStyle.kt`
- * - 📐 **Measure Policies:** `src/main/kotlin/org/mdt/core/ui/layout/MeasurePolicy.kt`
- * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
- * - 🔌 **Platform Host:** `src/main/kotlin/org/mdt/core/engine/PlatformHost.kt`
- *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] Changing `measurePolicy` or scroll properties automatically invalidates node layout.
- * - [x] `layout()` calculates inner available dimensions and updates `maxScrollX` / `maxScrollY`.
- * - [x] `draw()` applies scissor clipping and renders floating scrollbar thumb when active.
- * - [x] Mouse wheel events and pointer drag gestures update scroll offsets within `[0..maxScroll]`.
+ * ### 2. Key Rules & Checklist
+ * - [x] Zero performance overhead when `scrollable` is false.
+ * - [x] Use OpenGL bottom-left origin for all scrolling, viewport, and scrollbar math.
+ * - [x] `hitTest` rejects events outside the inner scissor clip area when scrollable.
+ * - [x] Changing `measurePolicy` or scroll bounds must call `invalidateLayout()`.
+ * ### 3. Related Files
+ * - Composable Containers: `src/main/kotlin/org/mdt/ui/components/layout/Box.kt`
+ * - Measure Policies: `src/main/kotlin/org/mdt/core/ui/layout/MeasurePolicy.kt`
+ * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
  */
 open class LayoutNode : UINode() {
 
@@ -68,6 +58,11 @@ open class LayoutNode : UINode() {
             if (field != value) {
                 field = value
                 invalidateLayout()
+                if (value) {
+                    attachScrollPointerHandlers()
+                } else {
+                    detachScrollPointerHandlers()
+                }
             }
         }
 
@@ -97,20 +92,24 @@ open class LayoutNode : UINode() {
     private var lastDragY: Float = 0.0f
     private var isDraggingPointer: Boolean = false
 
-    init {
-        onScroll = { event: ScrollEvent ->
-            if (scrollable) {
-                var consumed = false
-                val isShift = EngineRuntime.host.isShiftPressed
-                lastActivityTime = EngineRuntime.host.nowMillis()
+    // --- SCROLL POINTER HANDLER LIFECYCLE ---
 
-                if (isShift || (!enableVerticalScroll && enableHorizontalScroll)) {
+    private fun attachScrollPointerHandlers() {
+        onScroll = { event: ScrollEvent ->
+            var consumed = false
+            val isShift = EngineRuntime.host.isShiftPressed
+            lastActivityTime = EngineRuntime.host.nowMillis()
+
+            val isHorizontalOnly = isShift || (!enableVerticalScroll && enableHorizontalScroll)
+            when {
+                isHorizontalOnly -> {
                     if (enableHorizontalScroll && maxScrollX > 0.0f) {
                         val delta = if (event.amountX != 0.0f) event.amountX else event.amountY
                         scrollX = (scrollX + delta * scrollSpeed).coerceIn(0.0f, maxScrollX)
                         consumed = true
                     }
-                } else {
+                }
+                else -> {
                     if (enableVerticalScroll && maxScrollY > 0.0f) {
                         scrollY = (scrollY + event.amountY * scrollSpeed).coerceIn(0.0f, maxScrollY)
                         consumed = true
@@ -120,69 +119,65 @@ open class LayoutNode : UINode() {
                         consumed = true
                     }
                 }
+            }
 
-                if (consumed) {
-                    event.isConsumed = true
-                    invalidateLayout()
-                }
+            if (consumed) {
+                event.isConsumed = true
+                invalidateLayout()
             }
         }
 
         onPointerDown = { event: PointerEvent ->
-            if (scrollable) {
-                lastDragX = event.x
-                lastDragY = event.y
-                isDraggingPointer = true
-                lastActivityTime = EngineRuntime.host.nowMillis()
-            }
+            lastDragX = event.x
+            lastDragY = event.y
+            isDraggingPointer = true
+            lastActivityTime = EngineRuntime.host.nowMillis()
         }
 
         onPointerDrag = { event: PointerEvent ->
-            if (scrollable) {
-                var consumed = false
-                lastActivityTime = EngineRuntime.host.nowMillis()
+            var consumed = false
+            lastActivityTime = EngineRuntime.host.nowMillis()
 
-                if (enableVerticalScroll && maxScrollY > 0.0f) {
-                    val dy = event.y - lastDragY
-                    scrollY = (scrollY + dy).coerceIn(0.0f, maxScrollY)
-                    lastDragY = event.y
-                    consumed = true
-                }
-                if (enableHorizontalScroll && maxScrollX > 0.0f) {
-                    val dx = event.x - lastDragX
-                    scrollX = (scrollX - dx).coerceIn(0.0f, maxScrollX)
-                    lastDragX = event.x
-                    consumed = true
-                }
+            if (enableVerticalScroll && maxScrollY > 0.0f) {
+                val deltaY = event.y - lastDragY
+                scrollY = (scrollY + deltaY).coerceIn(0.0f, maxScrollY)
+                lastDragY = event.y
+                consumed = true
+            }
+            if (enableHorizontalScroll && maxScrollX > 0.0f) {
+                val deltaX = event.x - lastDragX
+                scrollX = (scrollX - deltaX).coerceIn(0.0f, maxScrollX)
+                lastDragX = event.x
+                consumed = true
+            }
 
-                if (consumed) {
-                    event.isConsumed = true
-                    invalidateLayout()
-                }
+            if (consumed) {
+                event.consume()
+                invalidateLayout()
             }
         }
 
         onPointerUp = {
-            if (scrollable) {
-                isDraggingPointer = false
-                lastActivityTime = EngineRuntime.host.nowMillis()
-            }
+            isDraggingPointer = false
+            lastActivityTime = EngineRuntime.host.nowMillis()
         }
     }
 
-    // --- HIT TESTING (Scissor Boundary Protection) ---
+    private fun detachScrollPointerHandlers() {
+        onScroll = null
+        onPointerDown = null
+        onPointerDrag = null
+        onPointerUp = null
+    }
+
+    override fun buildHitPath(pointX: Float, pointY: Float, path: ArrayList<UINode>): Boolean {
+        if ((clip || scrollable) && !bounds.contains(pointX, pointY)) return false
+        return super.buildHitPath(pointX, pointY, path)
+    }
 
     override fun hitTest(pointX: Float, pointY: Float): UINode? {
-        if (!visible || !touchable) return null
         if ((clip || scrollable) && !bounds.contains(pointX, pointY)) return null
-
-        for (i in children.indices.reversed()) {
-            val child = children[i]
-            val hit = child.hitTest(pointX, pointY)
-            if (hit != null) return hit
-        }
-
-        return if (bounds.contains(pointX, pointY)) this else null
+        return super.hitTest(pointX, pointY)
     }
 
     // --- SIZING & INTRINSIC MEASUREMENT ---
@@ -213,8 +208,16 @@ open class LayoutNode : UINode() {
     // --- LAYOUT ENGINE ---
 
     override fun layout() {
-        val computedWidth = if (bounds.width > 0.0f) bounds.width else getPrefWidth()
-        val computedHeight = if (bounds.height > 0.0f) bounds.height else getPrefHeight()
+        val computedWidth = when {
+            width >= 0.0f -> width
+            bounds.width > 0.0f -> bounds.width
+            else -> getPrefWidth()
+        }
+        val computedHeight = when {
+            height >= 0.0f -> height
+            bounds.height > 0.0f -> bounds.height
+            else -> getPrefHeight()
+        }
 
         if (bounds.width != computedWidth || bounds.height != computedHeight) {
             setSize(computedWidth, computedHeight)
@@ -231,17 +234,11 @@ open class LayoutNode : UINode() {
             maxScrollY = maxOf(0.0f, contentHeight - availableHeight)
             scrollX = scrollX.coerceIn(0.0f, maxScrollX)
             scrollY = scrollY.coerceIn(0.0f, maxScrollY)
-
-            // In bottom-left coordinates, scrolling DOWN increases scrollY, so children move UP (+scrollY)
-            val innerX = bounds.x + padL - scrollX
-            val innerY = bounds.y + padB + scrollY
-
-            measurePolicy.layout(this, innerX, innerY, availableWidth, availableHeight)
-        } else {
-            val innerX = bounds.x + padL
-            val innerY = bounds.y + padB
-            measurePolicy.layout(this, innerX, innerY, availableWidth, availableHeight)
         }
+
+        val innerX = if (scrollable) bounds.x + padL - scrollX else bounds.x + padL
+        val innerY = if (scrollable) bounds.y + padB + scrollY else bounds.y + padB
+        measurePolicy.layout(this, innerX, innerY, availableWidth, availableHeight)
 
         isLayoutDirty = false
         for (i in children.indices) {
@@ -259,9 +256,9 @@ open class LayoutNode : UINode() {
         if (shouldClip) {
             val innerX = bounds.x + padL
             val innerY = bounds.y + padB
-            val innerW = maxOf(0.0f, bounds.width - padL - padR)
-            val innerH = maxOf(0.0f, bounds.height - padT - padB)
-            UIBatch.pushClip(innerX, innerY, innerW, innerH)
+            val innerWidth = maxOf(0.0f, bounds.width - padL - padR)
+            val innerHeight = maxOf(0.0f, bounds.height - padT - padB)
+            UIBatch.pushClip(innerX, innerY, innerWidth, innerHeight)
         }
 
         drawSelf()
@@ -297,38 +294,33 @@ open class LayoutNode : UINode() {
         val currentTime = EngineRuntime.host.nowMillis()
         val timeSinceActivity = currentTime - lastActivityTime
 
-        val scrollbarAlpha: Float = if (scrollbarAutoHide) {
-            if (isDraggingPointer || timeSinceActivity < scrollbarIdleTimeoutMs) {
-                1.0f
-            } else {
-                (1.0f - (timeSinceActivity - scrollbarIdleTimeoutMs).toFloat() / scrollbarFadeDurationMs.toFloat()).coerceIn(0.0f, 1.0f)
-            }
-        } else {
-            1.0f
+        val scrollbarAlpha: Float = when {
+            !scrollbarAutoHide || isDraggingPointer || timeSinceActivity < scrollbarIdleTimeoutMs -> 1.0f
+            else -> (1.0f - (timeSinceActivity - scrollbarIdleTimeoutMs).toFloat() / scrollbarFadeDurationMs.toFloat()).coerceIn(0.0f, 1.0f)
         }
 
         if (scrollbarAlpha <= 0.001f) return
 
-        val availW = maxOf(0.0f, bounds.width - padL - padR)
-        val availH = maxOf(0.0f, bounds.height - padT - padB)
+        val availableWidth = maxOf(0.0f, bounds.width - padL - padR)
+        val availableHeight = maxOf(0.0f, bounds.height - padT - padB)
         val innerX = bounds.x + padL
         val innerY = bounds.y + padB
         val effectiveThumbColor = scrollbarThumbColor.withAlpha(scrollbarThumbColor.alpha * scrollbarAlpha)
 
         // 1. Draw Vertical Floating Scrollbar
         if (enableVerticalScroll && maxScrollY > 0.0f) {
-            val contentH = availH + maxScrollY
-            val thumbH = maxOf(20.0f, (availH / contentH) * availH)
+            val contentHeight = availableHeight + maxScrollY
+            val thumbHeight = maxOf(20.0f, (availableHeight / contentHeight) * availableHeight)
             val scrollRatio = if (maxScrollY > 0.0f) scrollY / maxScrollY else 0.0f
-            val thumbY = innerY + availH - thumbH - scrollRatio * (availH - thumbH)
-            val thumbX = innerX + availW - scrollbarThickness - 2.0f
+            val thumbY = innerY + availableHeight - thumbHeight - scrollRatio * (availableHeight - thumbHeight)
+            val thumbX = innerX + availableWidth - scrollbarThickness - 2.0f
 
             if (scrollbarTrackColor.alpha > 0.001f) {
                 UIBatch.drawBox(
                     x = thumbX,
                     y = innerY,
                     width = scrollbarThickness,
-                    height = availH,
+                    height = availableHeight,
                     color = scrollbarTrackColor.withAlpha(scrollbarTrackColor.alpha * scrollbarAlpha),
                     radius = scrollbarRadius
                 )
@@ -338,7 +330,7 @@ open class LayoutNode : UINode() {
                 x = thumbX,
                 y = thumbY,
                 width = scrollbarThickness,
-                height = thumbH,
+                height = thumbHeight,
                 color = effectiveThumbColor,
                 radius = scrollbarRadius
             )
@@ -346,17 +338,17 @@ open class LayoutNode : UINode() {
 
         // 2. Draw Horizontal Floating Scrollbar
         if (enableHorizontalScroll && maxScrollX > 0.0f) {
-            val contentW = maxOf(0.001f, availW + maxScrollX)
-            val thumbW = maxOf(24.0f, (availW / contentW) * availW)
+            val contentWidth = maxOf(0.001f, availableWidth + maxScrollX)
+            val thumbWidth = maxOf(24.0f, (availableWidth / contentWidth) * availableWidth)
             val scrollRatio = if (maxScrollX > 0.0f) scrollX / maxScrollX else 0.0f
-            val thumbX = innerX + scrollRatio * (availW - thumbW)
+            val thumbX = innerX + scrollRatio * (availableWidth - thumbWidth)
             val thumbY = innerY + 2.0f
 
             if (scrollbarTrackColor.alpha > 0.001f) {
                 UIBatch.drawBox(
                     x = innerX,
                     y = thumbY,
-                    width = availW,
+                    width = availableWidth,
                     height = scrollbarThickness,
                     color = scrollbarTrackColor.withAlpha(scrollbarTrackColor.alpha * scrollbarAlpha),
                     radius = scrollbarRadius
@@ -366,7 +358,7 @@ open class LayoutNode : UINode() {
             UIBatch.drawBox(
                 x = thumbX,
                 y = thumbY,
-                width = thumbW,
+                width = thumbWidth,
                 height = scrollbarThickness,
                 color = effectiveThumbColor,
                 radius = scrollbarRadius

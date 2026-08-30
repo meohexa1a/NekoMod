@@ -8,8 +8,8 @@ package org.mdt.core.ui.layout
  * Container slot allocation and expansion flags inspired by Godot Engine's UI architecture.
  */
 object SizeFlags {
-    /** Do not expand; place at the start of the allocated slot. */
-    const val SHRINK_BEGIN = 0
+    /** Explicitly place at the start/top of the allocated slot. */
+    const val SHRINK_BEGIN = 16
 
     /** Fill the entire allocated slot. */
     const val FILL = 1
@@ -53,25 +53,42 @@ enum class LayoutPreset {
     FULL_RECT
 }
 
+// --- GROW DIRECTION (GODOT 4 ALIGNED) ---
+
 /**
- * ## AnchorData [2D Dual-Coordinate Anchor Model]
+ * ## GrowDirection [Anchor Growth Vector]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Dual-coordinate anchor and margin offset model for absolute and responsive layout positioning.
- * - Stores normalized ratio bounds (`anchorLeft`..`anchorBottom` in 0.0f..1.0f) and pixel offsets (`offsetLeft`..`offsetBottom`).
- * - Features an explicit [isEnabled] flag to eliminate ambiguous 0f heuristic checks.
+ * Defines the direction an anchored node expands when its minimum size or content changes,
+ * aligned directly with Godot Engine's `Control::GrowDirection`.
+ */
+enum class GrowDirection {
+    /** Control grows towards the left or top (negative offset). */
+    BEGIN,
+    /** Control grows towards the right or bottom (positive offset). */
+    END,
+    /** Control grows outward equally in both directions from the anchor pivot. */
+    BOTH
+}
+
+/**
+ * ## AnchorData [Anchor Positioning Model]
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Bottom-Left OpenGL Origin):** Y coordinates map $0.0f = \text{top edge}$ and $1.0f = \text{bottom edge}$ in preset ratio definitions.
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - 📐 **Layout Engine:** `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
- * - 🌲 **Target Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
- * - 🌲 **Root Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/CanvasNode.kt`
+ * ### 1. Purpose
+ * - Stores responsive anchor ratios (`0.0f..1.0f`) and pixel offsets (`offsetLeft`..`offsetBottom`).
+ * - Controls how a UI element pins to or stretches across its parent container's edges.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] `setPreset` enables anchor mode (`isEnabled = true`) and sets anchor ratios.
- * - [x] `reset()` restores disabled state (`isEnabled = false`) and zeroes all ratios/offsets.
+ * ### 2. Key Rules & Checklist
+ * - [x] `isEnabled` explicitly controls whether anchor calculations run for the node.
+ * - [x] `setPreset` enables anchor mode (`isEnabled = true`) and sets default grow directions.
+ * - [x] `reset()` resets `isEnabled = false` and clears all ratios and pixel offsets to `0.0f`.
+ *
+ * ### 3. Related Files
+ * - Layout Engine: `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
+ * - Virtual Node: `src/main/kotlin/org/mdt/core/ui/node/UINode.kt`
+ * - Root Screen Node: `src/main/kotlin/org/mdt/core/ui/node/CanvasNode.kt`
  */
 class AnchorData {
 
@@ -92,31 +109,102 @@ class AnchorData {
     var offsetRight: Float = 0.0f
     var offsetBottom: Float = 0.0f
 
+    // --- GROW DIRECTIONS ---
+
+    var growHorizontal: GrowDirection = GrowDirection.END
+    var growVertical: GrowDirection = GrowDirection.END
+
     // --- PRESETS & CONFIGURATION ---
 
     /** Active preset configuration. */
     var activePreset: LayoutPreset = LayoutPreset.TOP_LEFT
 
     fun setPreset(preset: LayoutPreset) {
+        if (this.activePreset == preset && isEnabled) return
+
         this.activePreset = preset
         isEnabled = true
         when (preset) {
-            LayoutPreset.TOP_LEFT -> setAnchors(0.0f, 0.0f, 0.0f, 0.0f)
-            LayoutPreset.TOP_RIGHT -> setAnchors(1.0f, 0.0f, 1.0f, 0.0f)
-            LayoutPreset.BOTTOM_LEFT -> setAnchors(0.0f, 1.0f, 0.0f, 1.0f)
-            LayoutPreset.BOTTOM_RIGHT -> setAnchors(1.0f, 1.0f, 1.0f, 1.0f)
-            LayoutPreset.CENTER_LEFT -> setAnchors(0.0f, 0.5f, 0.0f, 0.5f)
-            LayoutPreset.CENTER_TOP -> setAnchors(0.5f, 0.0f, 0.5f, 0.0f)
-            LayoutPreset.CENTER_RIGHT -> setAnchors(1.0f, 0.5f, 1.0f, 0.5f)
-            LayoutPreset.CENTER_BOTTOM -> setAnchors(0.5f, 1.0f, 0.5f, 1.0f)
-            LayoutPreset.CENTER -> setAnchors(0.5f, 0.5f, 0.5f, 0.5f)
-            LayoutPreset.LEFT_WIDE -> setAnchors(0.0f, 0.0f, 0.0f, 1.0f)
-            LayoutPreset.TOP_WIDE -> setAnchors(0.0f, 0.0f, 1.0f, 0.0f)
-            LayoutPreset.RIGHT_WIDE -> setAnchors(1.0f, 0.0f, 1.0f, 1.0f)
-            LayoutPreset.BOTTOM_WIDE -> setAnchors(0.0f, 1.0f, 1.0f, 1.0f)
-            LayoutPreset.VCENTER_WIDE -> setAnchors(0.5f, 0.0f, 0.5f, 1.0f)
-            LayoutPreset.HCENTER_WIDE -> setAnchors(0.0f, 0.5f, 1.0f, 0.5f)
-            LayoutPreset.FULL_RECT -> setAnchors(0.0f, 0.0f, 1.0f, 1.0f)
+            LayoutPreset.TOP_LEFT -> {
+                setAnchors(0.0f, 0.0f, 0.0f, 0.0f)
+                growHorizontal = GrowDirection.END
+                growVertical = GrowDirection.END
+            }
+            LayoutPreset.TOP_RIGHT -> {
+                setAnchors(1.0f, 0.0f, 1.0f, 0.0f)
+                growHorizontal = GrowDirection.BEGIN
+                growVertical = GrowDirection.END
+            }
+            LayoutPreset.BOTTOM_LEFT -> {
+                setAnchors(0.0f, 1.0f, 0.0f, 1.0f)
+                growHorizontal = GrowDirection.END
+                growVertical = GrowDirection.BEGIN
+            }
+            LayoutPreset.BOTTOM_RIGHT -> {
+                setAnchors(1.0f, 1.0f, 1.0f, 1.0f)
+                growHorizontal = GrowDirection.BEGIN
+                growVertical = GrowDirection.BEGIN
+            }
+            LayoutPreset.CENTER_LEFT -> {
+                setAnchors(0.0f, 0.5f, 0.0f, 0.5f)
+                growHorizontal = GrowDirection.END
+                growVertical = GrowDirection.BOTH
+            }
+            LayoutPreset.CENTER_TOP -> {
+                setAnchors(0.5f, 0.0f, 0.5f, 0.0f)
+                growHorizontal = GrowDirection.BOTH
+                growVertical = GrowDirection.END
+            }
+            LayoutPreset.CENTER_RIGHT -> {
+                setAnchors(1.0f, 0.5f, 1.0f, 0.5f)
+                growHorizontal = GrowDirection.BEGIN
+                growVertical = GrowDirection.BOTH
+            }
+            LayoutPreset.CENTER_BOTTOM -> {
+                setAnchors(0.5f, 1.0f, 0.5f, 1.0f)
+                growHorizontal = GrowDirection.BOTH
+                growVertical = GrowDirection.BEGIN
+            }
+            LayoutPreset.CENTER -> {
+                setAnchors(0.5f, 0.5f, 0.5f, 0.5f)
+                growHorizontal = GrowDirection.BOTH
+                growVertical = GrowDirection.BOTH
+            }
+            LayoutPreset.LEFT_WIDE -> {
+                setAnchors(0.0f, 0.0f, 0.0f, 1.0f)
+                growHorizontal = GrowDirection.END
+                growVertical = GrowDirection.BOTH
+            }
+            LayoutPreset.TOP_WIDE -> {
+                setAnchors(0.0f, 0.0f, 1.0f, 0.0f)
+                growHorizontal = GrowDirection.BOTH
+                growVertical = GrowDirection.END
+            }
+            LayoutPreset.RIGHT_WIDE -> {
+                setAnchors(1.0f, 0.0f, 1.0f, 1.0f)
+                growHorizontal = GrowDirection.BEGIN
+                growVertical = GrowDirection.BOTH
+            }
+            LayoutPreset.BOTTOM_WIDE -> {
+                setAnchors(0.0f, 1.0f, 1.0f, 1.0f)
+                growHorizontal = GrowDirection.BOTH
+                growVertical = GrowDirection.BEGIN
+            }
+            LayoutPreset.VCENTER_WIDE -> {
+                setAnchors(0.5f, 0.0f, 0.5f, 1.0f)
+                growHorizontal = GrowDirection.BOTH
+                growVertical = GrowDirection.BOTH
+            }
+            LayoutPreset.HCENTER_WIDE -> {
+                setAnchors(0.0f, 0.5f, 1.0f, 0.5f)
+                growHorizontal = GrowDirection.BOTH
+                growVertical = GrowDirection.BOTH
+            }
+            LayoutPreset.FULL_RECT -> {
+                setAnchors(0.0f, 0.0f, 1.0f, 1.0f)
+                growHorizontal = GrowDirection.BOTH
+                growVertical = GrowDirection.BOTH
+            }
         }
     }
 
@@ -146,6 +234,8 @@ class AnchorData {
         offsetTop = 0.0f
         offsetRight = 0.0f
         offsetBottom = 0.0f
+        growHorizontal = GrowDirection.END
+        growVertical = GrowDirection.END
     }
 
     fun copyFrom(other: AnchorData) {
@@ -158,5 +248,7 @@ class AnchorData {
         offsetTop = other.offsetTop
         offsetRight = other.offsetRight
         offsetBottom = other.offsetBottom
+        growHorizontal = other.growHorizontal
+        growVertical = other.growVertical
     }
 }

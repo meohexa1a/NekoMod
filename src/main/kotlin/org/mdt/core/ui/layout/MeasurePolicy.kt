@@ -3,25 +3,74 @@ package org.mdt.core.ui.layout
 import org.mdt.core.ui.node.LayoutNode
 
 /**
- * ## MeasurePolicy [Container Measurement & Layout Strategy]
+ * Lightweight Zero-GC reusable primitive Int buffer for layout measurements.
+ */
+internal class IntList(initialCapacity: Int = 16) {
+    var size: Int = 0
+        private set
+    var items: IntArray = IntArray(initialCapacity)
+        private set
+
+    val isEmpty: Boolean get() = size == 0
+
+    fun add(value: Int) {
+        if (size >= items.size) {
+            items = items.copyOf(items.size * 2)
+        }
+        items[size++] = value
+    }
+
+    fun get(index: Int): Int = items[index]
+
+    fun clear() {
+        size = 0
+    }
+}
+
+/**
+ * Lightweight Zero-GC reusable primitive Float buffer for layout measurements.
+ */
+internal class FloatList(initialCapacity: Int = 16) {
+    var size: Int = 0
+        private set
+    var items: FloatArray = FloatArray(initialCapacity)
+        private set
+
+    val isEmpty: Boolean get() = size == 0
+
+    fun add(value: Float) {
+        if (size >= items.size) {
+            items = items.copyOf(items.size * 2)
+        }
+        items[size++] = value
+    }
+
+    fun get(index: Int): Float = items[index]
+
+    fun clear() {
+        size = 0
+    }
+}
+
+/**
+ * ## MeasurePolicy [Layout Strategy]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Strategy pattern interface defining intrinsic preferred width/height measurement and spatial layout positioning for [LayoutNode].
- * - Supports Hug Content (intrinsic sizing), proportional flex weight distribution, and uniform grid sizing.
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Zero-GC Intrinsic Measurements):** Must not allocate temporary `List` instances on Heap during frame measurements.
- * - **Rule 2 (Hug Content by Default):** Default measurement returns minimum required space factoring in padding and children.
+ * ### 1. Purpose
+ * - Defines measurement and layout logic for container nodes ([LayoutNode]).
+ * - Calculates preferred width/height (hug content) and arranges child nodes within container bounds.
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - 🌲 **Target Node:** `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`
- * - 📐 **Layout Engine:** `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
- * - 🎨 **Composable Containers:** `src/main/kotlin/org/mdt/ui/components/layout/Box.kt`, `src/main/kotlin/org/mdt/ui/components/layout/FlexLayouts.kt`
+ * ### 2. Key Rules & Checklist
+ * - [x] Do not allocate temporary lists during frame measurements (Zero-GC).
+ * - [x] Default measurement hugs content size factoring in padding and child sizes.
+ * - [x] `layout()` positions all visible children correctly within inner bounds.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] `measureWidth` returns preferred content width factoring in `padL` and `padR`.
- * - [x] `measureHeight` returns preferred content height factoring in `padT` and `padB`.
- * - [x] `layout` assigns bounds to all visible child nodes.
+ * ### 3. Related Files
+ * - Layout Virtual Node: `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`
+ * - Layout Engine: `src/main/kotlin/org/mdt/core/ui/layout/GodotLayout.kt`
+ * - Box Component: `src/main/kotlin/org/mdt/ui/components/layout/Box.kt`
  */
 interface MeasurePolicy {
 
@@ -108,7 +157,7 @@ data class ColumnMeasurePolicy(
 ) : MeasurePolicy {
 
     private val effectiveArrangement: Arrangement =
-        if (gap > 0.0f && arrangement == Arrangement.Start) Arrangement.spacedBy(gap) else arrangement
+        if (gap > 0.0f && arrangement.spacing == 0.0f) Arrangement(arrangement.type, gap) else arrangement
 
     override fun measureWidth(node: LayoutNode): Float {
         var maxWidth = 0.0f
@@ -173,7 +222,7 @@ data class RowMeasurePolicy(
 ) : MeasurePolicy {
 
     private val effectiveArrangement: Arrangement =
-        if (gap > 0.0f && arrangement == Arrangement.Start) Arrangement.spacedBy(gap) else arrangement
+        if (gap > 0.0f && arrangement.spacing == 0.0f) Arrangement(arrangement.type, gap) else arrangement
 
     override fun measureWidth(node: LayoutNode): Float {
         var sumWidth = 0.0f
@@ -218,72 +267,179 @@ data class RowMeasurePolicy(
     }
 }
 
-// --- GRID MEASURE POLICY ---
+// --- FLOW ROW MEASURE POLICY (FLEX WRAP) ---
 
 /**
- * ## GridMeasurePolicy [Grid Layout Policy]
+ * ## FlowRowMeasurePolicy [Multi-Line Wrapping Flex Layout Policy]
  *
- * Grid layout policy arranging children in uniform/flexible columns and rows.
+ * Arranges children horizontally from left to right, automatically wrapping onto the next line
+ * when available width is exceeded. Implements Godot Engine's `HFlowContainer` 2-pass algorithm.
  */
-data class GridMeasurePolicy(
-    val columns: Int = 1,
+data class FlowRowMeasurePolicy(
     val horizontalGap: Float = 0.0f,
-    val verticalGap: Float = 0.0f
+    val verticalGap: Float = 0.0f,
+    val arrangement: Arrangement = Arrangement.Start,
+    val alignment: Alignment = Alignment.TopStart
 ) : MeasurePolicy {
 
-    override fun measureWidth(node: LayoutNode): Float {
-        if (columns <= 0) return 0.0f
+    private val lineChildStartIndex = IntList(16)
+    private val lineChildCounts = IntList(16)
+    private val lineHeights = FloatList(16)
+    private val lineTotalWidths = FloatList(16)
 
-        val columnWidths = FloatArray(columns)
-        var visibleIndex = 0
+    override fun measureWidth(node: LayoutNode): Float {
+        var maxLineWidth = 0.0f
+        var currentLineX = 0.0f
+        var childrenInLine = 0
+
         for (i in node.children.indices) {
             val child = node.children[i]
             if (!child.visible) continue
-            val columnIndex = visibleIndex % columns
-            columnWidths[columnIndex] = maxOf(columnWidths[columnIndex], GodotLayout.getChildMinWidth(child))
-            visibleIndex++
+
+            val childWidth = GodotLayout.getChildMinWidth(child)
+            val neededWidth = if (childrenInLine > 0) childWidth + horizontalGap else childWidth
+
+            currentLineX += neededWidth
+            childrenInLine++
+            maxLineWidth = maxOf(maxLineWidth, currentLineX)
         }
-        val totalGaps = if (columns > 1) (columns - 1) * horizontalGap else 0.0f
-        return columnWidths.sum() + totalGaps
+
+        return maxLineWidth
     }
 
     override fun measureHeight(node: LayoutNode, availableWidth: Float): Float {
-        if (columns <= 0) return 0.0f
+        val maxContainerWidth = if (availableWidth > 0.0f) availableWidth else Float.MAX_VALUE
+        var totalHeight = 0.0f
+        var currentLineHeight = 0.0f
+        var currentLineX = 0.0f
+        var childrenInLine = 0
+        var lineCount = 0
 
-        var visibleCount = 0
-        for (i in node.children.indices) {
-            if (node.children[i].visible) visibleCount++
-        }
-        if (visibleCount == 0) return 0.0f
-
-        val rows = (visibleCount + columns - 1) / columns
-        val rowHeights = FloatArray(rows)
-        var visibleIndex = 0
         for (i in node.children.indices) {
             val child = node.children[i]
             if (!child.visible) continue
-            val rowIndex = visibleIndex / columns
-            rowHeights[rowIndex] = maxOf(rowHeights[rowIndex], GodotLayout.getChildMinHeight(child))
-            visibleIndex++
+
+            val childWidth = GodotLayout.getChildMinWidth(child)
+            val childHeight = GodotLayout.getChildMinHeight(child)
+
+            val neededWidth = if (childrenInLine > 0) childWidth + horizontalGap else childWidth
+            if (childrenInLine > 0 && currentLineX + neededWidth > maxContainerWidth) {
+                // Wrap to next line
+                totalHeight += currentLineHeight
+                lineCount++
+                currentLineX = childWidth
+                currentLineHeight = childHeight
+                childrenInLine = 1
+            } else {
+                currentLineX += neededWidth
+                currentLineHeight = maxOf(currentLineHeight, childHeight)
+                childrenInLine++
+            }
         }
-        val totalGaps = if (rows > 1) (rows - 1) * verticalGap else 0.0f
-        return rowHeights.sum() + totalGaps
+
+        if (childrenInLine > 0) {
+            totalHeight += currentLineHeight
+            lineCount++
+        }
+
+        val totalGaps = if (lineCount > 1) (lineCount - 1) * verticalGap else 0.0f
+        return totalHeight + totalGaps
     }
 
     override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availableWidth: Float, availableHeight: Float) {
-        GodotLayout.layoutGrid(
-            children = node.children,
-            parentX = innerX - node.padL,
-            parentY = innerY - node.padB,
-            parentWidth = availableWidth + node.padL + node.padR,
-            parentHeight = availableHeight + node.padT + node.padB,
-            padLeft = node.padL,
-            padTop = node.padT,
-            padRight = node.padR,
-            padBottom = node.padB,
-            columns = columns,
-            horizontalSeparation = horizontalGap,
-            verticalSeparation = verticalGap
-        )
+        val maxContainerWidth = if (availableWidth > 0.0f) availableWidth else Float.MAX_VALUE
+
+        // Pass 1: Group children into lines (Zero-GC with reused sequences)
+        lineChildStartIndex.clear()
+        lineChildCounts.clear()
+        lineHeights.clear()
+        lineTotalWidths.clear()
+
+        var currentLineStart = 0
+        var currentChildrenInLine = 0
+        var currentLineX = 0.0f
+        var currentLineHeight = 0.0f
+
+        for (i in node.children.indices) {
+            val child = node.children[i]
+            if (!child.visible) continue
+
+            val childWidth = GodotLayout.getChildMinWidth(child)
+            val childHeight = GodotLayout.getChildMinHeight(child)
+
+            val neededWidth = if (currentChildrenInLine > 0) childWidth + horizontalGap else childWidth
+            if (currentChildrenInLine > 0 && currentLineX + neededWidth > maxContainerWidth) {
+                // End current line
+                lineChildStartIndex.add(currentLineStart)
+                lineChildCounts.add(currentChildrenInLine)
+                lineHeights.add(currentLineHeight)
+                lineTotalWidths.add(currentLineX)
+
+                // Start new line
+                currentLineStart = i
+                currentChildrenInLine = 1
+                currentLineX = childWidth
+                currentLineHeight = childHeight
+            } else {
+                if (currentChildrenInLine == 0) currentLineStart = i
+                currentLineX += neededWidth
+                currentLineHeight = maxOf(currentLineHeight, childHeight)
+                currentChildrenInLine++
+            }
+        }
+
+        if (currentChildrenInLine > 0) {
+            lineChildStartIndex.add(currentLineStart)
+            lineChildCounts.add(currentChildrenInLine)
+            lineHeights.add(currentLineHeight)
+            lineTotalWidths.add(currentLineX)
+        }
+
+        if (lineChildCounts.isEmpty) return
+
+        // Pass 2: Layout each line from Top to Bottom (in OpenGL Bottom-Left Coordinates)
+        var currentTopY = innerY + availableHeight
+        val totalLines = lineChildCounts.size
+        for (lineIdx in 0 until totalLines) {
+            val startChildIdx = lineChildStartIndex.get(lineIdx)
+            val childCountInLine = lineChildCounts.get(lineIdx)
+            val lineH = lineHeights.get(lineIdx)
+            val lineW = lineTotalWidths.get(lineIdx)
+
+            val lineSlotY = currentTopY - lineH
+
+            // Calculate horizontal start offset
+            val startOffsetX = when (arrangement.type) {
+                ArrangementType.START -> 0.0f
+                ArrangementType.CENTER -> maxOf(0.0f, (availableWidth - lineW) * 0.5f)
+                ArrangementType.END -> maxOf(0.0f, availableWidth - lineW)
+                else -> 0.0f
+            }
+
+            var currentItemX = innerX + startOffsetX
+            var processed = 0
+            var childIdx = startChildIdx
+            while (processed < childCountInLine && childIdx < node.children.size) {
+                val child = node.children[childIdx]
+                if (child.visible) {
+                    val childWidth = GodotLayout.getChildMinWidth(child)
+                    val childHeight = GodotLayout.getChildMinHeight(child)
+
+                    val childY = when (alignment.vertical) {
+                        VerticalAlign.TOP -> lineSlotY + lineH - childHeight
+                        VerticalAlign.CENTER -> lineSlotY + (lineH - childHeight) * 0.5f
+                        VerticalAlign.BOTTOM -> lineSlotY
+                        VerticalAlign.FILL -> lineSlotY
+                    }
+
+                    GodotLayout.fitChildInRect(child, currentItemX, childY, childWidth, if (alignment.vertical == VerticalAlign.FILL) lineH else childHeight)
+                    currentItemX += childWidth + horizontalGap
+                    processed++
+                }
+                childIdx++
+            }
+
+            currentTopY -= lineH + verticalGap
+        }
     }
 }
