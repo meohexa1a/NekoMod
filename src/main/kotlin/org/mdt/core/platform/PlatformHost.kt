@@ -16,34 +16,32 @@ import mindustry.game.EventType.Trigger
 import mindustry.ui.Fonts
 import okio.Path
 import okio.Path.Companion.toPath
+import org.mdt.core.engine.ime.ImePort
+import org.mdt.core.engine.ime.SdlReflectionImePort
 
 /**
  * ## PlatformHost [Platform Bridge & Isolation Contract]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Single authoritative platform abstraction bridging high-level UI engine to underlying host environment.
- * - Bridges main-thread dispatching, frame lifecycle hooks, texture atlas resolution, asset I/O, typography fonts,
- *   shader source loading, viewport dimensions, input event multiplexing, hardware/software cursor switching,
- *   OS clipboard manipulation, native IME text input sessions, and keyboard modifier keys.
- * - Decouples engine logic completely from direct Mindustry / Arc / Desktop singletons (`Core.*`, `Vars.*`).
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Zero Direct Singleton Access):** Core UI layers MUST interact with host platform exclusively through [PlatformHost].
- * - **Rule 2 (Fail-Safe Non-Desktop Fallback):** Methods must gracefully handle null runtimes or missing SDL backends without crashing.
- * - **Rule 3 (Thread Safety):** Frame and resize listeners use thread-safe copy-on-write collections.
+ * ### 1. Purpose
+ * - Acts as the single platform bridge connecting UI engine code to the underlying game/OS environment.
+ * - Handles threading, asset loading, font resolution, IME input sessions, clipboard, and frame hooks.
+ * - Keeps UI engine code isolated from direct Mindustry/Arc singletons (`Core.*`, `Vars.*`).
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - ⚙️ **Runtime Orchestrator:** `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
- * - 🌲 **Composition Local:** `src/main/kotlin/org/mdt/core/ui/compose/UIComposition.kt`
- * - 🎮 **Input Processor:** `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
- * - 🌲 **Text Input Node:** `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`
- * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
+ * ### 2. Key Rules & Checklist
+ * - [x] Core UI layers must access platform features only through [PlatformHost].
+ * - [x] IME text input is modularized through the [ime] port.
+ * - [x] Frame and resize listener collections must use thread-safe collections.
+ * - [x] `frameId` and `deltaTime` must return valid non-zero values during active rendering.
+ * - [x] `readShaderSource` automatically strips UTF-8 BOM (`\uFEFF`) to prevent GLSL compile errors.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] `frameId` and `deltaTime` return valid non-zero values during active rendering.
- * - [x] Input modifier keys (`isCtrlPressed`, `isShiftPressed`, `isAltPressed`) reflect hardware key state.
- * - [x] `resolveWhiteRegion` never returns null (falls back to placeholder texture if needed).
- * - [x] `readShaderSource` automatically strips UTF-8 BOM (`\uFEFF`) to prevent GLSL syntax errors.
+ * ### 3. Related Files
+ * - Runtime Orchestrator: `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
+ * - IME Port: `src/main/kotlin/org/mdt/core/engine/ime/ImePort.kt`
+ * - Input Processor: `src/main/kotlin/org/mdt/core/ui/input/EngineInputProcessor.kt`
+ * - GPU Batcher: `src/main/kotlin/org/mdt/core/engine/render/UIBatch.kt`
  */
 interface PlatformHost {
 
@@ -131,6 +129,9 @@ interface PlatformHost {
     /** Removes an input processor from the input dispatch chain. */
     fun removeInputProcessor(processor: InputProcessor)
 
+    /** Native OS IME input port for focused text entry. */
+    val ime: ImePort
+
     /** Starts an interactive native OS IME text input session for a focused text field. */
     fun startImeSession(
         globalX: Float,
@@ -141,7 +142,9 @@ interface PlatformHost {
         cursorPosition: Int,
         onCompositionChanged: (composition: String) -> Unit,
         onCompositionCleared: () -> Unit
-    )
+    ) {
+        ime.startSession(globalX, globalY, width, height, initialText, cursorPosition, onCompositionChanged, onCompositionCleared)
+    }
 
     /** Synchronizes screen position, size, text, and cursor bounds for the active native IME session. */
     fun syncImeSession(
@@ -151,10 +154,14 @@ interface PlatformHost {
         height: Float,
         text: String,
         cursorPosition: Int
-    )
+    ) {
+        ime.syncSession(globalX, globalY, width, height, text, cursorPosition)
+    }
 
     /** Stops the native OS text input session and clears keyboard focus. */
-    fun stopImeSession()
+    fun stopImeSession() {
+        ime.stopSession()
+    }
 
     /** Retrieves the current system clipboard text content. */
     fun getClipboard(): String
@@ -180,7 +187,9 @@ val LocalPlatformHost = staticCompositionLocalOf<PlatformHost> {
  *
  * Default [PlatformHost] implementation connecting to Mindustry / Arc runtime singletons.
  */
-open class MindustryPlatformHost : PlatformHost {
+open class MindustryPlatformHost(
+    override val ime: ImePort = SdlReflectionImePort()
+) : PlatformHost {
 
     // --- LIFECYCLE & DISPATCH ---
 
@@ -350,131 +359,6 @@ open class MindustryPlatformHost : PlatformHost {
     override fun removeInputProcessor(processor: InputProcessor) {
         try {
             localMultiplexer.removeProcessor(processor)
-        } catch (_: Throwable) {}
-    }
-
-    // --- NATIVE OS IME SUBSYSTEM ---
-
-    private var isTextInputActive = false
-    private var imeCompositionCallback: ((String) -> Unit)? = null
-    private var imeClearCallback: (() -> Unit)? = null
-    private var imeGlobalX: Float = 0.0f
-    private var imeGlobalY: Float = 0.0f
-
-    /** Headless receiver for Arc's SdlInput to receive SDL_EVENT_TEXT_EDITING composition events. */
-    private val imeBridgeElement by lazy {
-        object : arc.scene.ui.TextField("") {
-            override fun localToStageCoordinates(vec: arc.math.geom.Vec2): arc.math.geom.Vec2 {
-                return vec.set(imeGlobalX, imeGlobalY)
-            }
-
-            override fun setSelection(selectionStart: Int, selectionEnd: Int) {
-                super.setSelection(selectionStart, selectionEnd)
-                if (imeData != null) {
-                    val fullText = this.text ?: ""
-                    val start = minOf(selectionStart, selectionEnd).coerceIn(0, fullText.length)
-                    val end = maxOf(selectionStart, selectionEnd).coerceIn(0, fullText.length)
-                    if (end > start) {
-                        val candidate = fullText.substring(start, end)
-                        imeCompositionCallback?.invoke(candidate)
-                    }
-                }
-            }
-
-            override fun clearSelection() {
-                super.clearSelection()
-                if (imeData == null) {
-                    imeClearCallback?.invoke()
-                }
-            }
-
-            override fun setText(str: String?) {
-                super.setText(str)
-                if (imeData == null) {
-                    imeClearCallback?.invoke()
-                }
-            }
-        }
-    }
-
-    override fun startImeSession(
-        globalX: Float,
-        globalY: Float,
-        width: Float,
-        height: Float,
-        initialText: String,
-        cursorPosition: Int,
-        onCompositionChanged: (composition: String) -> Unit,
-        onCompositionCleared: () -> Unit
-    ) {
-        imeCompositionCallback = onCompositionChanged
-        imeClearCallback = onCompositionCleared
-        imeGlobalX = globalX
-        imeGlobalY = globalY
-
-        imeBridgeElement.text = initialText
-        imeBridgeElement.cursorPosition = cursorPosition
-        imeBridgeElement.setPosition(globalX, globalY)
-        imeBridgeElement.setSize(width, height)
-
-        try {
-            if (Core.scene != null && Core.scene.keyboardFocus !== imeBridgeElement) {
-                Core.scene.keyboardFocus = imeBridgeElement
-            }
-            if (!isTextInputActive) {
-                arc.backend.sdl.jni.SDL.SDL_StartTextInput()
-                isTextInputActive = true
-            }
-            updateTextInputRectInternal(globalX, globalY, width, height)
-        } catch (_: Throwable) {}
-    }
-
-    override fun syncImeSession(
-        globalX: Float,
-        globalY: Float,
-        width: Float,
-        height: Float,
-        text: String,
-        cursorPosition: Int
-    ) {
-        imeGlobalX = globalX
-        imeGlobalY = globalY
-
-        imeBridgeElement.text = text
-        imeBridgeElement.cursorPosition = cursorPosition
-        imeBridgeElement.setPosition(globalX, globalY)
-        imeBridgeElement.setSize(width, height)
-
-        try {
-            if (Core.scene != null && Core.scene.keyboardFocus !== imeBridgeElement) {
-                Core.scene.keyboardFocus = imeBridgeElement
-            }
-            if (isTextInputActive) {
-                updateTextInputRectInternal(globalX, globalY, width, height)
-            }
-        } catch (_: Throwable) {}
-    }
-
-    override fun stopImeSession() {
-        imeCompositionCallback = null
-        imeClearCallback = null
-
-        try {
-            if (Core.scene != null && Core.scene.keyboardFocus === imeBridgeElement) {
-                Core.scene.keyboardFocus = null
-            }
-            if (isTextInputActive) {
-                arc.backend.sdl.jni.SDL.SDL_StopTextInput()
-                isTextInputActive = false
-            }
-        } catch (_: Throwable) {}
-    }
-
-    private fun updateTextInputRectInternal(globalX: Float, globalY: Float, width: Float, height: Float) {
-        try {
-            val screenHeight = if (Core.graphics != null && Core.graphics.height > 0) Core.graphics.height else 1080
-            val sdlY = screenHeight - 1 - (globalY + height).toInt()
-            arc.backend.sdl.jni.SDL.SDL_SetTextInputRect(globalX.toInt(), sdlY, width.toInt(), height.toInt())
         } catch (_: Throwable) {}
     }
 

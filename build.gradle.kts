@@ -60,6 +60,10 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+tasks.withType<Test> {
+    useJUnitPlatform()
+}
+
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     description = "Build desktop mod JAR"
     from(rootProject.projectDir) {

@@ -24,7 +24,7 @@ Chào mừng bạn đến với hệ thống tài liệu kiến trúc chuẩn m�
 - `org.mdt.core.net`: OkHttp Network engine & Fluent DSL ([`NetDsl`](../src/main/kotlin/org/mdt/core/common/NetDsl.kt)).
 - `org.mdt.core.store`: Okio atomic storage & KV store ([`KVStore`](../src/main/kotlin/org/mdt/core/store/KVStore.kt)).
 - `org.mdt.core.cache`: Safe reference-counted VRAM cache ([`LRUTextureCache`](../src/main/kotlin/org/mdt/core/common/LRUTextureCache.kt)).
-- `org.mdt.core.image`: Asynchronous image pipeline ([`ImageLoader`](../src/main/kotlin/org/mdt/core/engine/image/ImageLoader.kt)).
+- `org.mdt.core.image`: Asynchronous image pipeline ([`ImageLoader`](../src/main/kotlin/org/mdt/core/platform/image/ImageLoader.kt)).
 - `org.mdt.core.i18n`: Modern nested key localization ([`I18nEngine`](../src/main/kotlin/org/mdt/core/i18n/I18nEngine.kt)).
 - `org.mdt.core.ui`: Virtual Node DOM tree primitives ([`UINode`](../src/main/kotlin/org/mdt/core/ui/UINode.kt), [`CanvasNode`](../src/main/kotlin/org/mdt/core/ui/CanvasNode.kt)).
 - `org.mdt.ui.compose`: Compose Multiplatform bridge ([`UIComposition`](../src/main/kotlin/org/mdt/ui/compose/UIComposition.kt), [`UIModifier`](../src/main/kotlin/org/mdt/ui/compose/UIModifier.kt)).

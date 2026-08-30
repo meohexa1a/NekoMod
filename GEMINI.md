@@ -2,73 +2,99 @@
 
 ---
 
-## 🎨 I. Graphics, Shaders & Typography Standards
+## 🎨 I. Graphics, Uber Shader & Typography Standards
 1. **Type System (Float Everywhere):** Use `Float` (`f` literal suffix) for all geometric dimensions, insets (padding/margin), coordinates, corner radii, opacities, blur weights, and shader uniforms. Never use `Double`.
 2. **OpenGL Active Texture Enum:** Always call `Gl.activeTexture(Gl.texture0 + unit)`, NEVER `Gl.texture2d + unit` (which causes `[GL] Error: invalid enum`).
 3. **Arc Shader Headers & Precisions:** Never declare `#ifdef GL_ES` or `#version` in raw shader files (`*.frag`, `*.vert`). Arc's `Shader` compiler automatically injects precision qualifiers internally; manual declarations cause duplicate definition crashes.
-4. **Declarative Custom Graphics & Background Rendering (Canvas Composable):** Never hardcode game-specific renderers (e.g. `MenuRenderer`) inside `EngineRenderer`. Instead, use the declarative `Canvas(modifier) { ... }` composable at the screen level, managing lifecycle and GPU disposal via `remember` and `DisposableEffect`.
-5. **Typography, Scaling & Multi-Line Wrapping:** Render BMFonts (`Fonts.def`, `Fonts.tech`, `Fonts.large`) at natural `scale = 1.0f` (or integer increments). Never apply fractional float scaling (e.g. `0.8f`, `0.85f`) to bitmap atlas fonts. When `wrap = true`, pass container inner width `innerW` to `font.draw(text, x, y, innerW, align, true)` and compute height via `layoutHelper.setText(f, text, color, innerW, align, true)`.
+4. **1-Draw-Call GPU Batching (UIBatch & SceneBlur):** All 2D visual elements (quads, rounded SDF boxes, borders, textures, text glyphs, frosted glass) render in a single unified draw call via `UIBatch`. Scene background blur captures execute progressively via 5-pass Dual-Kawase in `SceneBlur`, guarded by monotonic `frameId` caching.
+5. **Typography & Text Rendering:** Render BMFonts (`Fonts.def`, `Fonts.tech`, `Fonts.large`) at natural `scale = 1.0f` (or integer increments). Never apply fractional float scaling (e.g. `0.8f`, `0.85f`) to bitmap atlas fonts. Text measurement and line wrapping stream directly through `FontRenderer` and analytical scissor clipping.
 
 ---
 
-## 📐 II. Layout Engine & Composition Standards
+## 📐 II. Layout Engine & Virtual DOM Standards
 6. **Hug Content & Auto-Layout by Default:** UI containers (`Card`, `Column`, `Row`, `Button`, `Box`) must default to **HUG CONTENT** (intrinsic sizing via `getPrefWidth`/`getPrefHeight` factoring in padding and children). Avoid hardcoded fixed dimensions (`width(330f)`) when content can dynamically adapt. Use `minWidth`/`minHeight` only as protective bounds.
 7. **Proportional Flex Weights:** In `Row` and `Column`, `Modifier.weight(ratio)` must distribute available free space proportionally ($(\text{availMain} - \text{unweightedMinSize} - \text{gaps}) \times \frac{\text{ratio}}{\text{totalRatio}}$) without distorting sibling nodes.
-8. **Top-Layer Overlay Architecture:** Tooltips, context menus, and modal dialogs must NOT be drawn as inline tree children. They must register with global top-layer managers (`TooltipManager`) and render in the final top-layer pass of `CanvasNode.draw()` to guarantee top Z-index and immunity to parent clipping.
+8. **Declarative Compose Overlays:** Tooltips, modals, and dropdown overlays must be expressed declaratively via composables (`TooltipBox`, `ModalDialog`) and positioned with `Alignment`/`LayoutPreset` within the virtual node tree.
 9. **OpenGL Bottom-Left Anchor Math:** In bottom-left coordinate systems ($y=0$ bottom, $y=\text{parentH}$ top):
    - Bottom-anchored (`anchorTop == 1.0f`): $y = \text{parentY} + \text{offsetBottom} + \text{marginB}$ (never subtract $h$ from $y$).
    - Vertical span (`anchorTop != anchorBottom`): $h = \text{maxOf}(0\text{f}, \text{topEdge} - \text{bottomEdge} - \text{marginT} - \text{marginB})$.
+10. **Decoupled Pure-Kotlin Core Layout & Math:** The core layout and math domain (`org.mdt.core.ui.layout`, `org.mdt.core.ui.unit`) must remain **100% Pure Kotlin** without direct dependencies on game engine internal classes (e.g., Arc `IntSeq`/`FloatSeq`). Use internal reusable primitive buffers (`IntList`, `FloatList`) to achieve Zero-GC while guaranteeing headless unit test execution without engine JARs.
 
 ---
 
-## 🎮 III. Input & Interaction Architecture
-10. **Keyboard Input & IME:** Handle `Backspace` exclusively in `onKeyDown(KeyCode.backspace)`. `onKeyTyped` must only process printable characters ($\ge 32$) and ignore `\b` to prevent double-backspace deletion bugs with Vietnamese IME (Unikey/EVKey).
-11. **Event-Driven Drag Tracking:** Route continuous drag gestures via `onPointerDrag` in `EngineInputProcessor.touchDragged`, never poll `Core.input` inside frame render loops (`drawSelf`/`draw`).
+## 🎮 III. Input, Gestures & IME Architecture
+11. **Keyboard Input & IME:** Handle `Backspace` exclusively in `onKeyDown(KeyCode.backspace)`. `onKeyTyped` must only process printable characters ($\ge 32$) and ignore `\b` to prevent double-backspace deletion bugs with Vietnamese IME (Unikey/EVKey).
+12. **Event-Driven Drag Tracking:** Route continuous drag gestures via `onPointerDrag` in `EngineInputProcessor.touchDragged`, never poll `Core.input` inside frame render loops (`drawSelf`/`draw`).
+13. **3-Pass Pointer Pipeline:** Pointer events propagate through a 3-pass lifecycle: `INITIAL` (tunneling/preview), `MAIN` (bubbling/action), and `FINAL` (hover tracking and cleanup). Actionable controls consume events with `event.consume()`.
+14. **Idempotent State Mutators:** State mutating functions (`setText()`, `resize()`, `setBounds()`, `setSize()`, `setPreset()`) must self-check for dirty changes internally (`if (field == newValue) return`). Call-sites must invoke these mutators directly without redundant outer wrapper checks (`if (old != new)`).
 
 ---
 
-## 🧩 IV. Code Architecture & Style
-12. **Feature-Sliced Package Co-location:** Organize UI widgets into domain sub-packages (`components.input.textfield`, `components.input.slider`, `components.display.image`, etc.) co-locating the virtual node, composable, and state machine together. Avoid flat technical layers (`compose/`, `widgets/`).
-13. **Declarative Post-Design:** Avoid embedding heavy runtime UI inspector overlays into the game client. Prioritize compile-time IDE Kotlin DSL design and reactive text schema (HJSON/JSON) with live hot-reload.
-14. **UIModifier Chaining:** Every built-in composable applying default visual styles must conclude with `.then(modifier)` to allow callers to override layout and event properties.
-15. **Expressive Domain Naming (Ban Cryptic Abbreviations):** Ban overly cryptic 1-2 letter variables (`p`, `cr`, `hs`, `vis`, `d`, `v`, `w`, `h`, `f`, `rx`, `ry`) in business logic, rendering loops, and public APIs. Use clear, self-documenting domain identifiers (`point`, `cornerRadii`, `halfSize`, `visuals`, `fraction`, `rectWidth`, `slotInnerHeight`, `font`, `measuredWidth`).
-16. **`if-else` Formatting & Guard Clause Breathing Room:** Avoid cramming complex `if-else` expressions into dense, long single lines. When using early returns (`if (condition) return ...`), always insert a blank line between guard clauses, `else` branches, and the subsequent execution block to ensure instant visual scanning.
-17. **File Granularity (Cohesion & Single Responsibility):**
-    - **Merge Micro-Files:** Consolidate tiny micro-files ($<30$ lines) that share the same domain (e.g. token data classes, companion enums) into a single cohesive domain file (`ThemeTokens.kt`).
+## 🧩 IV. Code Architecture, Syntax & Micro-Style
+15. **Failure-First Early Return (Flat Happy Path):** Banish the "Arrow Anti-pattern" (deep nested `if` pyramids). Always test for preconditions, invalid states, or nulls **first** and exit immediately (`return`, `continue`, `break`). The main execution path must stay flat at the base indentation level.
+16. **Prefer `when` Expressions Over `if-else` Chains:** In Kotlin, chaining `if - else if - else` ($\ge 2$ conditions) is banned. Use `when` expressions (with a subject or argumentless `when { ... }`) to cleanly express multi-branch logic, type checking (`is`), enum/sealed class matching, and state assignments (`val x = when (...) { ... }`).
+17. **Scope Function Safety (Ban `as? ... ?.let {} ?: run {}`):** Never chain `as?` with `?.let { } ?: run { }` to mutate or inspect subtypes. Use `when (val target = ...)` with natural Kotlin smart-casting (`is SubType -> ...; else -> ...`) to eliminate lambda closure allocations and ensure instant readability.
+18. **Strict Bracket Usage Rules (`{}` vs Bracketless):**
+    - **Bracketless ALLOWED ONLY FOR:** Trivial single-line guard returns (e.g., `if (width <= 0f) return`).
+    - **Brackets `{}` MANDATORY FOR:** Any block with $\ge 2$ statements, multiline expressions, `for`/`while` loops, and any `if-else` where either branch is complex. Never write multiline bracketless code.
+19. **`when` Branch Formatting Standards:**
+    - **Single simple expression:** Single line `Condition -> expression` (no brackets).
+    - **$\ge 2$ statements or nested checks:** Must break to a new indented block enclosed in curly braces `{ ... }`.
+20. **Expressive Domain Naming (Ban Cryptic Abbreviations):** Ban overly cryptic 1-2 letter variables (`p`, `cr`, `hs`, `vis`, `d`, `v`, `w`, `h`, `f`, `rx`, `ry`, `padL`, `padT`, `hFlags`, `vFlags`) in business logic, rendering loops, public APIs, and test DSLs. Use clear, self-documenting domain identifiers (`point`, `cornerRadii`, `halfSize`, `isVisible`, `fraction`, `rectWidth`, `slotInnerHeight`, `font`, `measuredWidth`, `paddingLeft`, `horizontalFlags`).
+21. **Guard Clause & Logical Block Breathing Room:** Always insert a blank line:
+    - After guard clause early returns.
+    - Between distinct logical steps within a function body.
+    - Before and after major branching blocks (`when`, `if-else`, `try-catch`).
+22. **File Granularity (Cohesion & Single Responsibility):**
+    - **Merge Micro-Files:** Consolidate tiny micro-files ($<30$ lines) that share the same domain (e.g. token data classes, wrapper composables) into a single cohesive domain file (`Box.kt`, `ThemeTokens.kt`).
     - **Split Bloated Files:** Decompose large files exceeding $\sim 300$ lines or handling multiple distinct responsibilities into modular, feature-sliced components.
-18. **In-File Structural Organization:** Organize code within each file in a predictable, top-to-bottom layout:
-    1. `Package & Imports` (clean, zero unused or fully qualified imports)
+23. **In-File Structural Organization:** Organize code within each file in a predictable, top-to-bottom layout:
+    1. `Package & Imports` (clean, grouped, zero unused, zero wildcard, zero fully qualified inline imports)
     2. `Public Component / Class Header with KDoc`
     3. `State & Properties`
-    4. `Lifecycle & Primary Methods`
-    5. `Private / Internal Helper Functions`
+    4. `Lifecycle & Primary Entrypoint Methods`
+    5. `Step-Down Helper Functions` (Private/Internal placed immediately below the calling function)
     6. `Companion Object & Extension Functions`
-    Separate distinct logical sections with section header comments (`// --- LIFECYCLE ---`, `// --- GETTERS & SETTERS ---`).
+    Separate distinct logical sections with section header comments (`// --- LIFECYCLE ---`, `// --- DRAWING PRIMITIVES ---`).
 
 ---
 
-## 💾 V. Storage, I/O & Concurrency
-19. **Namespaced Storage & Serializable ConfigStore:** All storage and cache resolutions must be namespaced dynamically by `EngineContext.name` to guarantee total isolation between Game Mod (`nekomod`), Standalone Editor (`editor`), and GUI Launcher. Persistent configurations must use typed `@Serializable` data classes backed by `ConfigStore<T>`.
-20. **Storage & Windows File Locking:** Debounce rapid in-memory mutations before writing to disk (300ms delay). `Storage.atomicWrite` must use unique nano-timestamped staging files with atomic moves to prevent Windows NTFS file lock conflicts (`process cannot access the file`).
-21. **Local Library Source References (`.lib-source`):** Always inspect and read local library source codes in `.lib-source/` (`.lib-source/mindustry/`, `.lib-source/arc/`, `.lib-source/compose-runtime/`, `.lib-source/MindustryToolMod/`) when investigating engine behavior, internal APIs, or rendering pipelines. If a required dependency or library source is missing, clone it into `.lib-source/<lib-name>` before proceeding.
+## 🔌 V. Platform Port Abstraction & Resource Pipelines
+24. **Port & Facade Architecture (`PlatformHost`):** Keep UI and rendering layers 100% agnostic of specific game engines or native backends. Wire all platform operations through focused sub-ports (`WindowPort`, `InputPort`, `AssetPort`, `SystemPort`, `ImePort`) coordinated by `PlatformHost`.
+25. **Single Source of Truth for Resource Resolution (DRY Asset Pipeline):** All asset loading (shaders, textures, fonts, configs) must delegate through `AssetPort.resolveAssetString` or `resolveAssetBytes`. Never duplicate classloader or filesystem cascading fallbacks in individual subsystems.
+26. **Clean Reflection & Native Interop Boundaries:** Isolate reflection hooks (e.g., `SdlReflectionImePort`) and JNI bridges inside dedicated port implementations. Cache reflection fields once, avoid chained Elvis operators with inline side effects, and log warnings gracefully if reflection targets differ across platforms.
+27. **Strict Explicit Named Imports (Zero Wildcards):** Never use wildcard imports (`import pkg.*`). Every imported type, function, and extension must be explicitly imported and enforced via `.editorconfig` (`ij_kotlin_name_count_to_use_star_import = 2147483647`).
+28. **Local Library Source References (`.lib-source`):** Always inspect and read local library source codes in `.lib-source/` (`.lib-source/mindustry/`, `.lib-source/arc/`, `.lib-source/compose-runtime/`, `.lib-source/MindustryToolMod/`) when investigating engine behavior, internal APIs, or rendering pipelines. If a required dependency or library source is missing, clone it into `.lib-source/<lib-name>` before proceeding.
 
 ---
 
-## 📖 VI. Documentation & In-Source Standards
-22. **Bilingual Documentation:** Maintain parallel bilingual documentation pairs (`*_vi.md` and `*_en.md`) in `docs/`. All inter-document markdown links must strictly use relative paths (`./` or `../`), never hardcoded machine paths (`file:///C:/...`).
-23. **In-Source Living Specification & Behavioral Checklist KDoc Standard:**
-    All KDoc comments in Kotlin source files (`*.kt`) must be strictly 100% English and act as self-contained, authoritative living specifications. Every public/internal class, interface, object, and composable must include:
-    - **Header & Architectural Role:** `## SymbolName [Role/Type Tag]` (e.g. `[Virtual DOM Node]`, `[Zero-GC Inline Value Class]`, `[GPU UI Batcher]`, `[Composable]`).
-    - **1. 📖 Feature Specification & Core Architecture:** Detailed operational mechanics, state machines, data flow, coordinate math, and edge-case handling.
-    - **2. ⚡ Invariants & Non-Negotiable Rules:** Performance constraints (Zero-GC, 1-Draw-Call), OpenGL standards, platform isolation (`PlatformHost`), and thread-safety.
-    - **3. 🔗 Related Files & Subsystem Map:** Concrete relative repository file paths (`src/...`) to companion Composables, Virtual Nodes, State Machines, Shaders, and Platform Bridges. Never reference non-existent files.
-    - **4. ✅ Behavioral Verification Checklist:** An actionable checklist (`[x]` / `[ ]`) of core behavioral contracts and invariants that the AI agent and developers MUST review, maintain, and update in the SAME turn whenever modifying code or adding features.
+## 💾 VI. Zero-GC Hot-Loop Invariants & In-Source Documentation
+29. **Zero-GC Hot-Loop Invariant:** In hot-paths executed every frame (`draw()`, `drawSelf()`, `layout()`, `measureWidth()`, `measureHeight()`):
+    - Never call `withIndex()` on collections (allocates `IndexedValue` iterators). Use indexed `for (i in 0 until size)`.
+    - Never instantiate temporary `Pair`/`Triple` instances to destructure return values. Use primitive local variables.
+    - Never allocate temporary collections (`ArrayList`, `HashMap`) per frame. Use reusable scratch buffers with `.clear()`.
+30. **Bilingual Documentation:** Maintain parallel bilingual documentation pairs (`*_vi.md` and `*_en.md`) in `docs/`. All inter-document markdown links must strictly use relative paths (`./` or `../`), never hardcoded machine paths (`file:///C:/...`).
+31. **Plain-English Class KDoc Standard & Synchronous Path Updating:**
+    All KDoc comments in Kotlin source files (`*.kt`) must be written in simple, plain English and act as clear, practical living references. Every public/internal **class, interface, and object** must follow this concise 3-section structure:
+    ```kotlin
+    /**
+     * ## ClassName [Role Tag]
+     *
+     * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+     * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+     *
+     * ### 1. Purpose
+     * - [Brief, clear bullet points explaining why this class exists and what it does in plain English]
+     *
+     * ### 2. Key Rules & Checklist
+     * - [x] [Core invariant or behavioral rule + verification item]
+     * - [x] [Memory / Threading / OpenGL coordinate contract]
+     *
+     * ### 3. Related Files
+     * - Role/Subsystem: `src/main/kotlin/.../PathToFile.kt`
+     */
+    ```
+    *Invariant:* Whenever renaming, moving, or refactoring files, **synchronously search and update all file paths in the `# 3. Related Files` section across all KDocs**.
+32. **Systematic Diagnostic & Signal Chain Integrity:** Verify the unbroken end-to-end signal flow: `Input Event` $\rightarrow$ `Actionable Node Matcher` (`isInteractiveOrOpaque`) $\rightarrow$ `Scissor Boundary Hit-Test` $\rightarrow$ `Event Bubbling` $\rightarrow$ `State Mutation` $\rightarrow$ `Layout/Draw`. Ensure no intermediate router silently drops or misroutes events for supported node types.
 
----
-
-## 🔬 VII. Systematic Diagnostic & Anti-Pattern Hunting Protocol (4-Lens Methodology)
-24. **Coupling & Locality Audit (Isolation Test):** Low-level engines and core renderers (`EngineRenderer`) must remain 100% agnostic of specific domain screens, optional visual effects, or higher-level managers. If disabling or removing a feature leaves baggage in the core engine, encapsulate it immediately at the feature/screen level.
-25. **Algorithmic Waste & Lazy Frame-Indexing:** Never run recursive tree traversals ($O(N)$ pre-scans) before render loops to check for optional node states. Defer heavy operations (FBO captures, blur passes) to the exact moment of execution on-demand, protected by monotonic frame indexing (`lastFrameId == currentFrameId`) for $O(1)$ single execution per frame.
-26. **End-to-End Signal Chain Integrity:** When auditing UI primitives, verify the unbroken end-to-end signal flow: `Input Event` $\rightarrow$ `Actionable Node Matcher` (`findActionableNode`) $\rightarrow$ `Scissor Boundary Hit-Test` $\rightarrow$ `Event Bubbling` $\rightarrow$ `State Mutation` $\rightarrow$ `Layout/Draw`. Ensure no intermediate router silently drops or misroutes events for supported node types.
-27. **Framework Idiomaticity & Zero-GC Invariants:** Enforce minimal primitive node counts (deferring layout/presentation to pure composables) and strictly use typed modifier elements (`data class Element : UIModifier.Element`) with value-based `equals()`/`hashCode()` to eliminate GC allocations and enable Compose recomposition skipping.
 
