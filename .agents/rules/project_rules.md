@@ -49,12 +49,13 @@
     - **Merge Micro-Files:** Consolidate tiny micro-files ($<30$ lines) that share the same domain (e.g. token data classes, wrapper composables) into a single cohesive domain file (`Box.kt`, `ThemeTokens.kt`).
     - **Split Bloated Files:** Decompose large files exceeding $\sim 300$ lines or handling multiple distinct responsibilities into modular, feature-sliced components.
 23. **In-File Structural Organization:** Organize code within each file in a predictable, top-to-bottom layout:
-    1. `Package & Imports` (clean, grouped, zero unused, zero wildcard, zero fully qualified inline imports)
-    2. `Public Component / Class Header with KDoc`
-    3. `State & Properties`
-    4. `Lifecycle & Primary Entrypoint Methods`
-    5. `Step-Down Helper Functions` (Private/Internal placed immediately below the calling function)
-    6. `Companion Object & Extension Functions`
+    1. `Line 1 Invariant Header` (`// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.`)
+    2. `Package & Imports` (clean, grouped, zero unused, zero wildcard, zero fully qualified inline imports)
+    3. `Public Component / Class Header with KDoc`
+    4. `State & Properties`
+    5. `Lifecycle & Primary Entrypoint Methods`
+    6. `Step-Down Helper Functions` (Private/Internal placed immediately below the calling function)
+    7. `Companion Object & Extension Functions`
     Separate distinct logical sections with section header comments (`// --- LIFECYCLE ---`, `// --- DRAWING PRIMITIVES ---`).
 
 ---
@@ -74,26 +75,33 @@
     - Never instantiate temporary `Pair`/`Triple` instances to destructure return values. Use primitive local variables.
     - Never allocate temporary collections (`ArrayList`, `HashMap`) per frame. Use reusable scratch buffers with `.clear()`.
 30. **Bilingual Documentation:** Maintain parallel bilingual documentation pairs (`*_vi.md` and `*_en.md`) in `docs/`. All inter-document markdown links must strictly use relative paths (`./` or `../`), never hardcoded machine paths (`file:///C:/...`).
-31. **Plain-English Class KDoc Standard & Synchronous Path Updating:**
-    All KDoc comments in Kotlin source files (`*.kt`) must be written in simple, plain English and act as clear, practical living references. Every public/internal **class, interface, and object** must follow this concise 3-section structure:
+31. **Modern Type-Checked KDoc & Line-1 Invariant Header Standard:**
+    All KDoc comments in Kotlin source files (`*.kt`) must be written in simple, plain English and act as living, type-checked documentation optimized for IntelliJ IDEA / Dokka hover extraction:
+    - **Line 1 Agent Invariant Header:** Put `// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.` at Line 1 (outside KDoc so it never pollutes IDE hover popups, while serving as an immediate memory trigger for agents).
+    - **Header & Purpose:** Clean markdown title (`## ClassName`) followed by a concise 1-2 sentence description of domain purpose and responsibilities.
+    - **Property Documentation (`@property`):** Declare `@property <name> <description>` on the class/interface header for all key properties (primary constructor and body properties). IntelliJ automatically extracts and renders the exact `@property` description when developers hover over `instance.propertyName`.
+    - **Parameter Documentation (`@param`):** Declare `@param <name> <description>` on functions and composables.
+    - **Type-Checked Cross-Linking (`@see [Symbol]`):** Use `@see [TargetClass]` or `[ClassName.propertyName]` in text instead of hardcoded file paths. This guarantees type-safe refactoring—IntelliJ automatically updates references upon symbol renaming/moving.
+    - **Noisy Comments Ban:** Never add redundant trivial comments (e.g. `/** Loading */ LOADING`). Inline KDoc is reserved exclusively for non-obvious side-effects, unit/hardware constraints, or deprecations.
     ```kotlin
+    // [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
+    package org.mdt.core.platform.render
+
+    import arc.graphics.g2d.TextureRegion
+
     /**
-     * ## ClassName [Role Tag]
+     * ## ImageCacheManager
      *
-     * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
-     * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
+     * In-memory texture cache managing texture lifetime and eviction strategies.
      *
-     * ### 1. Purpose
-     * - [Brief, clear bullet points explaining why this class exists and what it does in plain English]
+     * @property cacheLimit Maximum number of images kept in RAM before LRU cleanup.
+     * @property isInitialized Whether the texture cache is ready for operations.
      *
-     * ### 2. Key Rules & Checklist
-     * - [x] [Core invariant or behavioral rule + verification item]
-     * - [x] [Memory / Threading / OpenGL coordinate contract]
-     *
-     * ### 3. Related Files
-     * - Role/Subsystem: `src/main/kotlin/.../PathToFile.kt`
+     * @see TextureRegion
+     * @see UIBatch
      */
+    class ImageCacheManager { ... }
     ```
-    *Invariant:* Whenever renaming, moving, or refactoring files, **synchronously search and update all file paths in the `# 3. Related Files` section across all KDocs**.
 32. **Systematic Diagnostic & Signal Chain Integrity:** Verify the unbroken end-to-end signal flow: `Input Event` $\rightarrow$ `Actionable Node Matcher` (`isInteractiveOrOpaque`) $\rightarrow$ `Scissor Boundary Hit-Test` $\rightarrow$ `Event Bubbling` $\rightarrow$ `State Mutation` $\rightarrow$ `Layout/Draw`. Ensure no intermediate router silently drops or misroutes events for supported node types.
 
