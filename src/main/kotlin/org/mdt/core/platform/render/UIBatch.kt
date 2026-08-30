@@ -1,4 +1,4 @@
-package org.mdt.core.ui.render
+package org.mdt.core.platform.render
 
 import arc.graphics.Gl
 import arc.graphics.Mesh
@@ -9,36 +9,33 @@ import arc.graphics.g2d.TextureRegion
 import arc.math.Mat
 import arc.util.Disposable
 import java.nio.FloatBuffer
+import org.mdt.core.platform.render.blur.SceneBlur
 import org.mdt.core.ui.EngineRuntime
 import org.mdt.core.ui.unit.Color
 
 /**
  * ## UIBatch [Master 1-Draw-Call GPU UI Batch Renderer]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Master high-performance GPU UI batcher unifying BMFont text glyphs, rounded SDF boxes, borders, icons, textures, and frosted glass.
- * - Streams packed 14-float vertex data (`a_position`, `a_texCoords`, `a_color`, `a_rectCenterHalfSize`, `a_radiiBorderMode`, `a_borderColor`, `a_clipRect`)
- *   into a persistent pre-allocated [Mesh] buffer (up to 16,384 quads per batch).
- * - Implements analytical GPU per-pixel scissor clipping inside the Uber Fragment Shader, eliminating OpenGL hardware scissor state switches.
- * - Samples frosted glass background blur directly from [GameBlurService] texture via sampler unit 2.
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (1-Draw-Call Target):** All UI primitives drawn between `begin()` and `end()` are batched together.
- * - **Rule 2 (OpenGL Active Texture Enum):** Always call `Gl.activeTexture(Gl.texture0 + unit)`, NEVER `Gl.texture2d + unit`.
- * - **Rule 3 (Float Everywhere):** Geometry coordinates, radii, and insets use `Float`.
+ * ### 1. Purpose
+ * - Batches text glyphs, rounded boxes, borders, textures, and frosted glass into a single draw call.
+ * - Streams 14-float vertex data into a pre-allocated mesh buffer.
+ * - Implements per-pixel analytical scissor clipping in shaders without hardware scissor changes.
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - 🎨 **Shader Manager:** `src/main/kotlin/org/mdt/core/ui/render/Shaders.kt`
- * - 🌫️ **Blur Pipeline:** `src/main/kotlin/org/mdt/core/ui/render/GameBlurService.kt`
- * - 🔤 **Font Drawer:** `src/main/kotlin/org/mdt/core/ui/render/UIFontDrawer.kt`
- * - 🌲 **Virtual Nodes:** `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/TextNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`
+ * ### 2. Key Rules & Checklist
+ * - [x] All UI drawing operations between `begin()` and `end()` must be batched together.
+ * - [x] Always bind textures with `Gl.activeTexture(Gl.texture0 + unit)` (never `Gl.texture2d + unit`).
+ * - [x] All coordinates, dimensions, and shader uniform values must use `Float`.
+ * - [x] `pushClip()` and `popClip()` manage analytical clip rects without breaking the batch.
+ * - [x] `end()` renders the queued mesh and restores default OpenGL state.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] `begin(proj, w, h)` binds shader, prepares mesh and activates blur texture.
- * - [x] `drawBox` packages rect center, halfSize, radius, and border properties accurately.
- * - [x] `drawGlyph` pushes font glyph quad with analytical clip coordinates.
- * - [x] `pushClip` and `popClip` manage analytical per-quad scissor stack without flushing batch.
- * - [x] `end()` flushes vertex buffer, executes `mesh.render`, and restores OpenGL state.
+ * ### 3. Related Files
+ * - Shader Registry: `src/main/kotlin/org/mdt/core/platform/render/ShaderRegistry.kt`
+ * - Scene Blur: `src/main/kotlin/org/mdt/core/platform/render/blur/SceneBlur.kt`
+ * - Font Renderer: `src/main/kotlin/org/mdt/core/platform/render/FontRenderer.kt`
+ * - Virtual Nodes: `src/main/kotlin/org/mdt/core/ui/node/LayoutNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/TextNode.kt`
  */
 object UIBatch : Disposable {
 
@@ -127,10 +124,10 @@ object UIBatch : Disposable {
         Draw.flush()
 
         // 2. Capture and Blur game background AFTER Arc batch has flushed
-        val blurTexture = GameBlurService.captureAndBlur()
+        val blurTexture = SceneBlur.captureAndBlur()
 
-        Shaders.ensure()
-        val shader = Shaders.uberShader ?: return
+        ShaderRegistry.ensure()
+        val shader = ShaderRegistry.uberShader ?: return
 
         previousProjection.set(Draw.proj())
         Draw.proj(0.0f, 0.0f, screenWidth, screenHeight)
@@ -368,7 +365,7 @@ object UIBatch : Disposable {
         val newClip = floatArrayOf(minX, minY, maxOf(minX, maxX), maxOf(minY, maxY))
         if (isDrawing && (newClip[0] != currentClip[0] || newClip[1] != currentClip[1] || newClip[2] != currentClip[2] || newClip[3] != currentClip[3])) {
             flush()
-            Shaders.uberShader?.setUniformf("u_clipRect", newClip[0], newClip[1], newClip[2], newClip[3])
+            ShaderRegistry.uberShader?.setUniformf("u_clipRect", newClip[0], newClip[1], newClip[2], newClip[3])
         }
         clipStack.add(newClip)
         currentClip = newClip
@@ -384,7 +381,7 @@ object UIBatch : Disposable {
         val prevClip = if (clipStack.isNotEmpty()) clipStack.last() else defaultClip
         if (isDrawing && (prevClip[0] != currentClip[0] || prevClip[1] != currentClip[1] || prevClip[2] != currentClip[2] || prevClip[3] != currentClip[3])) {
             flush()
-            Shaders.uberShader?.setUniformf("u_clipRect", prevClip[0], prevClip[1], prevClip[2], prevClip[3])
+            ShaderRegistry.uberShader?.setUniformf("u_clipRect", prevClip[0], prevClip[1], prevClip[2], prevClip[3])
         }
         currentClip = prevClip
     }
@@ -397,7 +394,7 @@ object UIBatch : Disposable {
     fun flush() {
         if (queuedQuadCount == 0) return
 
-        val shader = Shaders.uberShader ?: return
+        val shader = ShaderRegistry.uberShader ?: return
 
         mesh.verticesBuffer
         verticesBuffer.position(0)
@@ -415,8 +412,8 @@ object UIBatch : Disposable {
 
     override fun dispose() {
         mesh.dispose()
-        GameBlurService.dispose()
-        Shaders.dispose()
+        SceneBlur.dispose()
+        ShaderRegistry.dispose()
         isDrawing = false
     }
 }

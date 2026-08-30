@@ -1,4 +1,4 @@
-package org.mdt.core.ui.render
+package org.mdt.core.platform.render
 
 import arc.graphics.gl.Shader
 import arc.util.Disposable
@@ -6,28 +6,26 @@ import arc.util.Log
 import org.mdt.core.ui.EngineRuntime
 
 /**
- * ## Shaders [GPU Shader Lifecycle Coordinator]
+ * ## ShaderRegistry [GLSL Shader Manager & Registry]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Master GPU Shader coordinator managing compile, uniform binding, and disposal of [uberShader] and [blurShader].
- * - Reads vertex and fragment source definitions from modular mod assets via [EngineRuntime.host].
- * - Pre-binds static uniform sampler indices (`u_atlas = 0`, `u_gameBlur = 2`).
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Arc Shader Headers & Precisions):** Shaders must never contain manual `#version` or `#ifdef GL_ES` headers.
- * - **Rule 2 (Lazy Lifecycle):** Shaders compile on-demand via `ensure()` and dispose safely via `dispose()`.
+ * ### 1. Purpose
+ * - Compiles, manages, and cleans up UI GLSL shaders ([uberShader] and [blurShader]).
+ * - Configures shader uniforms for texture samplers (`u_atlas = 0`, `u_gameBlur = 2`).
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
- * - 🌫️ **Blur Pipeline:** `src/main/kotlin/org/mdt/core/ui/render/GameBlurService.kt`
- * - 🔌 **Platform Host:** `src/main/kotlin/org/mdt/core/engine/PlatformHost.kt`
- * - 🎨 **Shader Sources:** `src/main/resources/shaders/uber_ui.vert`, `src/main/resources/shaders/uber_ui.frag`
+ * ### 2. Key Rules & Checklist
+ * - [x] Raw shader files must never declare manual `#version` or `#ifdef GL_ES` headers.
+ * - [x] Shaders load lazily on first access via `ensure()`.
+ * - [x] `dispose()` safely destroys GPU shader programs.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] `ensure()` compiles `uberShader` and `blurShader` idempotently.
- * - [x] `dispose()` releases GL programs and sets `isLoaded = false`.
+ * ### 3. Related Files
+ * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
+ * - Scene Blur: `src/main/kotlin/org/mdt/core/platform/render/blur/SceneBlur.kt`
+ * - Platform Host: `src/main/kotlin/org/mdt/core/platform/PlatformHost.kt`
  */
-object Shaders : Disposable {
+object ShaderRegistry : Disposable {
 
     // --- SHADER PATH CONSTANTS ---
 
@@ -72,9 +70,9 @@ object Shaders : Disposable {
             }
 
             isLoaded = true
-            Log.info("[NekoMod] Uber UI Shaders compiled and initialized successfully.")
+            Log.info("[NekoMod] ShaderRegistry compiled and initialized successfully.")
         } catch (compileError: Throwable) {
-            Log.err("[NekoMod] Failed to compile Uber UI Shaders!", compileError)
+            Log.err("[NekoMod] Failed to compile ShaderRegistry shaders!", compileError)
         }
     }
 

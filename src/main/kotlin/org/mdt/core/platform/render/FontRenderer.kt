@@ -1,4 +1,4 @@
-package org.mdt.core.ui.render
+package org.mdt.core.platform.render
 
 import arc.graphics.g2d.Font
 import arc.graphics.g2d.GlyphLayout
@@ -6,31 +6,27 @@ import arc.util.Align
 import org.mdt.core.ui.unit.Color
 
 /**
- * ## UIFontDrawer [Direct BMFont Glyph Emitter & Measurement Helper]
+ * ## FontRenderer [BMFont Rasterizer & Measurement Engine]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Direct, high-performance BMFont glyph emitter for NekoMod.
- * - Reuses static [GlyphLayout] for text bounds measurement, word-wrapping, and color markup parsing.
- * - Emits individual glyph quads directly into [UIBatch] without invoking Arc's `FontCache` or `Draw.batch`.
- * - Supports binary-search single-line ellipsis truncation (`truncateWithEllipsis`) and multi-line wrapping.
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (Typography & Scale):** Draw BMFonts at natural scale ($1.0f$). Do not apply fractional float scale to bitmap fonts.
- * - **Rule 2 (1-Draw-Call Batching):** Pushes glyphs into active [UIBatch] pass with texture binding validation.
+ * ### 1. Purpose
+ * - Emits bitmap font (BMFont) glyph quads directly into [UIBatch] for 1-Draw-Call rendering.
+ * - Measures text dimensions, performs multi-line text wrapping, and truncates text with ellipsis.
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
- * - 🌲 **Virtual Node:** `src/main/kotlin/org/mdt/core/ui/node/TextNode.kt`, `src/main/kotlin/org/mdt/core/ui/node/InputNode.kt`
- * - 🎨 **Composable Text:** `src/main/kotlin/org/mdt/ui/components/display/text/Text.kt`
- * - 🔌 **Platform Host:** `src/main/kotlin/org/mdt/core/engine/PlatformHost.kt`
- *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] `getPrefWidth` calculates string width without text wrapping when `wrap = false`.
- * - [x] `getPrefHeight` clamps height to at least `font.lineHeight`.
+ * ### 2. Key Rules & Checklist
+ * - [x] Draw BMFonts at integer scale (natural `1.0f`), avoiding fractional scaling.
+ * - [x] `getPrefHeight` clamps height to at least one `font.lineHeight`.
  * - [x] `truncateWithEllipsis` truncates string and appends `...` within target width.
- * - [x] `draw` maps runs and glyph offsets into [UIBatch.drawGlyph].
+ * - [x] `draw` maps glyph coordinates and texture UVs into [UIBatch.drawGlyph].
+ *
+ * ### 3. Related Files
+ * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
+ * - Text Node: `src/main/kotlin/org/mdt/core/ui/node/TextNode.kt`
+ * - Composable Text: `src/main/kotlin/org/mdt/ui/components/text/Text.kt`
  */
-object UIFontDrawer {
+object FontRenderer {
 
     private val layoutHelper = GlyphLayout()
     private val arcColorHelper = arc.graphics.Color()
@@ -123,10 +119,9 @@ object UIFontDrawer {
     ) {
         if (text.isEmpty()) return
 
-        val textToRender = if (ellipsis && !wrap && targetWidth > 0.0f) {
-            truncateWithEllipsis(font, text.toString(), targetWidth)
-        } else {
-            text
+        val textToRender = when {
+            ellipsis && !wrap && targetWidth > 0.0f -> truncateWithEllipsis(font, text.toString(), targetWidth)
+            else -> text
         }
 
         layoutHelper.setText(font, textToRender, color.toArcColor(arcColorHelper), targetWidth, align, wrap)
@@ -140,16 +135,20 @@ object UIFontDrawer {
             var currentX = x + run.x
             val currentY = y + run.y
             val runColor = Color.fromArc(run.color)
+            val glyphCount = glyphs.size
 
-            for ((i, element) in glyphs.withIndex()) {
-                val glyph = element
-                currentX += xAdvances[i]
+            for (i in 0 until glyphCount) {
+                val glyph = glyphs.get(i)
+                currentX += xAdvances.get(i)
 
                 val drawX = currentX + glyph.xoffset * scaleX
                 val drawY = currentY + glyph.yoffset * scaleY
                 val glyphWidth = glyph.width * scaleX
                 val glyphHeight = glyph.height * scaleY
-                val fontRegion = if (glyph.page < font.regions.size) font.regions.get(glyph.page) else font.regions.first()
+                val fontRegion = when {
+                    glyph.page < font.regions.size -> font.regions.get(glyph.page)
+                    else -> font.regions.first()
+                }
                 val fontTexture = fontRegion.texture
 
                 UIBatch.drawGlyph(

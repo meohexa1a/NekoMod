@@ -1,4 +1,4 @@
-package org.mdt.core.ui.render
+package org.mdt.core.platform.render.blur
 
 import arc.graphics.Gl
 import arc.graphics.Mesh
@@ -6,45 +6,42 @@ import arc.graphics.Texture
 import arc.graphics.VertexAttribute
 import arc.graphics.gl.FrameBuffer
 import arc.util.Disposable
+import arc.util.Log
+import org.mdt.core.platform.render.ShaderRegistry
 import org.mdt.core.ui.EngineRuntime
 
 /**
- * ## GameBlurService [Progressive Dual-Kawase Background Blur Coordinator]
+ * ## SceneBlur [Dual-Kawase Scene Blur Pipeline & Coordinator]
  *
- * ### 1. 📖 Feature Specification & Core Architecture:
- * - Ultra-low-overhead Dual-Kawase background blur coordinator optimized for integrated and mobile GPUs.
- * - Operates independently of Arc's SpriteBatch using 100% Pure OpenGL, Zero-GC, and monotonic frame-indexing.
- * - Employs a 3-level downsampling pyramid ($1\times \rightarrow 1/2 \rightarrow 1/4 \rightarrow 1/8$) followed by a 2-level 9-tap tent upsampling pass ($1/8 \rightarrow 1/4 \rightarrow 1/2$).
- * - Throttled by `updateIntervalMs` (33ms = 30 FPS update rate) to completely eliminate memory bandwidth bottlenecks on Intel iGPUs.
+ * > 🤖 **AGENT DIRECTIVE:** When modifying this class or related logic, synchronously update this KDoc:
+ * > 1) Keep Purpose accurate. 2) Update Key Rules & Checklist [x]/[ ]. 3) Maintain Related Files map.
  *
- * ### 2. ⚡ Invariants & Non-Negotiable Rules:
- * - **Rule 1 (OpenGL Active Texture Enum):** Texture binding calls must use `Gl.texture0 + unit`, NEVER `Gl.texture2d + unit`.
- * - **Rule 2 (Single Execution per Frame):** Guarded by monotonic frame id (`lastCapturedFrameId == currentFrameId`) for $O(1)$ single execution per frame.
- * - **Rule 3 (Resource Cleanliness):** All FrameBuffers and QuadMesh must be freed in `dispose()`.
+ * ### 1. Purpose
+ * - Executes real-time background blur captures using the 5-pass Dual-Kawase pyramid downsample/upsample algorithm.
+ * - Coordinates frame deduplication and interval throttling (~33ms / 30 FPS) to eliminate GPU fillrate bottlenecks.
+ * - Directly manages OpenGL FBOs and quad rasterization without unnecessary abstraction layers.
  *
- * ### 3. 🔗 Related Files & Subsystem Map:
- * - ⚡ **GPU Batcher:** `src/main/kotlin/org/mdt/core/ui/render/UIBatch.kt`
- * - 🎨 **Shader Manager:** `src/main/kotlin/org/mdt/core/ui/render/Shaders.kt`
- * - 🔌 **Platform Host:** `src/main/kotlin/org/mdt/core/engine/PlatformHost.kt`
- * - ⚙️ **Runtime Orchestrator:** `src/main/kotlin/org/mdt/core/ui/EngineRuntime.kt`
+ * ### 2. Key Rules & Checklist
+ * - [x] Guarded by monotonic `frameId` to run at most once per frame or throttle interval.
+ * - [x] Always bind textures with `Gl.activeTexture(Gl.texture0 + unit)` (never `Gl.texture2d + unit`).
+ * - [x] Automatically disposes and recreates scratch framebuffers on viewport resize.
+ * - [x] Log any shader or framebuffer creation errors via platform logger.
  *
- * ### 4. ✅ Behavioral Verification Checklist:
- * - [x] Returns cached `blurredTexture` without re-rendering if executed multiple times within same frame or interval.
- * - [x] Downsamples screen buffer across 3 FBO levels and upsamples with tent filter into `pingPongA`.
- * - [x] Cleans up scratch framebuffers when window dimensions resize.
- * - [x] `dispose()` releases FBOs and static NDC quad mesh cleanly.
+ * ### 3. Related Files
+ * - GPU Batcher: `src/main/kotlin/org/mdt/core/platform/render/UIBatch.kt`
+ * - Shader Registry: `src/main/kotlin/org/mdt/core/platform/render/ShaderRegistry.kt`
  */
-object GameBlurService : Disposable {
+object SceneBlur : Disposable {
 
     // --- STATE & CONFIGURATION ---
 
     /** Master toggle for background blur rendering. */
     var isEnabled: Boolean = false
 
-    /** Refresh throttle in milliseconds (~33ms = 30 FPS update rate, completely eliminates Intel GPU bandwidth bottleneck). */
+    /** Refresh throttle in milliseconds (~33ms = 30 FPS update rate). */
     var updateIntervalMs: Long = 33L
 
-    /** Blur spread radius multiplier for the upsample tent filter (0.5f - 2.0f). Default: 1.2f. */
+    /** Blur spread radius multiplier for upsampling (0.5f - 2.5f). Default: 1.2f. */
     var blurRadius: Float = 1.2f
 
     /** Execution time of the latest blur pass in milliseconds. */
@@ -84,13 +81,12 @@ object GameBlurService : Disposable {
         }
     }
 
-    // --- DUAL-KAWASE BLUR PIPELINE ---
+    // --- BLUR PIPELINE EXECUTION ---
 
     /**
-     * Executes the progressive 5-pass Dual-Kawase background blur capture.
-     * Guaranteed to execute at most ONCE per frame with O(1) monotonic frame-indexing and time-throttled caching.
+     * Executes progressive 5-pass Dual-Kawase background blur with monotonic frame and time throttling.
      *
-     * @return The silky-smooth blurred background [Texture], or null if blur is disabled.
+     * @return The blurred background [Texture], or null if blur is disabled or capture failed.
      */
     fun captureAndBlur(): Texture? {
         if (!isEnabled) return null
@@ -99,11 +95,8 @@ object GameBlurService : Disposable {
         val now = System.currentTimeMillis()
 
         // Reuse cached texture if already captured this frame OR if within throttle interval
-        if (blurredTexture != null) {
-            if (lastCapturedFrameId == currentFrameId || (now - lastCaptureTimestamp < updateIntervalMs)) {
-                return blurredTexture
-            }
-        }
+        val isCached = blurredTexture != null && (lastCapturedFrameId == currentFrameId || (now - lastCaptureTimestamp < updateIntervalMs))
+        if (isCached) return blurredTexture
 
         val screenWidth = EngineRuntime.host.screenWidth.toInt().coerceAtLeast(1)
         val screenHeight = EngineRuntime.host.screenHeight.toInt().coerceAtLeast(1)
@@ -112,15 +105,15 @@ object GameBlurService : Disposable {
 
         val blurStartNanos = System.nanoTime()
 
-        // Level 1: 1/2 scale (960x540 for 1080p) - sharp half-res base
+        // Level 1: 1/2 scale (960x540 for 1080p)
         val level1Width = maxOf(32, screenWidth / 2)
         val level1Height = maxOf(32, screenHeight / 2)
 
-        // Level 2: 1/4 scale (480x270 for 1080p) - intermediate diffusion
+        // Level 2: 1/4 scale (480x270 for 1080p)
         val level2Width = maxOf(16, level1Width / 2)
         val level2Height = maxOf(16, level1Height / 2)
 
-        // Level 3: 1/8 scale (240x135 for 1080p) - deep background blur
+        // Level 3: 1/8 scale (240x135 for 1080p)
         val level3Width = maxOf(8, level2Width / 2)
         val level3Height = maxOf(8, level2Height / 2)
 
@@ -134,17 +127,22 @@ object GameBlurService : Disposable {
         }
 
         if (pingPongA == null) {
-            pingPongA = FrameBuffer(level1Width, level1Height).apply {
-                texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
-                texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
-            }
-            pingPongB = FrameBuffer(level2Width, level2Height).apply {
-                texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
-                texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
-            }
-            pingPongC = FrameBuffer(level3Width, level3Height).apply {
-                texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
-                texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
+            try {
+                pingPongA = FrameBuffer(level1Width, level1Height).apply {
+                    texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
+                    texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
+                }
+                pingPongB = FrameBuffer(level2Width, level2Height).apply {
+                    texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
+                    texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
+                }
+                pingPongC = FrameBuffer(level3Width, level3Height).apply {
+                    texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
+                    texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
+                }
+            } catch (fboError: Throwable) {
+                Log.err("[NekoMod] Failed to allocate Dual-Kawase pyramid framebuffers", fboError)
+                return null
             }
         }
 
@@ -152,8 +150,12 @@ object GameBlurService : Disposable {
         val fboB = pingPongB ?: return null
         val fboC = pingPongC ?: return null
 
-        Shaders.ensure()
-        val blurShader = Shaders.blurShader ?: return null
+        ShaderRegistry.ensure()
+        val blurShader = ShaderRegistry.blurShader
+        if (blurShader == null) {
+            Log.warn("[NekoMod] Dual-Kawase blur shader is unavailable.")
+            return null
+        }
 
         // --- PURE OPENGL PROGRESSIVE DUAL-KAWASE PYRAMID ---
         val wasBlend = Gl.isEnabled(Gl.blend)
@@ -240,9 +242,14 @@ object GameBlurService : Disposable {
             screenCaptureFbo = null
         }
         if (screenCaptureFbo == null) {
-            screenCaptureFbo = FrameBuffer(physicalWidth, physicalHeight).apply {
-                texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
-                texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
+            try {
+                screenCaptureFbo = FrameBuffer(physicalWidth, physicalHeight).apply {
+                    texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
+                    texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
+                }
+            } catch (captureError: Throwable) {
+                Log.err("[NekoMod] Failed to allocate screen capture framebuffer", captureError)
+                return null
             }
         }
 
@@ -255,7 +262,10 @@ object GameBlurService : Disposable {
         Gl.bindTexture(Gl.texture2d, fbo.texture.textureObjectHandle)
         Gl.copyTexSubImage2D(Gl.texture2d, 0, 0, 0, 0, 0, physicalWidth, physicalHeight)
         Gl.bindTexture(Gl.texture2d, 0)
-        if (wasBlend) Gl.enable(Gl.blend) else Gl.disable(Gl.blend)
+        when {
+            wasBlend -> Gl.enable(Gl.blend)
+            else -> Gl.disable(Gl.blend)
+        }
         Gl.depthMask(true)
         lastCaptureDurationMs = (System.nanoTime() - captureStart) / 1_000_000.0f
 
@@ -270,7 +280,9 @@ object GameBlurService : Disposable {
         disposeScratch()
         try {
             quadMesh.dispose()
-        } catch (_: Throwable) {}
+        } catch (meshError: Throwable) {
+            Log.err("[NekoMod] Error disposing quadMesh", meshError)
+        }
     }
 
     private fun disposeScratch() {
