@@ -1,4 +1,4 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 @file:Suppress("FunctionName", "unused")
 
@@ -7,17 +7,18 @@ package org.mdt.ui.components.input
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import arc.graphics.g2d.Font
+import org.mdt.core.platform.LocalPlatformHost
 import org.mdt.core.ui.compose.NodeApplier
-import org.mdt.core.ui.compose.UIModifier
-import org.mdt.core.ui.compose.align
-import org.mdt.core.ui.compose.background
-import org.mdt.core.ui.compose.border
-import org.mdt.core.ui.compose.fillMaxWidth
-import org.mdt.core.ui.compose.pad
-import org.mdt.core.ui.compose.radius
+import org.mdt.core.ui.modifier.UIModifier
+import org.mdt.core.ui.modifier.align
+import org.mdt.core.ui.modifier.background
+import org.mdt.core.ui.modifier.border
+import org.mdt.core.ui.modifier.fillMaxWidth
+import org.mdt.core.ui.modifier.pad
+import org.mdt.core.ui.modifier.radius
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.node.InputNode
-import org.mdt.core.ui.unit.Color
+import org.mdt.core.platform.render.Color
 import org.mdt.ui.components.layout.Box
 
 /**
@@ -57,9 +58,10 @@ fun BasicInput(
     enabled: Boolean = true,
     isMultiline: Boolean = false
 ) {
+    val host = LocalPlatformHost.current
     ComposeNode<InputNode, NodeApplier>(
         factory = {
-            val node = InputNode()
+            val node = InputNode(hostProvider = { host })
             node.editState.setText(value)
             node.onValueChange = onValueChange
             node.placeholder = placeholder

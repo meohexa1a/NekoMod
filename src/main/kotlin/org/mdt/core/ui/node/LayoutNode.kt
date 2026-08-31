@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Measure & Layout Virtual DOM Node with Visual Background & Scroll Support.
+// - Operating Mechanism: Delegates sizing to [MeasurePolicy] ([Row], [Column], [Box]); manages padding, borders, corner radii, frosted glass, and floating scrollbars.
+// - Invariants: Intrinsic auto-layout (HUG CONTENT) by default; Zero-GC measure/layout loops.
+// - Dependencies: [MeasurePolicy], [BoxMeasurePolicy], [UIBatch], [ScrollbarStyle], [UINode].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.node
 
@@ -9,7 +14,7 @@ import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.layout.BoxMeasurePolicy
 import org.mdt.core.ui.layout.MeasurePolicy
 import org.mdt.core.platform.render.UIBatch
-import org.mdt.core.ui.unit.Color
+import org.mdt.core.platform.render.Color
 
 /**
  * ## LayoutNode
@@ -114,8 +119,8 @@ open class LayoutNode : UINode() {
     private fun attachScrollPointerHandlers() {
         onScroll = { event: ScrollEvent ->
             var consumed = false
-            val isShift = EngineRuntime.host.isShiftPressed
-            lastActivityTime = EngineRuntime.host.nowMillis()
+            val isShift = host.isShiftPressed
+            lastActivityTime = host.nowMillis()
 
             val isHorizontalOnly = isShift || (!enableVerticalScroll && enableHorizontalScroll)
             when {
@@ -148,12 +153,12 @@ open class LayoutNode : UINode() {
             lastDragX = event.x
             lastDragY = event.y
             isDraggingPointer = true
-            lastActivityTime = EngineRuntime.host.nowMillis()
+            lastActivityTime = host.nowMillis()
         }
 
         onPointerDrag = { event: PointerEvent ->
             var consumed = false
-            lastActivityTime = EngineRuntime.host.nowMillis()
+            lastActivityTime = host.nowMillis()
 
             if (enableVerticalScroll && maxScrollY > 0.0f) {
                 val deltaY = event.y - lastDragY
@@ -176,7 +181,7 @@ open class LayoutNode : UINode() {
 
         onPointerUp = {
             isDraggingPointer = false
-            lastActivityTime = EngineRuntime.host.nowMillis()
+            lastActivityTime = host.nowMillis()
         }
     }
 
@@ -260,13 +265,15 @@ open class LayoutNode : UINode() {
         isLayoutDirty = false
         for (i in children.indices) {
             val child = children[i]
-            if (child.visible) child.layout()
+            if (child.visible) {
+                child.layout()
+            }
         }
     }
 
     // --- RENDERING & FLOATING SCROLLBARS ---
 
-    override fun draw() {
+    override fun draw(batch: UIBatch) {
         if (!visible) return
 
         val shouldClip = (clip || scrollable) && bounds.width > 0.0f && bounds.height > 0.0f
@@ -275,24 +282,24 @@ open class LayoutNode : UINode() {
             val innerY = bounds.y + padB
             val innerWidth = maxOf(0.0f, bounds.width - padL - padR)
             val innerHeight = maxOf(0.0f, bounds.height - padT - padB)
-            UIBatch.pushClip(innerX, innerY, innerWidth, innerHeight)
+            batch.pushClip(innerX, innerY, innerWidth, innerHeight)
         }
 
-        drawSelf()
-        drawChildren()
+        drawSelf(batch)
+        drawChildren(batch)
 
         if (shouldClip) {
-            UIBatch.popClip()
+            batch.popClip()
         }
 
         if (scrollable) {
-            drawScrollbars()
+            drawScrollbars(batch)
         }
     }
 
-    override fun drawSelf() {
+    override fun drawSelf(batch: UIBatch) {
         if (color.alpha > 0.001f || borderWidth > 0.001f || region != null || isGlass) {
-            UIBatch.drawBox(
+            batch.drawBox(
                 x = bounds.x,
                 y = bounds.y,
                 width = bounds.width,
@@ -307,8 +314,8 @@ open class LayoutNode : UINode() {
         }
     }
 
-    private fun drawScrollbars() {
-        val currentTime = EngineRuntime.host.nowMillis()
+    private fun drawScrollbars(batch: UIBatch) {
+        val currentTime = host.nowMillis()
         val timeSinceActivity = currentTime - lastActivityTime
 
         val scrollbarAlpha: Float = when {
@@ -333,7 +340,7 @@ open class LayoutNode : UINode() {
             val thumbX = innerX + availableWidth - scrollbarThickness - 2.0f
 
             if (scrollbarTrackColor.alpha > 0.001f) {
-                UIBatch.drawBox(
+                batch.drawBox(
                     x = thumbX,
                     y = innerY,
                     width = scrollbarThickness,
@@ -343,7 +350,7 @@ open class LayoutNode : UINode() {
                 )
             }
 
-            UIBatch.drawBox(
+            batch.drawBox(
                 x = thumbX,
                 y = thumbY,
                 width = scrollbarThickness,
@@ -362,7 +369,7 @@ open class LayoutNode : UINode() {
             val thumbY = innerY + 2.0f
 
             if (scrollbarTrackColor.alpha > 0.001f) {
-                UIBatch.drawBox(
+                batch.drawBox(
                     x = innerX,
                     y = thumbY,
                     width = availableWidth,
@@ -372,7 +379,7 @@ open class LayoutNode : UINode() {
                 )
             }
 
-            UIBatch.drawBox(
+            batch.drawBox(
                 x = thumbX,
                 y = thumbY,
                 width = thumbWidth,

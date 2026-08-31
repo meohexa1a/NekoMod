@@ -1,16 +1,21 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Interactive Text Input Virtual DOM Node.
+// - Operating Mechanism: Manages caret blinking, text selection, IME composition highlights, and keyboard routing via [TextEditState].
+// - Invariants: Backspace handled exclusively in `onKeyDown`; analytical scissor clipping pushed/popped during text/selection draw.
+// - Dependencies: [TextEditState], [FontRenderer], [UIBatch], [LayoutNode].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.node
 
 import arc.graphics.g2d.Font
 import arc.util.Align
-import org.mdt.core.ui.EngineRuntime
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.TextEditState
 import org.mdt.core.ui.layout.SizeFlags
+import org.mdt.core.platform.PlatformHost
 import org.mdt.core.platform.render.UIBatch
 import org.mdt.core.platform.render.FontRenderer
-import org.mdt.core.ui.unit.Color
+import org.mdt.core.platform.render.Color
 
 /**
  * ## InputNode
@@ -33,9 +38,16 @@ import org.mdt.core.ui.unit.Color
  * @see org.mdt.ui.components.input.TextField
  * @see FontRenderer
  */
-open class InputNode : LayoutNode() {
+open class InputNode(
+    text: String = "",
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+) : LayoutNode() {
 
-    val editState = TextEditState {
+    val fontRenderer: FontRenderer get() = hostProvider().fontRenderer
+
+    val editState = TextEditState(
+        hostProvider = hostProvider
+    ) {
         onValueChange?.invoke(it)
         invalidateLayout()
     }
@@ -60,7 +72,7 @@ open class InputNode : LayoutNode() {
             }
         }
 
-    val activeFont: Font? get() = font ?: EngineRuntime.host.resolveDefaultFont()
+    val activeFont: Font? get() = font ?: host.resolveDefaultFont()
 
     var onValueChange: ((String) -> Unit)? = null
 
@@ -86,13 +98,17 @@ open class InputNode : LayoutNode() {
 
         onKeyTyped = { character ->
             val consumed = editState.onKeyTyped(character)
-            if (consumed) invalidateLayout()
+            if (consumed) {
+                invalidateLayout()
+            }
             consumed
         }
 
         onKeyDown = { keyCode ->
             val consumed = editState.onKeyDown(keyCode)
-            if (consumed) invalidateLayout()
+            if (consumed) {
+                invalidateLayout()
+            }
             consumed
         }
 
@@ -114,7 +130,7 @@ open class InputNode : LayoutNode() {
                 2 -> editState.selectWordAt(charIndex)
                 3 -> editState.selectAll()
                 else -> {
-                    val isShift = EngineRuntime.host.isShiftPressed
+                    val isShift = host.isShiftPressed
                     dragSelectionAnchor = if (isShift && editState.selectionStart != -1) editState.selectionStart else charIndex
                     isDraggingSelection = true
                     editState.moveCursor(charIndex, extendSelection = isShift)
@@ -159,7 +175,7 @@ open class InputNode : LayoutNode() {
 
         for (i in 0..text.length) {
             val substring = text.substring(0, i)
-            val subWidth = FontRenderer.getPrefWidth(currentFont, substring, 0.0f, false)
+            val subWidth = fontRenderer.getPrefWidth(currentFont, substring, 0.0f, false)
             val diff = kotlin.math.abs(targetLocalX - subWidth)
             if (diff < minDiff) {
                 minDiff = diff
@@ -175,7 +191,7 @@ open class InputNode : LayoutNode() {
 
         val currentFont = activeFont ?: return padL + padR
         val text = editState.getDisplayText().ifEmpty { placeholder }
-        val textWidth = if (text.isNotEmpty()) FontRenderer.getPrefWidth(currentFont, text, 0.0f, false) else 0.0f
+        val textWidth = if (text.isNotEmpty()) fontRenderer.getPrefWidth(currentFont, text, 0.0f, false) else 0.0f
         val baseWidth = if (minWidth >= 0.0f) maxOf(textWidth, minWidth) else maxOf(textWidth, 40.0f)
         return baseWidth + padL + padR
     }
@@ -189,17 +205,17 @@ open class InputNode : LayoutNode() {
         return baseHeight + padT + padB
     }
 
-    override fun drawSelf() {
+    override fun drawSelf(batch: UIBatch) {
         // 1. Render optional background & borders
-        super.drawSelf()
+        super.drawSelf(batch)
 
         val currentFont = activeFont ?: return
-        val delta = EngineRuntime.host.deltaTime
+        val delta = host.deltaTime
         editState.isFocused = isFocused
         editState.updateBlink(delta)
 
         if (isFocused) {
-            EngineRuntime.inputProcessor.syncIme(this)
+            activeInputProcessor?.syncIme(this)
         }
 
         val innerX = bounds.x + padL
@@ -207,33 +223,32 @@ open class InputNode : LayoutNode() {
         val innerWidth = maxOf(0.0f, bounds.width - padL - padR)
         val innerHeight = maxOf(0.0f, bounds.height - padT - padB)
 
-        if (innerWidth <= 0.0f || innerHeight <= 0.0f) return
-
-        val capHeight = currentFont.data.capHeight
-        val textY = if (isMultiline) {
-            innerY + innerHeight - currentFont.data.ascent
-        } else {
-            innerY + (innerHeight + capHeight) * 0.5f
-        }
-
-        val lineHeight = capHeight * 1.55f
-        val lineCenterY = if (isMultiline) textY - capHeight * 0.5f else textY - capHeight * 0.45f
         val displayText = editState.getDisplayText()
+        val capHeight = currentFont.data.capHeight
+        val lineHeight = currentFont.lineHeight
 
-        // 2. Compute horizontal scroll offset for single-line inputs
-        val effectiveCursor = editState.getEffectiveCursor()
-        val cursorSub = displayText.substring(0, effectiveCursor.coerceIn(0, displayText.length))
-        val cursorRelX = if (cursorSub.isNotEmpty()) FontRenderer.getPrefWidth(currentFont, cursorSub, 0.0f, false) else 0.0f
+        // 1. Calculate base text vertical baseline
+        val textY = when {
+            isMultiline -> innerY + innerHeight - currentFont.data.ascent
+            else -> innerY + (innerHeight + capHeight) * 0.5f
+        }
+        val lineCenterY = innerY + innerHeight * 0.5f
 
+        // 2. Cursor horizontal offset calculation
+        val cursorIndex = editState.getEffectiveCursor().coerceIn(0, displayText.length)
+        val cursorSub = displayText.substring(0, cursorIndex)
+        val cursorRelX = if (cursorSub.isNotEmpty()) fontRenderer.getPrefWidth(currentFont, cursorSub, 0.0f, false) else 0.0f
+
+        // Auto-scroll horizontal single-line text to keep caret visible
         scrollOffset = when {
-            isMultiline || displayText.isEmpty() -> 0.0f
-            cursorRelX - scrollOffset > innerWidth - 4.0f -> maxOf(0.0f, cursorRelX - innerWidth + 4.0f)
+            isMultiline -> 0.0f
+            cursorRelX - scrollOffset > innerWidth - 8.0f -> maxOf(0.0f, cursorRelX - innerWidth + 8.0f)
             cursorRelX - scrollOffset < 0.0f -> maxOf(0.0f, cursorRelX)
             else -> scrollOffset
         }
 
         // 3. Scissor clip text inside the input box
-        UIBatch.pushClip(innerX, innerY, innerWidth, innerHeight)
+        batch.pushClip(innerX, innerY, innerWidth, innerHeight)
 
         // 4. Draw Selection highlight quad
         if (editState.hasSelection()) {
@@ -241,11 +256,11 @@ open class InputNode : LayoutNode() {
             val selStartSub = editState.text.substring(0, range.first)
             val selEndSub = editState.text.substring(0, range.second)
 
-            val selectionStartX = innerX + FontRenderer.getPrefWidth(currentFont, selStartSub, 0.0f, false) - scrollOffset
-            val selectionEndX = innerX + FontRenderer.getPrefWidth(currentFont, selEndSub, 0.0f, false) - scrollOffset
+            val selectionStartX = innerX + fontRenderer.getPrefWidth(currentFont, selStartSub, 0.0f, false) - scrollOffset
+            val selectionEndX = innerX + fontRenderer.getPrefWidth(currentFont, selEndSub, 0.0f, false) - scrollOffset
             val selectionWidth = maxOf(2.0f, selectionEndX - selectionStartX)
 
-            UIBatch.drawBox(
+            batch.drawBox(
                 x = selectionStartX,
                 y = lineCenterY - lineHeight * 0.5f,
                 width = selectionWidth,
@@ -261,12 +276,12 @@ open class InputNode : LayoutNode() {
             val compStartSub = displayText.substring(0, compRange.first)
             val compEndSub = displayText.substring(0, compRange.second)
 
-            val compStartX = innerX + FontRenderer.getPrefWidth(currentFont, compStartSub, 0.0f, false) - scrollOffset
-            val compEndX = innerX + FontRenderer.getPrefWidth(currentFont, compEndSub, 0.0f, false) - scrollOffset
+            val compStartX = innerX + fontRenderer.getPrefWidth(currentFont, compStartSub, 0.0f, false) - scrollOffset
+            val compEndX = innerX + fontRenderer.getPrefWidth(currentFont, compEndSub, 0.0f, false) - scrollOffset
             val compositionWidth = maxOf(2.0f, compEndX - compStartX)
 
             // Composition background highlight
-            UIBatch.drawBox(
+            batch.drawBox(
                 x = compStartX,
                 y = lineCenterY - lineHeight * 0.5f,
                 width = compositionWidth,
@@ -276,7 +291,7 @@ open class InputNode : LayoutNode() {
             )
 
             // Composition underline
-            UIBatch.drawBox(
+            batch.drawBox(
                 x = compStartX,
                 y = innerY + 2.0f,
                 width = compositionWidth,
@@ -289,7 +304,8 @@ open class InputNode : LayoutNode() {
         // 6. Draw Text or Placeholder
         when {
             displayText.isNotEmpty() -> {
-                FontRenderer.draw(
+                fontRenderer.draw(
+                    batch = batch,
                     font = currentFont,
                     text = displayText,
                     x = innerX - scrollOffset,
@@ -301,7 +317,8 @@ open class InputNode : LayoutNode() {
                 )
             }
             placeholder.isNotEmpty() -> {
-                FontRenderer.draw(
+                fontRenderer.draw(
+                    batch = batch,
                     font = currentFont,
                     text = placeholder,
                     x = innerX,
@@ -318,7 +335,7 @@ open class InputNode : LayoutNode() {
         if (isFocused && editState.cursorVisible) {
             val cursorX = innerX + cursorRelX - scrollOffset
 
-            UIBatch.drawBox(
+            batch.drawBox(
                 x = cursorX,
                 y = lineCenterY - lineHeight * 0.5f,
                 width = 2.0f,
@@ -328,6 +345,6 @@ open class InputNode : LayoutNode() {
             )
         }
 
-        UIBatch.popClip()
+        batch.popClip()
     }
 }

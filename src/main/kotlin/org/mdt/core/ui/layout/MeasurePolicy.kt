@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Container Measure & Layout Policies ([Row], [Column], [Box], [FlowRow], [Grid]).
+// - Operating Mechanism: Computes intrinsic min/pref dimensions and places children using reusable Zero-GC [PrimitiveBuffers].
+// - Invariants: 100% Pure Kotlin; proportional flex weight redistribution; Zero-GC hot loops.
+// - Dependencies: [PrimitiveBuffers], [GodotLayout], [LayoutNode].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.layout
 

@@ -1,4 +1,4 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 @file:Suppress("FunctionName", "unused")
 
@@ -10,21 +10,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import arc.graphics.g2d.TextureRegion
-import org.mdt.core.ui.compose.UIModifier
-import org.mdt.core.ui.compose.align
-import org.mdt.core.ui.compose.background
-import org.mdt.core.ui.compose.border
-import org.mdt.core.ui.compose.clickable
-import org.mdt.core.ui.compose.glass
-import org.mdt.core.ui.compose.hoverable
-import org.mdt.core.ui.compose.onClick
-import org.mdt.core.ui.compose.onHover
-import org.mdt.core.ui.compose.opaque
-import org.mdt.core.ui.compose.pad
-import org.mdt.core.ui.compose.radius
-import org.mdt.core.ui.compose.size
+import org.mdt.core.ui.modifier.UIModifier
+import org.mdt.core.ui.modifier.align
+import org.mdt.core.ui.modifier.background
+import org.mdt.core.ui.modifier.border
+import org.mdt.core.ui.modifier.clickable
+import org.mdt.core.ui.modifier.glass
+import org.mdt.core.ui.modifier.hoverable
+import org.mdt.core.ui.modifier.pad
+import org.mdt.core.ui.modifier.radius
+import org.mdt.core.ui.modifier.size
 import org.mdt.core.ui.layout.Alignment
-import org.mdt.core.ui.unit.Color
+import org.mdt.core.platform.render.Color
 import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.text.Text

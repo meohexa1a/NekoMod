@@ -7,7 +7,7 @@
 
 @file:Suppress("unused")
 
-package org.mdt.core.ui.compose
+package org.mdt.core.ui.modifier
 
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.HorizontalAlign

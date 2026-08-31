@@ -5,9 +5,9 @@
 package org.mdt.ui.components.layout
 
 import androidx.compose.runtime.Composable
-import org.mdt.core.ui.compose.UIModifier
-import org.mdt.core.ui.compose.size
-import org.mdt.core.ui.compose.weight
+import org.mdt.core.ui.modifier.UIModifier
+import org.mdt.core.ui.modifier.size
+import org.mdt.core.ui.modifier.weight
 
 /**
  * ## Spacer

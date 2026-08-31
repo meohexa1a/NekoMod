@@ -1,7 +1,14 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Root Screen Virtual DOM Node & Viewport Container.
+// - Operating Mechanism: Full-screen root container; receives window resizing events; drives up to 3 layout passes per frame.
+// - Invariants: Full screen bounds start at OpenGL bottom-left (0, 0); capped at max 3 layout iterations per frame.
+// - Dependencies: [EngineRuntime], [GodotLayout], [EngineInputProcessor], [UINode].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.node
 
+import org.mdt.core.platform.PlatformHost
+import org.mdt.core.platform.render.UIBatch
 import org.mdt.core.ui.layout.GodotLayout
 import org.mdt.core.ui.layout.SizeFlags
 
@@ -18,7 +25,11 @@ import org.mdt.core.ui.layout.SizeFlags
  * @see org.mdt.core.ui.EngineRuntime
  * @see GodotLayout
  */
-class CanvasNode : UINode() {
+class CanvasNode(
+    val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+) : UINode() {
+
+    var inputProcessor: org.mdt.core.ui.input.EngineInputProcessor? = null
 
     // --- PROPERTIES ---
 
@@ -99,12 +110,12 @@ class CanvasNode : UINode() {
         return null
     }
 
-    override fun draw() {
+    override fun draw(batch: UIBatch) {
         var layoutPass = 0
         while (isLayoutDirty && layoutPass < 3) {
             layout()
             layoutPass++
         }
-        super.draw()
+        super.draw(batch)
     }
 }

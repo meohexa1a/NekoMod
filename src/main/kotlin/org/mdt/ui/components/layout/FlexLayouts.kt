@@ -5,7 +5,7 @@ package org.mdt.ui.components.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import org.mdt.core.ui.compose.NodeApplier
-import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.modifier.UIModifier
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
 import org.mdt.core.ui.layout.ColumnMeasurePolicy

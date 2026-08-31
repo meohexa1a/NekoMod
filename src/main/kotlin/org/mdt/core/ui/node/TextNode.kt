@@ -1,12 +1,18 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: BMFont Text Virtual DOM Node.
+// - Operating Mechanism: Calculates baseline layout, wraps lines within available width, and renders glyphs via [FontRenderer].
+// - Invariants: Draw BMFonts at integer scale (1.0f); text mutations trigger `invalidateLayout()`.
+// - Dependencies: [FontRenderer], [UIBatch], [LayoutNode].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.node
 
 import arc.graphics.g2d.Font
 import arc.util.Align
-import org.mdt.core.ui.EngineRuntime
 import org.mdt.core.platform.render.FontRenderer
-import org.mdt.core.ui.unit.Color
+import org.mdt.core.platform.render.UIBatch
+import org.mdt.core.platform.PlatformHost
+import org.mdt.core.platform.render.Color
 
 /**
  * ## TextNode
@@ -28,8 +34,11 @@ import org.mdt.core.ui.unit.Color
  * @see org.mdt.ui.components.text.Text
  */
 open class TextNode(
-    text: String = ""
+    text: String = "",
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
 ) : LayoutNode() {
+
+    val fontRenderer: FontRenderer get() = hostProvider().fontRenderer
 
     init {
         hitTestBehavior = HitTestBehavior.TRANSLUCENT
@@ -51,7 +60,7 @@ open class TextNode(
             }
         }
 
-    val activeFont: Font? get() = font ?: EngineRuntime.host.resolveDefaultFont()
+    val activeFont: Font? get() = font ?: host.resolveDefaultFont()
 
     var textColor: Color = Color.White
     var align: Int = Align.left
@@ -75,7 +84,7 @@ open class TextNode(
         if (wrap) return maxOf(0.0f, minWidth) + padL + padR
 
         val currentFont = activeFont ?: return padL + padR
-        val measuredWidth = FontRenderer.getPrefWidth(currentFont, text, 0.0f, false)
+        val measuredWidth = fontRenderer.getPrefWidth(currentFont, text, 0.0f, false)
         val baseWidth = if (minWidth >= 0.0f) maxOf(measuredWidth, minWidth) else measuredWidth
         return baseWidth + padL + padR
     }
@@ -91,13 +100,13 @@ open class TextNode(
             parent != null && parent!!.bounds.width > 0.0f -> parent!!.bounds.width - parent!!.padL - parent!!.padR - padL - padR
             else -> 0.0f
         }
-        val measuredHeight = FontRenderer.getPrefHeight(currentFont, text, maxOf(0.0f, targetWidth), align, wrap)
+        val measuredHeight = fontRenderer.getPrefHeight(currentFont, text, maxOf(0.0f, targetWidth), align, wrap)
         val baseHeight = if (minHeight >= 0.0f) maxOf(measuredHeight, minHeight) else measuredHeight
         return baseHeight + padT + padB
     }
 
-    override fun drawSelf() {
-        super.drawSelf()
+    override fun drawSelf(batch: UIBatch) {
+        super.drawSelf(batch)
         if (text.isEmpty()) return
         val currentFont = activeFont ?: return
 
@@ -112,7 +121,8 @@ open class TextNode(
             else -> innerY + (innerHeight + capHeight) * 0.5f
         }
 
-        FontRenderer.draw(
+        fontRenderer.draw(
+            batch = batch,
             font = currentFont,
             text = text,
             x = innerX,

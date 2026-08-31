@@ -1,4 +1,4 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.compose
 
@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Recomposer
 import org.mdt.core.platform.LocalPlatformHost
-import org.mdt.core.ui.EngineRuntime
 import org.mdt.core.ui.node.UINode
 
 // --- UI COMPOSITION ROOT HOST ---
@@ -29,6 +28,7 @@ import org.mdt.core.ui.node.UINode
 class UIComposition(
     root: UINode,
     parentRecomposer: Recomposer,
+    host: org.mdt.core.platform.PlatformHost,
     content: @Composable () -> Unit
 ) {
     private val composition: Composition = Composition(
@@ -37,7 +37,7 @@ class UIComposition(
     ).apply {
         setContent {
             CompositionLocalProvider(
-                LocalPlatformHost provides EngineRuntime.host
+                LocalPlatformHost provides host
             ) {
                 content()
             }

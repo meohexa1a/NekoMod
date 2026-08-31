@@ -1,20 +1,20 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 @file:Suppress("FunctionName", "unused")
 
 package org.mdt.ui.components.surface
 
 import androidx.compose.runtime.Composable
-import org.mdt.core.ui.compose.UIModifier
-import org.mdt.core.ui.compose.align
-import org.mdt.core.ui.compose.anchor
-import org.mdt.core.ui.compose.background
-import org.mdt.core.ui.compose.glass
-import org.mdt.core.ui.compose.onClick
-import org.mdt.core.ui.compose.opaque
+import org.mdt.core.platform.render.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.LayoutPreset
-import org.mdt.core.ui.unit.Color
+import org.mdt.core.ui.modifier.UIModifier
+import org.mdt.core.ui.modifier.align
+import org.mdt.core.ui.modifier.anchor
+import org.mdt.core.ui.modifier.background
+import org.mdt.core.ui.modifier.glass
+import org.mdt.core.ui.modifier.onClick
+import org.mdt.core.ui.modifier.opaque
 import org.mdt.ui.components.layout.Box
 
 /**

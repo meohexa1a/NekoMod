@@ -7,7 +7,7 @@
 
 @file:Suppress("unused", "FunctionName")
 
-package org.mdt.core.ui.compose
+package org.mdt.core.ui.modifier
 
 import org.mdt.core.ui.node.UINode
 

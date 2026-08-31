@@ -1,4 +1,4 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 @file:Suppress("FunctionName", "unused")
 
@@ -7,10 +7,10 @@ package org.mdt.ui.components.display
 import androidx.compose.runtime.Composable
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.platform.LocalPlatformHost
-import org.mdt.core.ui.compose.UIModifier
-import org.mdt.core.ui.compose.background
-import org.mdt.core.ui.compose.texture
-import org.mdt.core.ui.unit.Color
+import org.mdt.core.platform.render.Color
+import org.mdt.core.ui.modifier.UIModifier
+import org.mdt.core.ui.modifier.background
+import org.mdt.core.ui.modifier.texture
 import org.mdt.ui.components.layout.Box
 
 /**

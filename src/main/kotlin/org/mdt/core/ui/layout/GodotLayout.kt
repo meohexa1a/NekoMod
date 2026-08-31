@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Core Layout Calculation & Flex Math Engine.
+// - Operating Mechanism: Calculates AABB bounds, proportional flex weights, stretch ratios, and dual-axis anchor offsets in OpenGL bottom-left space.
+// - Invariants: 100% Pure Kotlin (Zero Engine Imports); Float calculations; bottom-left anchor math ($y=0$ bottom).
+// - Dependencies: [MeasurePolicy], [AnchorData], [PrimitiveBuffers], [UINode], [LayoutNode].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.layout
 

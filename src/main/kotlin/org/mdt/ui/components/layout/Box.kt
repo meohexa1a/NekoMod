@@ -5,7 +5,7 @@ package org.mdt.ui.components.layout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import org.mdt.core.ui.compose.NodeApplier
-import org.mdt.core.ui.compose.UIModifier
+import org.mdt.core.ui.modifier.UIModifier
 import org.mdt.core.ui.layout.BoxMeasurePolicy
 import org.mdt.core.ui.node.LayoutNode
 import org.mdt.ui.theme.LocalScrollbarStyle

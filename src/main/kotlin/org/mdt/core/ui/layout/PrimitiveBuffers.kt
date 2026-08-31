@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Pure-Kotlin Zero-GC Primitive Buffer Sequences ([IntList], [FloatList]).
+// - Operating Mechanism: Growable primitive arrays (`IntArray`, `FloatArray`) replacing engine collections like Arc `IntSeq`/`FloatSeq`.
+// - Invariants: 100% Pure Kotlin (Zero Engine Dependencies); guaranteed headless unit testing without game JARs.
+// - Dependencies: [MeasurePolicy], [GodotLayout].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.layout
 

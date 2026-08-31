@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Input Event Models, Enums & Pointer Filters.
+// - Operating Mechanism: Zero-GC event value objects; defines [PointerEventPass], [PointerEventType], [PointerEvent], [PointerInputFilter].
+// - Invariants: Consumption flag (`event.isConsumed`) halts propagation; coordinate values in OpenGL bottom-left pixels.
+// - Dependencies: [EngineInputProcessor], [UINode], [PointerModifiers].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.input
 

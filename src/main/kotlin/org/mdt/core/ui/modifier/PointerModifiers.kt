@@ -7,11 +7,10 @@
 
 @file:Suppress("unused")
 
-package org.mdt.core.ui.compose
+package org.mdt.core.ui.modifier
 
 import arc.Graphics.Cursor
 import arc.input.KeyCode
-import org.mdt.core.ui.input.KeyEvent
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.PointerEventPass
 import org.mdt.core.ui.input.PointerEventType
@@ -19,6 +18,7 @@ import org.mdt.core.ui.input.PointerInputFilter
 import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.node.HitTestBehavior
 import org.mdt.core.ui.node.UINode
+import kotlin.math.hypot
 
 // --- TYPED POINTER & INPUT MODIFIER ELEMENTS ---
 
@@ -140,7 +140,7 @@ data class DraggableModifier(
                     }
                     PointerEventType.Drag, PointerEventType.Move -> {
                         if (event.change.pressed) {
-                            totalDistance += kotlin.math.hypot(event.dx, event.dy)
+                            totalDistance += hypot(event.dx, event.dy)
                             if (!isDragging && totalDistance >= touchSlop) {
                                 isDragging = true
                                 onDragStart?.invoke(event.x, event.y)

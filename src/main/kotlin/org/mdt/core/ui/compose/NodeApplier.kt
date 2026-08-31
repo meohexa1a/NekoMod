@@ -1,4 +1,4 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.compose
 
@@ -23,7 +23,9 @@ class NodeApplier(root: UINode) : AbstractApplier<UINode>(root) {
 
     override fun remove(index: Int, count: Int) {
         repeat(count) {
-            if (index < current.children.size) current.removeChildAt(index)
+            if (index < current.children.size) {
+                current.removeChildAt(index)
+            }
         }
     }
 

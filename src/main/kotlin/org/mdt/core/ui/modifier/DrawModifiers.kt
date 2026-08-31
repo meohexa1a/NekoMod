@@ -7,7 +7,7 @@
 
 @file:Suppress("unused")
 
-package org.mdt.core.ui.compose
+package org.mdt.core.ui.modifier
 
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.ui.node.LayoutNode

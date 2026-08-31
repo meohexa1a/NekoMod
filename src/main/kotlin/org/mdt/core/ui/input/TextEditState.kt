@@ -1,17 +1,19 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.input
 
 import arc.input.KeyCode
-import org.mdt.core.ui.EngineRuntime
+import org.mdt.core.platform.PlatformHost
 
 /**
  * ## TextEditState
  *
  * State machine managing cursor movement, text selection, typing, clipboard actions, and IME composition for text fields.
  * Controls caret blinking timers and keyboard shortcuts (Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X).
+ * Encapsulates mutable text selection, cursor position, horizontal scroll panning, and clipboard integration.
+ * Decouples state manipulation from visual rendering.
  *
- * @param onTextChange Callback invoked whenever text content changes.
+ * @param onTextChange Callback invoked whenever the text content is mutated.
  *
  * @property text Current committed text string.
  * @property cursor Caret position index within [text].
@@ -25,8 +27,12 @@ import org.mdt.core.ui.EngineRuntime
  * @see org.mdt.ui.components.input.TextField
  */
 class TextEditState(
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp },
     var onTextChange: ((String) -> Unit)? = null
 ) {
+    private val host: PlatformHost get() = hostProvider()
+
+    // --- SELECTION & COMPOSITION STATE ---
     var text: String = ""
         private set
 
@@ -289,20 +295,20 @@ class TextEditState(
     fun copy() {
         val selectedText = getSelectedText()
         if (selectedText.isNotEmpty()) {
-            EngineRuntime.host.setClipboard(selectedText)
+            host.setClipboard(selectedText)
         }
     }
 
     fun cut() {
         val selectedText = getSelectedText()
         if (selectedText.isNotEmpty()) {
-            EngineRuntime.host.setClipboard(selectedText)
+            host.setClipboard(selectedText)
             deleteSelection()
         }
     }
 
     fun paste() {
-        val clipboardText = EngineRuntime.host.getClipboard()
+        val clipboardText = host.getClipboard()
         if (clipboardText.isNotEmpty()) {
             insert(clipboardText)
         }
@@ -327,8 +333,8 @@ class TextEditState(
     fun onKeyDown(key: KeyCode): Boolean {
         if (!isFocused) return false
 
-        val isCtrl = EngineRuntime.host.isCtrlPressed
-        val isShift = EngineRuntime.host.isShiftPressed
+        val isCtrl = host.isCtrlPressed
+        val isShift = host.isShiftPressed
 
         return when (key) {
             KeyCode.backspace -> backspace()

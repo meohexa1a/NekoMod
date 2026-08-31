@@ -1,4 +1,4 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 @file:Suppress("FunctionName", "unused")
 
@@ -8,11 +8,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import arc.graphics.g2d.Font
 import arc.util.Align
+import org.mdt.core.platform.LocalPlatformHost
+import org.mdt.core.platform.render.Color
 import org.mdt.core.ui.compose.NodeApplier
-import org.mdt.core.ui.compose.UIModifier
-import org.mdt.core.ui.compose.fillMaxWidth
+import org.mdt.core.ui.modifier.UIModifier
+import org.mdt.core.ui.modifier.fillMaxWidth
 import org.mdt.core.ui.node.TextNode
-import org.mdt.core.ui.unit.Color
 
 /**
  * ## Text
@@ -38,10 +39,11 @@ fun Text(
     wrap: Boolean = false,
     ellipsis: Boolean = false
 ) {
+    val host = LocalPlatformHost.current
     val effectiveModifier = if (wrap) UIModifier.fillMaxWidth().then(modifier) else modifier
     ComposeNode<TextNode, NodeApplier>(
         factory = {
-            val node = TextNode(text)
+            val node = TextNode(text, hostProvider = { host })
             node.textColor = color
             node.font = font
             node.align = align

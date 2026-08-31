@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Compose Runtime Pipeline & Frame Clock Driver.
+// - Operating Mechanism: Manages CoroutineScope, Recomposer lifecycle, BroadcastFrameClock, and Snapshot state flushing.
+// - Invariants: Frame clock ticks synchronized with game render loop via [EngineRuntime.update].
+// - Dependencies: [EngineRuntime], [NodeApplier], [UIComposition].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.compose
 

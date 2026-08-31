@@ -1,4 +1,4 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 @file:Suppress("FunctionName", "unused")
 
@@ -10,21 +10,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
-import org.mdt.core.ui.compose.UIModifier
-import org.mdt.core.ui.compose.align
-import org.mdt.core.ui.compose.background
-import org.mdt.core.ui.compose.border
-import org.mdt.core.ui.compose.glass
-import org.mdt.core.ui.compose.margin
-import org.mdt.core.ui.compose.onHover
-import org.mdt.core.ui.compose.pad
-import org.mdt.core.ui.compose.radius
+import org.mdt.core.platform.render.Color
 import org.mdt.core.ui.layout.Alignment
-import org.mdt.core.ui.unit.Color
+import org.mdt.core.ui.modifier.UIModifier
+import org.mdt.core.ui.modifier.align
+import org.mdt.core.ui.modifier.background
+import org.mdt.core.ui.modifier.border
+import org.mdt.core.ui.modifier.glass
+import org.mdt.core.ui.modifier.margin
+import org.mdt.core.ui.modifier.onHover
+import org.mdt.core.ui.modifier.pad
+import org.mdt.core.ui.modifier.radius
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.text.Text
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * ## TooltipBox

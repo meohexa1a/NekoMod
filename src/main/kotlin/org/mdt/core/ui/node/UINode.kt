@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Virtual DOM Base Node for UI Hierarchy, Layout & Hit-Testing.
+// - Operating Mechanism: Tree hierarchy traversal, parent/child lifecycle, input filtering, and coordinate transformations.
+// - Invariants: Float coordinates with OpenGL bottom-left origin; zero-allocation hit tests.
+// - Dependencies: [LayoutNode], [CanvasNode], [InputNode], [TextNode], [UIBatch], [EngineInputProcessor].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.node
 
@@ -49,6 +54,28 @@ import org.mdt.core.ui.unit.Rect
  * @see CanvasNode
  */
 open class UINode {
+
+    // --- PLATFORM ACCESS ---
+
+    val host: org.mdt.core.platform.PlatformHost
+        get() {
+            var current: UINode? = this
+            while (current != null) {
+                if (current is CanvasNode) return current.hostProvider()
+                current = current.parent
+            }
+            return org.mdt.core.platform.PlatformHost.NoOp
+        }
+
+    val activeInputProcessor: org.mdt.core.ui.input.EngineInputProcessor?
+        get() {
+            var current: UINode? = this
+            while (current != null) {
+                if (current is CanvasNode) return current.inputProcessor
+                current = current.parent
+            }
+            return null
+        }
 
     // --- IDENTITY & HIERARCHY ---
 
@@ -306,37 +333,41 @@ open class UINode {
         isLayoutDirty = false
         for (i in children.indices) {
             val child = children[i]
-            if (child.visible) child.layout()
+            if (child.visible) {
+                child.layout()
+            }
         }
     }
 
     // --- RENDERING & DRAW ---
 
-    /** Renders this node and its children directly to [UIBatch]. */
-    open fun draw() {
+    /** Renders this node and its children directly to [batch]. */
+    open fun draw(batch: UIBatch) {
         if (!visible) return
 
         val shouldClip = clip && bounds.width > 0.0f && bounds.height > 0.0f
         if (shouldClip) {
-            UIBatch.pushClip(bounds.x, bounds.y, bounds.width, bounds.height)
+            batch.pushClip(bounds.x, bounds.y, bounds.width, bounds.height)
         }
 
-        drawSelf()
-        drawChildren()
+        drawSelf(batch)
+        drawChildren(batch)
 
         if (shouldClip) {
-            UIBatch.popClip()
+            batch.popClip()
         }
     }
 
     /** Renders the visual representation of this node. */
-    protected open fun drawSelf() {}
+    protected open fun drawSelf(batch: UIBatch) {}
 
     /** Renders all visible children in order. */
-    protected open fun drawChildren() {
+    protected open fun drawChildren(batch: UIBatch) {
         for (i in children.indices) {
             val child = children[i]
-            if (child.visible) child.draw()
+            if (child.visible) {
+                child.draw(batch)
+            }
         }
     }
 
@@ -495,13 +526,13 @@ open class UINode {
     fun requestFocus() {
         if (!isFocusable || isFocused) return
 
-        EngineRuntime.inputProcessor.requestFocus(this)
+        activeInputProcessor?.requestFocus(this)
     }
 
     fun clearFocus() {
         if (!isFocused) return
 
-        EngineRuntime.inputProcessor.clearFocus()
+        activeInputProcessor?.clearFocus()
     }
 
     // --- COORDINATE TRANSFORMATIONS ---

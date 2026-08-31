@@ -1,10 +1,15 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Input Event Router & Focus Coordinator.
+// - Operating Mechanism: 3-pass pointer pipeline (`INITIAL` -> `MAIN` -> `FINAL`); event-driven drag tracking; IME key filtering.
+// - Invariants: `Backspace` exclusively in `onKeyDown`; printable chars in `onKeyTyped`; scissor clipping respected during hit testing.
+// - Dependencies: [InputEvents], [CanvasNode], [UINode], [InputNode], [EngineRuntime].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.input
 
 import arc.input.InputProcessor
 import arc.input.KeyCode
-import org.mdt.core.ui.EngineRuntime
+import org.mdt.core.platform.PlatformHost
 import org.mdt.core.ui.node.CanvasNode
 import org.mdt.core.ui.node.InputNode
 import org.mdt.core.ui.node.UINode
@@ -26,7 +31,12 @@ import org.mdt.core.ui.node.UINode
  * @see InputNode
  * @see org.mdt.core.platform.PlatformHost
  */
-class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
+class EngineInputProcessor(
+    val canvas: CanvasNode,
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+) : InputProcessor {
+
+    private val host: PlatformHost get() = hostProvider()
 
     // --- PROPERTIES & REUSABLE BUFFERS ---
 
@@ -57,7 +67,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
      */
     fun update() {
         val node = pendingSingleClickNode ?: return
-        val now = EngineRuntime.host.nowMillis()
+        val now = host.nowMillis()
         if (now - pendingSingleClickTime >= doubleClickTimeout) {
             pendingSingleClickNode = null
             node.onClick?.invoke()
@@ -104,7 +114,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
         val previous = focusedNode
         if (previous is InputNode) {
             previous.editState.clearComposition()
-            EngineRuntime.host.stopImeSession()
+            host.stopImeSession()
         }
 
         previous?.let { it.isFocused = false }
@@ -113,7 +123,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
 
         if (node is InputNode) {
             val globalPos = node.localToGlobal(0.0f, 0.0f)
-            EngineRuntime.host.startImeSession(
+            host.startImeSession(
                 globalX = globalPos.x,
                 globalY = globalPos.y,
                 width = node.bounds.width,
@@ -138,7 +148,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
     fun syncIme(node: InputNode) {
         if (focusedNode === node) {
             val globalPos = node.localToGlobal(0.0f, 0.0f)
-            EngineRuntime.host.syncImeSession(
+            host.syncImeSession(
                 globalX = globalPos.x,
                 globalY = globalPos.y,
                 width = node.bounds.width,
@@ -183,7 +193,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
     override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: KeyCode): Boolean {
         val clickX = screenX.toFloat()
         val clickY = toLocalY(screenY)
-        val now = EngineRuntime.host.nowMillis()
+        val now = host.nowMillis()
 
         isPointerPressed = true
         val change = PointerInputChange(
@@ -226,7 +236,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
     override fun touchUp(screenX: Int, screenY: Int, pointer: Int, button: KeyCode): Boolean {
         val clickX = screenX.toFloat()
         val clickY = toLocalY(screenY)
-        val now = EngineRuntime.host.nowMillis()
+        val now = host.nowMillis()
 
         val change = PointerInputChange(
             id = pointer.toLong(),
@@ -297,7 +307,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
     override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
         val dragX = screenX.toFloat()
         val dragY = toLocalY(screenY)
-        val now = EngineRuntime.host.nowMillis()
+        val now = host.nowMillis()
 
         val change = PointerInputChange(
             id = pointer.toLong(),
@@ -324,7 +334,7 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
     override fun mouseMoved(screenX: Int, screenY: Int): Boolean {
         val moveX = screenX.toFloat()
         val moveY = toLocalY(screenY)
-        val now = EngineRuntime.host.nowMillis()
+        val now = host.nowMillis()
 
         val change = PointerInputChange(
             id = 0L,
@@ -358,10 +368,10 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
 
             // Update System Mouse Cursor with clean when
             when {
-                target == null -> EngineRuntime.host.restoreCursor()
-                target.cursor != null -> EngineRuntime.host.setCursor(target.cursor)
-                target.onClick != null || target.pointerFilters.isNotEmpty() -> EngineRuntime.host.setCursorHand()
-                else -> EngineRuntime.host.restoreCursor()
+                target == null -> host.restoreCursor()
+                target.cursor != null -> host.setCursor(target.cursor)
+                target.onClick != null || target.pointerFilters.isNotEmpty() -> host.setCursorHand()
+                else -> host.restoreCursor()
             }
         }
 
@@ -371,9 +381,9 @@ class EngineInputProcessor(val canvas: CanvasNode) : InputProcessor {
     // --- SCROLL EVENTS ---
 
     override fun scrolled(amountX: Float, amountY: Float): Boolean {
-        val scrollX = EngineRuntime.host.mouseX
-        val scrollY = EngineRuntime.host.mouseY
-        val now = EngineRuntime.host.nowMillis()
+        val scrollX = host.mouseX
+        val scrollY = host.mouseY
+        val now = host.nowMillis()
 
         val change = PointerInputChange(
             id = 0L,

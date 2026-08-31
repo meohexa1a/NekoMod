@@ -1,4 +1,4 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.ui
 
@@ -7,15 +7,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.mdt.core.platform.render.SceneBlur
-import org.mdt.core.ui.compose.Modifier
-import org.mdt.core.ui.compose.align
-import org.mdt.core.ui.compose.fillMaxSize
-import org.mdt.core.ui.compose.fillMaxWidth
-import org.mdt.core.ui.compose.width
+import org.mdt.core.ui.EngineRuntime
+import org.mdt.core.platform.LocalPlatformHost
+import org.mdt.core.ui.modifier.UIModifier
+import org.mdt.core.ui.modifier.align
+import org.mdt.core.ui.modifier.fillMaxSize
+import org.mdt.core.ui.modifier.fillMaxWidth
+import org.mdt.core.ui.modifier.width
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
-import org.mdt.core.ui.unit.Color
+import org.mdt.core.platform.render.Color
 import org.mdt.ui.components.input.TextField
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Column
@@ -37,12 +38,13 @@ fun NekoApp() {
     var clickCount by remember { mutableStateOf(0) }
     var blurActive by remember { mutableStateOf(false) }
     var inputText by remember { mutableStateOf("") }
+    val host = LocalPlatformHost.current
 
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = UIModifier.fillMaxSize()
     ) {
         Card(
-            modifier = Modifier
+            modifier = UIModifier
                 .align(Alignment.Center)
                 .width(480.0f),
             color = Color(0.10f, 0.10f, 0.16f, 0.55f),
@@ -54,7 +56,7 @@ fun NekoApp() {
             Column(
                 arrangement = Arrangement.spacedBy(14.0f),
                 alignment = Alignment.TopStart,
-                modifier = Modifier.fillMaxWidth()
+                modifier = UIModifier.fillMaxWidth()
             ) {
                 Text(
                     text = "[#85c1dc]NekoMod[] [#e5c890]v2.0[]",
@@ -71,7 +73,7 @@ fun NekoApp() {
                     value = inputText,
                     onValueChange = { inputText = it },
                     placeholder = "Nhap lenh hoac van ban o day...",
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = UIModifier.fillMaxWidth()
                 )
 
                 Row(
@@ -85,7 +87,7 @@ fun NekoApp() {
                         },
                         onClick = {
                             blurActive = !blurActive
-                            SceneBlur.isEnabled = blurActive
+                            host.blur.isEnabled = blurActive
                         },
                         variant = when {
                             blurActive -> ButtonVariant.FILLED

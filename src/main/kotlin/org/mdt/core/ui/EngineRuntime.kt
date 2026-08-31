@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: UI Engine Master Orchestrator & Frame Loop Driver.
+// - Operating Mechanism: Manages global lifecycle, drives layout passes, renders CanvasNode, and routes input.
+// - Invariants: All frame rendering executed on main thread; single host facade access via [PlatformHost].
+// - Dependencies: [CanvasNode], [ComposePipeline], [EngineInputProcessor], [PlatformHost].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui
 
@@ -10,34 +15,36 @@ import org.mdt.core.ui.compose.ComposePipeline
 import org.mdt.core.ui.compose.UIComposition
 import org.mdt.core.ui.input.EngineInputProcessor
 import org.mdt.core.ui.node.CanvasNode
-import org.mdt.core.platform.render.UIBatch
 
 /**
  * ## EngineRuntime
  *
  * Master singleton controlling the UI engine lifecycle, input handling, and frame rendering loop.
  * Connects [PlatformHost] to the root virtual DOM ([CanvasNode]) and coordinates Compose recomposition ([ComposePipeline]).
- * Draws UI via [UIBatch] at the end of each game frame.
+ * Dispatches frame rendering through [PlatformHost.render] at the end of each game frame.
  *
  * @property canvas Root virtual screen node ([CanvasNode]) containing the entire UI hierarchy.
  * @property inputProcessor Master input processor routing pointer, touch, scroll, and key events.
- * @property host Active platform host implementation providing window, asset, input, and system ports.
+ * @property host Active platform host implementation providing window, asset, input, system, and render ports.
  * @property isInitialized Whether the engine runtime has been initialized and platform hooks registered.
  *
  * @see PlatformHost
  * @see CanvasNode
  * @see EngineInputProcessor
  * @see ComposePipeline
- * @see UIBatch
  */
 object EngineRuntime {
 
     // --- STATE & CORE INSTANCES ---
 
-    val canvas = CanvasNode()
-    val inputProcessor = EngineInputProcessor(canvas)
-
     var host: PlatformHost = MindustryPlatformHost()
+    val canvas = CanvasNode { host }
+    val inputProcessor = EngineInputProcessor(canvas) { host }
+
+    init {
+        canvas.inputProcessor = inputProcessor
+    }
+
     private var pipeline: ComposePipeline? = null
     private var composition: UIComposition? = null
     private var initialized = false
@@ -72,7 +79,7 @@ object EngineRuntime {
         init()
         composition?.dispose()
         val currentPipeline = pipeline ?: ComposePipeline().also { pipeline = it }
-        composition = UIComposition(canvas, currentPipeline.recomposer, content)
+        composition = UIComposition(canvas, currentPipeline.recomposer, host, content)
     }
 
     // --- FRAME RENDERING & DISPATCH ---
@@ -87,9 +94,9 @@ object EngineRuntime {
             canvas.resize(screenWidth, screenHeight)
             pipeline?.frame()
 
-            UIBatch.begin(canvas.screenWidth, canvas.screenHeight)
-            canvas.draw()
-            UIBatch.end()
+            host.render.beginFrame(canvas.screenWidth, canvas.screenHeight)
+            canvas.draw(host.render.batch)
+            host.render.endFrame()
         } catch (renderError: Throwable) {
             Log.err("[NekoMod] Error in EngineRuntime.draw()", renderError)
         }
@@ -107,7 +114,7 @@ object EngineRuntime {
         host.removeInputProcessor(inputProcessor)
         host.removeResize(resizeListener)
         host.removeFrameEnd(frameEndListener)
-        UIBatch.dispose()
+        host.render.dispose()
         initialized = false
     }
 }

@@ -1,9 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.ui.theme
 
 import androidx.compose.runtime.compositionLocalOf
-import org.mdt.core.ui.unit.Color
+import org.mdt.core.platform.render.Color
 
 /**
  * ## ScrollbarStyle
