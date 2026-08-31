@@ -1,34 +1,32 @@
-// [AGENT ARCHITECTURE & INVARIANTS]
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 // - Domain Role: GLSL Shader Manager & Uniform Registry.
-// - Operating Mechanism: Lazy compilation on first access (`ensure`); binds samplers (`u_atlas=0`, `u_gameBlur=2`).
-// - Invariants: Raw shader files must never declare manual `#version` or `#ifdef GL_ES`.
+// - Operating Mechanism: Lazy compilation via Kotlin delegates; guarantees non-null shader returns with Zero-GC fallbacks.
+// - Invariants: Raw shader files must never declare manual #version or #ifdef GL_ES.
 // - Dependencies: [UIBatch], [SceneBlur], [PlatformHost].
-// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.platform.render
 
 import arc.graphics.gl.Shader
 import arc.util.Log
 import org.mdt.core.platform.PlatformHost
-import org.mdt.core.platform.assets.AssetPort
+import org.mdt.core.platform.AssetPort
 
 /**
  * ## ShaderRegistry
  *
- * Compiles, caches, and disposes UI GLSL shaders ([uberShader] and [blurShader]).
- * Configures shader uniforms for texture samplers (`u_atlas = 0`, `u_gameBlur = 2`).
+ * Compiles and caches UI GLSL shaders ([uberShader] and [blurShader]).
+ * Configures shader uniforms for texture samplers (u_atlas = 0, u_gameBlur = 2).
  *
  * @param hostProvider Provider lambda returning the ambient [PlatformHost] for asset resolution.
  *
  * @property uberShader Master 2D Uber UI shader instance for rendering quads, SDF boxes, borders, and text glyphs.
  * @property blurShader Dual-Kawase downsample/upsample shader instance for scene background blurring.
- * @property isLoaded Whether shaders have been compiled and bound to the GPU context.
  *
  * @see UIBatch
  * @see SceneBlur
  */
 class ShaderRegistry(
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost
 ) {
 
     private val assets: AssetPort
@@ -43,64 +41,51 @@ class ShaderRegistry(
         const val FRAG_BLUR = "shaders/blur.frag"
     }
 
+    // --- FALLBACK SHADER ---
+
+    private val fallbackShader: Shader by lazy(LazyThreadSafetyMode.NONE) {
+        Shader("", "")
+    }
+
     // --- SHADER INSTANCES ---
 
-    var uberShader: Shader? = null
-        private set
-
-    var blurShader: Shader? = null
-        private set
-
-    var isLoaded: Boolean = false
-        private set
-
-    // --- LIFECYCLE & INITIALIZATION ---
-
-    /**
-     * Lazily compiles and initializes the GPU shaders if not already loaded.
-     */
-    fun ensure() {
-        if (isLoaded) return
+    val uberShader: Shader by lazy(LazyThreadSafetyMode.NONE) {
+        val vertUberSource = readString(VERT_UBER)
+        val fragUberSource = readString(FRAG_UBER)
+        if (vertUberSource.isEmpty() || fragUberSource.isEmpty()) {
+            Log.err("[NekoMod] Uber shader source is empty or missing, using fallback.")
+            return@lazy fallbackShader
+        }
 
         try {
-            val vertUberSource = readString(VERT_UBER)
-            val fragUberSource = readString(FRAG_UBER)
-            if (vertUberSource.isNotEmpty() && fragUberSource.isNotEmpty()) {
-                uberShader = Shader(vertUberSource, fragUberSource).apply {
-                    bind()
-                    setUniformi("u_atlas", 0)
-                    setUniformi("u_gameBlur", 2)
-                }
-            } else {
-                Log.err("[NekoMod] Uber shader source is empty or missing, skipping compilation.")
+            Shader(vertUberSource, fragUberSource).apply {
+                bind()
+                setUniformi("u_atlas", 0)
+                setUniformi("u_gameBlur", 2)
             }
-
-            val vertBlurSource = readString(VERT_BLUR)
-            val fragBlurSource = readString(FRAG_BLUR)
-            if (vertBlurSource.isNotEmpty() && fragBlurSource.isNotEmpty()) {
-                blurShader = Shader(vertBlurSource, fragBlurSource).apply {
-                    bind()
-                    setUniformi("u_texture", 0)
-                }
-            } else {
-                Log.err("[NekoMod] Blur shader source is empty or missing, skipping compilation.")
-            }
-
-            isLoaded = uberShader != null
-            if (isLoaded) {
-                Log.info("[NekoMod] ShaderRegistry compiled and initialized successfully.")
-            }
-        } catch (compileError: Throwable) {
-            Log.err("[NekoMod] Failed to compile ShaderRegistry shaders!", compileError)
+        } catch (e: Throwable) {
+            Log.err("[NekoMod] Failed to compile uber_ui shader, using fallback.", e)
+            fallbackShader
         }
     }
 
-    fun dispose() {
-        uberShader?.dispose()
-        uberShader = null
-        blurShader?.dispose()
-        blurShader = null
-        isLoaded = false
+    val blurShader: Shader by lazy(LazyThreadSafetyMode.NONE) {
+        val vertBlurSource = readString(VERT_BLUR)
+        val fragBlurSource = readString(FRAG_BLUR)
+        if (vertBlurSource.isEmpty() || fragBlurSource.isEmpty()) {
+            Log.err("[NekoMod] Blur shader source is empty or missing, using fallback.")
+            return@lazy fallbackShader
+        }
+
+        try {
+            Shader(vertBlurSource, fragBlurSource).apply {
+                bind()
+                setUniformi("u_texture", 0)
+            }
+        } catch (e: Throwable) {
+            Log.err("[NekoMod] Failed to compile blur shader, using fallback.", e)
+            fallbackShader
+        }
     }
 
     // --- HELPERS ---

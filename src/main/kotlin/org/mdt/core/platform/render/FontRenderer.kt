@@ -10,6 +10,7 @@ package org.mdt.core.platform.render
 import arc.graphics.g2d.Font
 import arc.graphics.g2d.GlyphLayout
 import arc.util.Align
+import org.mdt.core.platform.unit.Color
 
 /**
  * ## FontRenderer

@@ -8,21 +8,6 @@
 package org.mdt.core.platform
 
 import androidx.compose.runtime.staticCompositionLocalOf
-import arc.Graphics.Cursor
-import arc.graphics.g2d.Font
-import arc.graphics.g2d.TextureRegion
-import arc.input.InputProcessor
-import okio.Path
-import org.mdt.core.platform.assets.AssetPort
-import org.mdt.core.platform.ime.ImePort
-import org.mdt.core.platform.input.InputPort
-import org.mdt.core.platform.render.FontRenderer
-import org.mdt.core.platform.render.RenderPort
-import org.mdt.core.platform.render.SceneBlur
-import org.mdt.core.platform.render.ShaderRegistry
-import org.mdt.core.platform.render.UIBatch
-import org.mdt.core.platform.system.SystemPort
-import org.mdt.core.platform.window.WindowPort
 
 /**
  * ## PlatformHost
@@ -55,70 +40,6 @@ interface PlatformHost {
     val system: SystemPort
     val ime: ImePort
     val render: RenderPort
-
-    // --- CONVENIENCE FACADE DELEGATIONS ---
-
-    val screenWidth: Float get() = window.width
-    val screenHeight: Float get() = window.height
-    fun onResize(block: (width: Float, height: Float) -> Unit) = window.onResize(block)
-    fun removeResize(block: (width: Float, height: Float) -> Unit) = window.removeResize(block)
-    fun setCursorHand() = window.setCursorHand()
-    fun setCursor(cursor: Cursor?) = window.setCursor(cursor)
-    fun restoreCursor() = window.restoreCursor()
-
-    val mouseX: Float get() = input.mouseX
-    val mouseY: Float get() = input.mouseY
-    val isCtrlPressed: Boolean get() = input.isCtrlPressed
-    val isShiftPressed: Boolean get() = input.isShiftPressed
-    val isAltPressed: Boolean get() = input.isAltPressed
-    fun addInputProcessor(processor: InputProcessor) = input.addInputProcessor(processor)
-    fun removeInputProcessor(processor: InputProcessor) = input.removeInputProcessor(processor)
-
-    fun resolveAtlasRegion(name: String): TextureRegion? = assets.resolveAtlasRegion(name)
-    fun resolveDefaultFont(): Font? = assets.resolveDefaultFont()
-    fun resolveAssetBytes(path: String): ByteArray? = assets.resolveAssetBytes(path)
-    fun resolveAssetString(path: String): String? = assets.resolveAssetString(path)
-    fun readShaderSource(path: String): String = assets.readShaderSource(path)
-    fun resolveFallbackRegion(): TextureRegion = assets.resolveFallbackRegion()
-    fun resolveWhiteRegion(): TextureRegion = assets.resolveWhiteRegion()
-
-    val frameId: Long get() = system.frameId
-    val deltaTime: Float get() = system.deltaTime
-    fun nowMillis(): Long = system.nowMillis()
-    fun postToMainThread(block: () -> Unit) = system.postToMainThread(block)
-    fun onFrameEnd(block: () -> Unit) = system.onFrameEnd(block)
-    fun removeFrameEnd(block: () -> Unit) = system.removeFrameEnd(block)
-    fun resolveDefaultDataDir(appName: String): Path = system.resolveDefaultDataDir(appName)
-    fun getClipboard(): String = system.getClipboard()
-    fun setClipboard(text: String) = system.setClipboard(text)
-    fun openURI(uri: String): Boolean = system.openURI(uri)
-
-    fun startImeSession(
-        globalX: Float,
-        globalY: Float,
-        width: Float,
-        height: Float,
-        initialText: String,
-        cursorPosition: Int,
-        onCompositionChanged: (composition: String) -> Unit,
-        onCompositionCleared: () -> Unit
-    ) = ime.startSession(globalX, globalY, width, height, initialText, cursorPosition, onCompositionChanged, onCompositionCleared)
-
-    fun syncImeSession(
-        globalX: Float,
-        globalY: Float,
-        width: Float,
-        height: Float,
-        text: String,
-        cursorPosition: Int
-    ) = ime.syncSession(globalX, globalY, width, height, text, cursorPosition)
-
-    fun stopImeSession() = ime.stopSession()
-
-    val batch: UIBatch get() = render.batch
-    val blur: SceneBlur get() = render.blur
-    val fontRenderer: FontRenderer get() = render.fontRenderer
-    val shaders: ShaderRegistry get() = render.shaders
 
     /** Stub [PlatformHost] implementation combining all [NoOp] sub-ports for testing. */
     object NoOp : PlatformHost {

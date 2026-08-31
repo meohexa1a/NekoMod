@@ -16,6 +16,7 @@ import arc.graphics.g2d.TextureRegion
 import arc.math.Mat
 import java.nio.FloatBuffer
 import org.mdt.core.platform.PlatformHost
+import org.mdt.core.platform.unit.Color
 
 /**
  * ## UIBatch
@@ -37,7 +38,7 @@ import org.mdt.core.platform.PlatformHost
  * @see org.mdt.core.ui.node.TextNode
  */
 class UIBatch(
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost
 ) {
 
     val host: PlatformHost
@@ -135,14 +136,13 @@ class UIBatch(
         // 2. Capture and Blur game background AFTER Arc batch has flushed
         val blurTexture = blur.captureAndBlur()
 
-        shaders.ensure()
-        val shader = shaders.uberShader ?: return
+        val shader = shaders.uberShader
 
         previousProjection.set(Draw.proj())
         Draw.proj(0.0f, 0.0f, screenWidth, screenHeight)
 
         // 3. Texture Unit 0: Master Atlas (Contains fonts, icons, sprites, white pixel)
-        val atlasTexture = host.resolveWhiteRegion().texture
+        val atlasTexture = host.assets.resolveWhiteRegion().texture
         activeAtlasTexture = atlasTexture
         if (atlasTexture != null) {
             Gl.activeTexture(Gl.texture0)
@@ -215,7 +215,7 @@ class UIBatch(
     ) {
         if (width <= 0.001f || height <= 0.001f) return
 
-        val whiteRegion = host.resolveWhiteRegion()
+        val whiteRegion = host.assets.resolveWhiteRegion()
         val texture = region?.texture ?: whiteRegion.texture
         if (texture != null && (activeAtlasTexture == null || activeAtlasTexture != texture)) {
             flush()
@@ -303,7 +303,7 @@ class UIBatch(
     ) {
         if (width <= 0.001f || height <= 0.001f) return
 
-        val texture = fontTexture ?: host.resolveWhiteRegion().texture
+        val texture = fontTexture ?: host.assets.resolveWhiteRegion().texture
         if (texture != null && (activeAtlasTexture == null || activeAtlasTexture != texture)) {
             flush()
             activeAtlasTexture = texture
@@ -374,7 +374,7 @@ class UIBatch(
         val newClip = floatArrayOf(minX, minY, maxOf(minX, maxX), maxOf(minY, maxY))
         if (isDrawing && (newClip[0] != currentClip[0] || newClip[1] != currentClip[1] || newClip[2] != currentClip[2] || newClip[3] != currentClip[3])) {
             flush()
-            shaders.uberShader?.setUniformf("u_clipRect", newClip[0], newClip[1], newClip[2], newClip[3])
+            shaders.uberShader.setUniformf("u_clipRect", newClip[0], newClip[1], newClip[2], newClip[3])
         }
         clipStack.add(newClip)
         currentClip = newClip
@@ -390,7 +390,7 @@ class UIBatch(
         val prevClip = if (clipStack.isNotEmpty()) clipStack.last() else defaultClip
         if (isDrawing && (prevClip[0] != currentClip[0] || prevClip[1] != currentClip[1] || prevClip[2] != currentClip[2] || prevClip[3] != currentClip[3])) {
             flush()
-            shaders.uberShader?.setUniformf("u_clipRect", prevClip[0], prevClip[1], prevClip[2], prevClip[3])
+            shaders.uberShader.setUniformf("u_clipRect", prevClip[0], prevClip[1], prevClip[2], prevClip[3])
         }
         currentClip = prevClip
     }
@@ -422,7 +422,6 @@ class UIBatch(
     fun dispose() {
         mesh.dispose()
         blur.dispose()
-        shaders.dispose()
         isDrawing = false
     }
 }

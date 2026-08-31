@@ -7,18 +7,18 @@
 
 package org.mdt.core.platform
 
-import org.mdt.core.platform.assets.AssetPort
-import org.mdt.core.platform.assets.MindustryAssetPort
-import org.mdt.core.platform.ime.ImePort
-import org.mdt.core.platform.ime.SdlReflectionImePort
-import org.mdt.core.platform.input.InputPort
-import org.mdt.core.platform.input.MindustryInputPort
-import org.mdt.core.platform.render.MindustryRenderPort
-import org.mdt.core.platform.render.RenderPort
-import org.mdt.core.platform.system.MindustrySystemPort
-import org.mdt.core.platform.system.SystemPort
-import org.mdt.core.platform.window.MindustryWindowPort
-import org.mdt.core.platform.window.WindowPort
+import org.mdt.core.platform.AssetPort
+import org.mdt.core.platform.MindustryAssetPort
+import org.mdt.core.platform.ImePort
+import org.mdt.core.platform.SdlReflectionImePort
+import org.mdt.core.platform.InputPort
+import org.mdt.core.platform.MindustryInputPort
+import org.mdt.core.platform.MindustryRenderPort
+import org.mdt.core.platform.RenderPort
+import org.mdt.core.platform.MindustrySystemPort
+import org.mdt.core.platform.SystemPort
+import org.mdt.core.platform.MindustryWindowPort
+import org.mdt.core.platform.WindowPort
 
 /**
  * ## MindustryPlatformHost

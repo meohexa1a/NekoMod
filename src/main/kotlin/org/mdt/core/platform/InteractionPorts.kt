@@ -1,3 +1,189 @@
+package org.mdt.core.platform
+
+import arc.Core
+import arc.backend.sdl.jni.SDL
+import arc.input.InputMultiplexer
+import arc.input.InputProcessor
+import arc.input.KeyBind
+import arc.input.KeyCode
+import arc.struct.Seq
+import arc.util.Log
+import arc.util.Reflect
+import java.lang.reflect.Field
+
+/**
+ * ## InputPort
+ *
+ * Defines the abstract contract for pointer coordinates, keyboard modifier states, and input processor dispatch chains.
+ * Includes a built-in [NoOp] stub for headless execution or unit testing.
+ *
+ * @property mouseX Current pointer X position in screen coordinates.
+ * @property mouseY Current pointer Y position in screen coordinates.
+ * @property isCtrlPressed Whether the Ctrl (or Cmd on macOS) key is currently held down.
+ * @property isShiftPressed Whether the Shift key is currently held down.
+ * @property isAltPressed Whether the Alt key is currently held down.
+ *
+ * @see MindustryInputPort
+ * @see org.mdt.core.platform.PlatformHost
+ */
+interface InputPort {
+
+    /** Current pointer X position in screen coordinates. */
+    val mouseX: Float
+
+    /** Current pointer Y position in screen coordinates. */
+    val mouseY: Float
+
+    /** Whether the Ctrl (or Cmd on macOS) key is currently pressed down. */
+    val isCtrlPressed: Boolean
+
+    /** Whether the Shift key is currently pressed down. */
+    val isShiftPressed: Boolean
+
+    /** Whether the Alt key is currently pressed down. */
+    val isAltPressed: Boolean
+
+    /** Adds an input processor to the top of the input dispatch chain. */
+    fun addInputProcessor(processor: InputProcessor)
+
+    /** Removes an input processor from the input dispatch chain. */
+    fun removeInputProcessor(processor: InputProcessor)
+
+    /** Stub [InputPort] implementation for headless or testing environments. */
+    object NoOp : InputPort {
+        override val mouseX: Float get() = 0.0f
+        override val mouseY: Float get() = 0.0f
+        override val isCtrlPressed: Boolean get() = false
+        override val isShiftPressed: Boolean get() = false
+        override val isAltPressed: Boolean get() = false
+        override fun addInputProcessor(processor: InputProcessor) = Unit
+        override fun removeInputProcessor(processor: InputProcessor) = Unit
+    }
+}
+
+
+
+/**
+ * ## MindustryInputPort
+ *
+ * Implements [InputPort] by bridging to Arc's `Core.input` and injecting a local [InputMultiplexer].
+ *
+ * @see InputPort
+ * @see org.mdt.core.platform.PlatformHost
+ */
+class MindustryInputPort : InputPort {
+
+    override val mouseX: Float
+        get() = Core.input?.mouseX()?.toFloat() ?: 0.0f
+
+    override val mouseY: Float
+        get() = Core.input?.mouseY()?.toFloat() ?: 0.0f
+
+    override val isCtrlPressed: Boolean
+        get() = Core.input?.ctrl() ?: false
+
+    override val isShiftPressed: Boolean
+        get() = Core.input?.shift() ?: false
+
+    override val isAltPressed: Boolean
+        get() = Core.input?.alt() ?: false
+
+    override fun addInputProcessor(processor: InputProcessor) {
+        val processors = Core.input?.inputProcessors
+        if (processors != null && !processors.contains(localMultiplexer)) {
+            processors.insert(0, localMultiplexer)
+        }
+
+        if (!localMultiplexer.processors.contains(processor)) {
+            localMultiplexer.addProcessor(0, processor)
+        }
+    }
+
+    override fun removeInputProcessor(processor: InputProcessor) {
+        localMultiplexer.removeProcessor(processor)
+    }
+
+    companion object {
+        private val localMultiplexer by lazy {
+            val inputMultiplexer = InputMultiplexer()
+            val inputProcessors = Core.input?.inputProcessors
+
+            when {
+                inputProcessors != null && !inputProcessors.contains(inputMultiplexer) -> inputProcessors.insert(0, inputMultiplexer)
+                inputProcessors == null -> Log.warn("[NekoMod] Core.input is uninitialized when creating InputMultiplexer")
+            }
+
+            inputMultiplexer
+        }
+    }
+}
+
+
+/**
+ * ## ImePort
+ *
+ * Defines the platform-agnostic contract for native OS IME text composition sessions.
+ * Bridges text field focus and screen coordinates with operating system IME candidate windows.
+ * Includes a built-in [NoOp] implementation for headless servers, unit testing, or mock environments.
+ *
+ * @see SdlReflectionImePort
+ * @see PlatformHost
+ */
+interface ImePort {
+
+    /** Starts an interactive native OS IME text input session for a focused text field. */
+    fun startSession(
+        globalX: Float,
+        globalY: Float,
+        width: Float,
+        height: Float,
+        initialText: String,
+        cursorPosition: Int,
+        onCompositionChanged: (composition: String) -> Unit,
+        onCompositionCleared: () -> Unit
+    )
+
+    /** Synchronizes screen position, size, text, and cursor bounds for the active native IME session. */
+    fun syncSession(
+        globalX: Float,
+        globalY: Float,
+        width: Float,
+        height: Float,
+        text: String,
+        cursorPosition: Int
+    )
+
+    /** Stops the native OS text input session and clears active listeners. */
+    fun stopSession()
+
+    /**
+     * Stub [ImePort] implementation for headless servers or unit testing environments.
+     */
+    object NoOp : ImePort {
+        override fun startSession(
+            globalX: Float,
+            globalY: Float,
+            width: Float,
+            height: Float,
+            initialText: String,
+            cursorPosition: Int,
+            onCompositionChanged: (composition: String) -> Unit,
+            onCompositionCleared: () -> Unit
+        ) = Unit
+
+        override fun syncSession(
+            globalX: Float,
+            globalY: Float,
+            width: Float,
+            height: Float,
+            text: String,
+            cursorPosition: Int
+        ) = Unit
+
+        override fun stopSession() = Unit
+    }
+}
+
 // [AGENT ARCHITECTURE & INVARIANTS]
 // - Domain Role: SDL Native IME Composition Reflection Proxy & Hook.
 // - Operating Mechanism: Hooks into `SdlInput.stringEditEvents` via reflection; routes native composition string to active [InputNode].
@@ -5,14 +191,6 @@
 // - Dependencies: [ImePort], [PlatformHost], [InputNode], [TextEditState].
 // - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
-package org.mdt.core.platform.ime
-
-import arc.Core
-import arc.backend.sdl.jni.SDL
-import arc.struct.Seq
-import arc.util.Log
-import java.lang.reflect.Field
-import org.mdt.core.platform.PlatformHost
 
 /**
  * ## SdlReflectionImePort
@@ -27,7 +205,7 @@ import org.mdt.core.platform.PlatformHost
  * @see PlatformHost
  */
 class SdlReflectionImePort(
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost
 ) : ImePort {
 
     private var activeCompositionCallback: ((String) -> Unit)? = null

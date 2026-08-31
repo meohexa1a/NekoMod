@@ -32,7 +32,7 @@ import org.mdt.core.platform.PlatformHost
  * @see ShaderRegistry
  */
 class SceneBlur(
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost
 ) {
 
     private val host: PlatformHost
@@ -148,13 +148,7 @@ class SceneBlur(
         val fboA = pingPongA ?: return null
         val fboB = pingPongB ?: return null
         val fboC = pingPongC ?: return null
-
-        shaders.ensure()
         val blurShader = shaders.blurShader
-        if (blurShader == null) {
-            Log.warn("[NekoMod] Dual-Kawase blur shader is unavailable.")
-            return null
-        }
 
         // --- PURE OPENGL PROGRESSIVE DUAL-KAWASE PYRAMID ---
         val wasBlend = Gl.isEnabled(Gl.blend)
