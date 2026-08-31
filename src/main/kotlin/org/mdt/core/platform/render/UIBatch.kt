@@ -1,9 +1,4 @@
-// [AGENT ARCHITECTURE & INVARIANTS]
-// - Domain Role: Master 1-Draw-Call GPU UI Batch Renderer.
-// - Operating Mechanism: 14-float vertex streaming into pre-allocated mesh; per-pixel analytical shader clipping.
-// - Invariants: Float everywhere, OpenGL bottom-left origin (y=0 at bottom), bind via Gl.activeTexture(Gl.texture0 + unit).
-// - Dependencies: [ShaderRegistry], [SceneBlur], [FontRenderer], [LayoutNode], [TextNode].
-// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.platform.render
 
@@ -12,8 +7,11 @@ import arc.graphics.Mesh
 import arc.graphics.Texture
 import arc.graphics.VertexAttribute
 import arc.graphics.g2d.Draw
+import arc.graphics.g2d.Font
+import arc.graphics.g2d.GlyphLayout
 import arc.graphics.g2d.TextureRegion
 import arc.math.Mat
+import arc.util.Align
 import java.nio.FloatBuffer
 import org.mdt.core.platform.PlatformHost
 import org.mdt.core.platform.unit.Color
@@ -33,22 +31,24 @@ import org.mdt.core.platform.unit.Color
  *
  * @see ShaderRegistry
  * @see SceneBlur
- * @see FontRenderer
+ * @see FontMeasurer
  * @see org.mdt.core.ui.node.LayoutNode
  * @see org.mdt.core.ui.node.TextNode
  */
 class UIBatch(
-    private val hostProvider: () -> PlatformHost
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
 ) {
 
     val host: PlatformHost
         get() = hostProvider()
 
-    val shaders: ShaderRegistry
-        get() = host.render.shaders
+    private val shaders by lazy(LazyThreadSafetyMode.NONE) { ShaderRegistry(hostProvider) }
 
     val blur: SceneBlur
         get() = host.render.blur
+
+    private val textLayoutHelper = GlyphLayout()
+    private val arcColorHelper = arc.graphics.Color()
 
     companion object {
         const val MODE_FONT = 0.0f
@@ -357,6 +357,70 @@ class UIBatch(
         verticesBuffer.put(quadBuffer, 0, FLOATS_PER_QUAD)
         vertexIndex += FLOATS_PER_QUAD
         queuedQuadCount++
+    }
+
+    /**
+     * Draws [text] directly into the batch with optional [ellipsis] truncation or [wrap].
+     */
+    fun drawText(
+        font: Font,
+        text: CharSequence,
+        x: Float,
+        y: Float,
+        targetWidth: Float = 0.0f,
+        align: Int = Align.left,
+        wrap: Boolean = false,
+        ellipsis: Boolean = false,
+        color: Color = Color.White
+    ) {
+        if (text.isEmpty()) return
+
+        val textToRender = when {
+            ellipsis && !wrap && targetWidth > 0.0f -> host.render.fontMeasurer.truncateWithEllipsis(font, text.toString(), targetWidth)
+            else -> text
+        }
+
+        textLayoutHelper.setText(font, textToRender, color.toArcColor(arcColorHelper), targetWidth, align, wrap)
+
+        val scaleX = font.data.scaleX
+        val scaleY = font.data.scaleY
+
+        for (run in textLayoutHelper.runs) {
+            val glyphs = run.glyphs
+            val xAdvances = run.xAdvances
+            var currentX = x + run.x
+            val currentY = y + run.y
+            val runColor = Color.fromArc(run.color)
+            val glyphCount = glyphs.size
+
+            for (i in 0 until glyphCount) {
+                val glyph = glyphs.get(i)
+                currentX += xAdvances.get(i)
+
+                val drawX = currentX + glyph.xoffset * scaleX
+                val drawY = currentY + glyph.yoffset * scaleY
+                val glyphWidth = glyph.width * scaleX
+                val glyphHeight = glyph.height * scaleY
+                val fontRegion = when {
+                    glyph.page < font.regions.size -> font.regions.get(glyph.page)
+                    else -> font.regions.first()
+                }
+                val fontTexture = fontRegion.texture
+
+                drawGlyph(
+                    x = drawX,
+                    y = drawY,
+                    width = glyphWidth,
+                    height = glyphHeight,
+                    uvMinU = glyph.u,
+                    uvMinV = glyph.v,
+                    uvMaxU = glyph.u2,
+                    uvMaxV = glyph.v2,
+                    color = runColor,
+                    fontTexture = fontTexture
+                )
+            }
+        }
     }
 
     // --- ANALYTICAL SCISSOR CLIPPING ---

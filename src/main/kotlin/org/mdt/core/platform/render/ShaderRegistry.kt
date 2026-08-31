@@ -1,8 +1,4 @@
 // [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
-// - Domain Role: GLSL Shader Manager & Uniform Registry.
-// - Operating Mechanism: Lazy compilation via Kotlin delegates; guarantees non-null shader returns with Zero-GC fallbacks.
-// - Invariants: Raw shader files must never declare manual #version or #ifdef GL_ES.
-// - Dependencies: [UIBatch], [SceneBlur], [PlatformHost].
 
 package org.mdt.core.platform.render
 
@@ -26,7 +22,7 @@ import org.mdt.core.platform.AssetPort
  * @see SceneBlur
  */
 class ShaderRegistry(
-    private val hostProvider: () -> PlatformHost
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
 ) {
 
     private val assets: AssetPort

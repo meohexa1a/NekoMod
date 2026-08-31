@@ -1,19 +1,18 @@
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform
 
 import arc.Core
-import arc.files.Fi
-import arc.util.Log
-import okio.Path
-import okio.Path.Companion.toPath
-import java.awt.Desktop
-import java.net.URI
 import arc.Events
+import arc.graphics.g2d.Font
+import arc.graphics.g2d.TextureRegion
+import arc.util.Log
 import arc.util.Time
 import java.util.concurrent.CopyOnWriteArrayList
 import mindustry.game.EventType.Trigger
-import arc.graphics.g2d.Font
-import arc.graphics.g2d.TextureRegion
 import mindustry.ui.Fonts
+import okio.Path
+import okio.Path.Companion.toPath
 
 /**
  * ## SystemPort

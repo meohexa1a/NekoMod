@@ -1,3 +1,5 @@
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform
 
 import arc.Core
@@ -8,7 +10,6 @@ import arc.input.KeyBind
 import arc.input.KeyCode
 import arc.struct.Seq
 import arc.util.Log
-import arc.util.Reflect
 import java.lang.reflect.Field
 
 /**
@@ -183,14 +184,6 @@ interface ImePort {
         override fun stopSession() = Unit
     }
 }
-
-// [AGENT ARCHITECTURE & INVARIANTS]
-// - Domain Role: SDL Native IME Composition Reflection Proxy & Hook.
-// - Operating Mechanism: Hooks into `SdlInput.stringEditEvents` via reflection; routes native composition string to active [InputNode].
-// - Invariants: Reflection fields cached once; graceful fallbacks if SDL input backend differs across platforms.
-// - Dependencies: [ImePort], [PlatformHost], [InputNode], [TextEditState].
-// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
-
 
 /**
  * ## SdlReflectionImePort

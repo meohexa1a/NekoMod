@@ -1,9 +1,4 @@
-// [AGENT ARCHITECTURE & INVARIANTS]
-// - Domain Role: Dual-Kawase Scene Background Blur Pipeline & Coordinator.
-// - Operating Mechanism: 5-pass pyramid downsample/upsample; frame deduplication & interval throttling (~33ms / 30 FPS).
-// - Invariants: Guarded by frameId, bind via Gl.activeTexture(Gl.texture0 + unit), automatic FBO resizing.
-// - Dependencies: [UIBatch], [ShaderRegistry], [PlatformHost].
-// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.platform.render
 
@@ -32,14 +27,13 @@ import org.mdt.core.platform.PlatformHost
  * @see ShaderRegistry
  */
 class SceneBlur(
-    private val hostProvider: () -> PlatformHost
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
 ) {
 
     private val host: PlatformHost
         get() = hostProvider()
 
-    private val shaders: ShaderRegistry
-        get() = host.render.shaders
+    private val shaders by lazy(LazyThreadSafetyMode.NONE) { ShaderRegistry(hostProvider) }
 
     // --- STATE & CONFIGURATION ---
 
