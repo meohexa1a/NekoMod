@@ -2,7 +2,6 @@ uniform sampler2D u_atlas;    // Texture Unit 0 (Atlas / BMFont / Icons / White 
 uniform sampler2D u_gameBlur; // Texture Unit 2 (Blurred Game World FBO)
 uniform vec2 u_screenSize;    // Screen dimensions (width, height) in pixels
 uniform float u_hasBlur;      // 1.0 = Blur Texture active, 0.0 = Fallback to tint
-uniform vec4 u_clipRect;      // Analytical Scissor Clip: xy = min(x,y), zw = max(x,y)
 
 varying vec2 v_texCoords;
 varying vec4 v_color;
@@ -10,6 +9,8 @@ varying vec2 v_localCoord;
 varying vec2 v_boxSize;
 varying vec4 v_style;         // x = cornerRadius, y = borderWidth, z = mode, w = texUnit
 varying vec4 v_borderColor;
+varying vec4 v_clipRect;      // Analytical Scissor Clip: xy = min(x,y), zw = max(x,y)
+varying vec2 v_screenCoord;   // Logical Screen Position (DPI-independent)
 
 // Modes:
 // 0.0 = MODE_FONT (BMFont text glyph)
@@ -26,8 +27,8 @@ float computeRoundedBoxSDF(vec2 point, vec2 size, float radius) {
 }
 
 void main() {
-    // 1. Fast Analytical Scissor Clip (Early Discard outside scissor rectangle)
-    vec2 clipInside = step(u_clipRect.xy, gl_FragCoord.xy) * step(gl_FragCoord.xy, u_clipRect.zw);
+    // 1. Fast Analytical Scissor Clip (DPI-independent in logical screen coordinates)
+    vec2 clipInside = step(v_clipRect.xy, v_screenCoord.xy) * step(v_screenCoord.xy, v_clipRect.zw);
     if (clipInside.x * clipInside.y < 0.5) {
         discard;
     }
@@ -60,7 +61,7 @@ void main() {
     // Mode 3: Frosted Glass
     if (mode > 2.5) {
         if (u_hasBlur > 0.5) {
-            vec2 screenUV = gl_FragCoord.xy / max(u_screenSize, vec2(1.0, 1.0));
+            vec2 screenUV = v_screenCoord.xy / max(u_screenSize, vec2(1.0, 1.0));
             vec4 blurredBackground = texture2D(u_gameBlur, screenUV);
 
             // Saturation vibrance boost (simulates light transmission through frosted glass)
@@ -88,5 +89,6 @@ void main() {
         baseFillColor = mix(baseFillColor, v_borderColor, borderFactor * v_borderColor.a);
     }
 
-    gl_FragColor = baseFillColor * boxAlpha;
+    // Straight Alpha blending: only modulate alpha channel by boxAlpha (prevents double-alpha darkening on antialiased edges)
+    gl_FragColor = vec4(baseFillColor.rgb, baseFillColor.a * boxAlpha);
 }
