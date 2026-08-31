@@ -1,9 +1,4 @@
-// [AGENT ARCHITECTURE & INVARIANTS]
-// - Domain Role: Master Port Facade for Engine & Native Platform Interop.
-// - Operating Mechanism: Unifies [WindowPort], [InputPort], [AssetPort], [SystemPort], and [ImePort] into a cohesive interface.
-// - Invariants: UI and rendering code must communicate with platform/OS only through PlatformHost.
-// - Dependencies: [WindowPort], [InputPort], [AssetPort], [SystemPort], [ImePort], [MindustryPlatformHost].
-// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.platform
 

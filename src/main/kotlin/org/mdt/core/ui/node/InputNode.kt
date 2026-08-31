@@ -14,7 +14,7 @@ import org.mdt.core.ui.input.TextEditState
 import org.mdt.core.ui.layout.SizeFlags
 import org.mdt.core.platform.PlatformHost
 import org.mdt.core.platform.render.UIBatch
-import org.mdt.core.platform.render.FontRenderer
+import org.mdt.core.platform.render.FontMeasurer
 import org.mdt.core.platform.unit.Color
 
 /**
@@ -29,21 +29,22 @@ import org.mdt.core.platform.unit.Color
  * @property textColor Text rendering color.
  * @property cursorColor Caret vertical bar indicator color.
  * @property selectionColor Highlight selection background box color.
- * @property compositionColor Underline/highlight box color for active IME candidate text.
- * @property font BMFont used for text rasterization and glyph measurement.
- * @property isMultiline Whether multi-line text input and auto-wrapping are enabled.
+ * @property compositionColor IME composition background highlight color.
+ * @property compositionUnderlineColor IME composition underline bar color.
+ * @property font BMFont instance used for measurement and layout.
+ * @property isMultiline Whether multi-line text wrapping and vertical expansion are enabled.
  *
  * @see LayoutNode
  * @see TextEditState
  * @see org.mdt.ui.components.input.TextField
- * @see FontRenderer
+ * @see FontMeasurer
  */
 open class InputNode(
     text: String = "",
-    private val hostProvider: () -> PlatformHost
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
 ) : LayoutNode() {
 
-    val fontRenderer: FontRenderer get() = hostProvider().render.fontRenderer
+    val fontMeasurer: FontMeasurer get() = hostProvider().render.fontMeasurer
 
     val editState = TextEditState(
         hostProvider = hostProvider
@@ -175,7 +176,7 @@ open class InputNode(
 
         for (i in 0..text.length) {
             val substring = text.substring(0, i)
-            val subWidth = fontRenderer.getPrefWidth(currentFont, substring, 0.0f, false)
+            val subWidth = fontMeasurer.getPrefWidth(currentFont, substring, 0.0f, false)
             val diff = kotlin.math.abs(targetLocalX - subWidth)
             if (diff < minDiff) {
                 minDiff = diff
@@ -191,7 +192,7 @@ open class InputNode(
 
         val currentFont = activeFont ?: return padL + padR
         val text = editState.getDisplayText().ifEmpty { placeholder }
-        val textWidth = if (text.isNotEmpty()) fontRenderer.getPrefWidth(currentFont, text, 0.0f, false) else 0.0f
+        val textWidth = if (text.isNotEmpty()) fontMeasurer.getPrefWidth(currentFont, text, 0.0f, false) else 0.0f
         val baseWidth = if (minWidth >= 0.0f) maxOf(textWidth, minWidth) else maxOf(textWidth, 40.0f)
         return baseWidth + padL + padR
     }
@@ -237,7 +238,7 @@ open class InputNode(
         // 2. Cursor horizontal offset calculation
         val cursorIndex = editState.getEffectiveCursor().coerceIn(0, displayText.length)
         val cursorSub = displayText.substring(0, cursorIndex)
-        val cursorRelX = if (cursorSub.isNotEmpty()) fontRenderer.getPrefWidth(currentFont, cursorSub, 0.0f, false) else 0.0f
+        val cursorRelX = if (cursorSub.isNotEmpty()) fontMeasurer.getPrefWidth(currentFont, cursorSub, 0.0f, false) else 0.0f
 
         // Auto-scroll horizontal single-line text to keep caret visible
         scrollOffset = when {
@@ -256,8 +257,8 @@ open class InputNode(
             val selStartSub = editState.text.substring(0, range.first)
             val selEndSub = editState.text.substring(0, range.second)
 
-            val selectionStartX = innerX + fontRenderer.getPrefWidth(currentFont, selStartSub, 0.0f, false) - scrollOffset
-            val selectionEndX = innerX + fontRenderer.getPrefWidth(currentFont, selEndSub, 0.0f, false) - scrollOffset
+            val selectionStartX = innerX + fontMeasurer.getPrefWidth(currentFont, selStartSub, 0.0f, false) - scrollOffset
+            val selectionEndX = innerX + fontMeasurer.getPrefWidth(currentFont, selEndSub, 0.0f, false) - scrollOffset
             val selectionWidth = maxOf(2.0f, selectionEndX - selectionStartX)
 
             batch.drawBox(
@@ -276,8 +277,8 @@ open class InputNode(
             val compStartSub = displayText.substring(0, compRange.first)
             val compEndSub = displayText.substring(0, compRange.second)
 
-            val compStartX = innerX + fontRenderer.getPrefWidth(currentFont, compStartSub, 0.0f, false) - scrollOffset
-            val compEndX = innerX + fontRenderer.getPrefWidth(currentFont, compEndSub, 0.0f, false) - scrollOffset
+            val compStartX = innerX + fontMeasurer.getPrefWidth(currentFont, compStartSub, 0.0f, false) - scrollOffset
+            val compEndX = innerX + fontMeasurer.getPrefWidth(currentFont, compEndSub, 0.0f, false) - scrollOffset
             val compositionWidth = maxOf(2.0f, compEndX - compStartX)
 
             // Composition background highlight
@@ -304,8 +305,7 @@ open class InputNode(
         // 6. Draw Text or Placeholder
         when {
             displayText.isNotEmpty() -> {
-                fontRenderer.draw(
-                    batch = batch,
+                batch.drawText(
                     font = currentFont,
                     text = displayText,
                     x = innerX - scrollOffset,
@@ -317,8 +317,7 @@ open class InputNode(
                 )
             }
             placeholder.isNotEmpty() -> {
-                fontRenderer.draw(
-                    batch = batch,
+                batch.drawText(
                     font = currentFont,
                     text = placeholder,
                     x = innerX,

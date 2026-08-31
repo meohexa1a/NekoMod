@@ -1,24 +1,24 @@
 // [AGENT ARCHITECTURE & INVARIANTS]
 // - Domain Role: BMFont Text Virtual DOM Node.
-// - Operating Mechanism: Calculates baseline layout, wraps lines within available width, and renders glyphs via [FontRenderer].
+// - Operating Mechanism: Calculates baseline layout, wraps lines within available width, and renders glyphs via [UIBatch.drawText].
 // - Invariants: Draw BMFonts at integer scale (1.0f); text mutations trigger `invalidateLayout()`.
-// - Dependencies: [FontRenderer], [UIBatch], [LayoutNode].
+// - Dependencies: [FontMeasurer], [UIBatch], [LayoutNode].
 // - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.node
 
 import arc.graphics.g2d.Font
 import arc.util.Align
-import org.mdt.core.platform.render.FontRenderer
-import org.mdt.core.platform.render.UIBatch
 import org.mdt.core.platform.PlatformHost
+import org.mdt.core.platform.render.FontMeasurer
+import org.mdt.core.platform.render.UIBatch
 import org.mdt.core.platform.unit.Color
 
 /**
  * ## TextNode
  *
- * Virtual DOM node that renders bitmap fonts (BMFont) using [FontRenderer] and [org.mdt.core.platform.render.UIBatch].
- * Supports text wrapping, ellipsis truncation, alignment, and intrinsic text size measurements.
+ * Virtual DOM node that renders bitmap fonts (BMFont) using [org.mdt.core.platform.render.UIBatch].
+ * Supports text wrapping, ellipsis truncation, alignment, and intrinsic text size measurements via [FontMeasurer].
  *
  * @param text Initial text string content.
  *
@@ -30,15 +30,15 @@ import org.mdt.core.platform.unit.Color
  * @property align Text alignment flag inside line bounds (e.g., `arc.util.Align.left`, `arc.util.Align.center`).
  *
  * @see LayoutNode
- * @see FontRenderer
+ * @see FontMeasurer
  * @see org.mdt.ui.components.text.Text
  */
 open class TextNode(
     text: String = "",
-    private val hostProvider: () -> PlatformHost
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
 ) : LayoutNode() {
 
-    val fontRenderer: FontRenderer get() = hostProvider().render.fontRenderer
+    val fontMeasurer: FontMeasurer get() = hostProvider().render.fontMeasurer
 
     init {
         hitTestBehavior = HitTestBehavior.TRANSLUCENT
@@ -84,7 +84,7 @@ open class TextNode(
         if (wrap) return maxOf(0.0f, minWidth) + padL + padR
 
         val currentFont = activeFont ?: return padL + padR
-        val measuredWidth = fontRenderer.getPrefWidth(currentFont, text, 0.0f, false)
+        val measuredWidth = fontMeasurer.getPrefWidth(currentFont, text, 0.0f, false)
         val baseWidth = if (minWidth >= 0.0f) maxOf(measuredWidth, minWidth) else measuredWidth
         return baseWidth + padL + padR
     }
@@ -100,7 +100,7 @@ open class TextNode(
             parent != null && parent!!.bounds.width > 0.0f -> parent!!.bounds.width - parent!!.padL - parent!!.padR - padL - padR
             else -> 0.0f
         }
-        val measuredHeight = fontRenderer.getPrefHeight(currentFont, text, maxOf(0.0f, targetWidth), align, wrap)
+        val measuredHeight = fontMeasurer.getPrefHeight(currentFont, text, maxOf(0.0f, targetWidth), align, wrap)
         val baseHeight = if (minHeight >= 0.0f) maxOf(measuredHeight, minHeight) else measuredHeight
         return baseHeight + padT + padB
     }
@@ -121,8 +121,7 @@ open class TextNode(
             else -> innerY + (innerHeight + capHeight) * 0.5f
         }
 
-        fontRenderer.draw(
-            batch = batch,
+        batch.drawText(
             font = currentFont,
             text = text,
             x = innerX,

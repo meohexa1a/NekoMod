@@ -1,3 +1,5 @@
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+
 package org.mdt.core.platform
 
 import arc.Core
@@ -5,9 +7,8 @@ import arc.Events
 import arc.Graphics.Cursor
 import java.util.concurrent.CopyOnWriteArrayList
 import mindustry.game.EventType.ResizeEvent
-import org.mdt.core.platform.render.FontRenderer
+import org.mdt.core.platform.render.FontMeasurer
 import org.mdt.core.platform.render.SceneBlur
-import org.mdt.core.platform.render.ShaderRegistry
 import org.mdt.core.platform.render.UIBatch
 
 /**
@@ -124,12 +125,11 @@ class MindustryWindowPort : WindowPort {
  * ## RenderPort
  *
  * Defines the abstract contract for 2D UI batch rendering, scene background blurring,
- * GLSL shader compilation, and bitmap font rasterization.
+ * and bitmap font layout/measurement.
  *
- * @property batch Master 1-draw-call UI quad/SDF batch renderer.
+ * @property batch Master 1-draw-call UI quad/SDF/Text batch renderer.
  * @property blur Dual-Kawase progressive scene background blur pipeline.
- * @property shaders GLSL shader compiler and uniform registry.
- * @property fontRenderer BMFont glyph measurement and layout renderer.
+ * @property fontMeasurer BMFont glyph layout and measurement pipeline.
  *
  * @see MindustryRenderPort
  * @see org.mdt.core.platform.PlatformHost
@@ -138,8 +138,7 @@ interface RenderPort {
 
     val batch: UIBatch
     val blur: SceneBlur
-    val shaders: ShaderRegistry
-    val fontRenderer: FontRenderer
+    val fontMeasurer: FontMeasurer
 
     /**
      * Begins the frame rendering pass for the given physical dimensions.
@@ -158,10 +157,9 @@ interface RenderPort {
 
     /** Stub [RenderPort] implementation for headless execution or unit testing. */
     object NoOp : RenderPort {
-        override val shaders: ShaderRegistry by lazy { ShaderRegistry { PlatformHost.NoOp } }
         override val blur: SceneBlur by lazy { SceneBlur { PlatformHost.NoOp } }
         override val batch: UIBatch by lazy { UIBatch { PlatformHost.NoOp } }
-        override val fontRenderer: FontRenderer by lazy { FontRenderer() }
+        override val fontMeasurer: FontMeasurer by lazy { FontMeasurer() }
 
         override fun beginFrame(width: Float, height: Float) {}
         override fun endFrame() {}
@@ -174,27 +172,24 @@ interface RenderPort {
 /**
  * ## MindustryRenderPort
  *
- * Arc and Mindustry OpenGL rendering port coordinating [ShaderRegistry], [SceneBlur], [UIBatch], and [FontRenderer].
+ * Arc and Mindustry OpenGL rendering port coordinating [SceneBlur], [UIBatch], and [FontMeasurer].
  *
- * @param assets Assets port for resolving GLSL shaders and textures.
  * @param hostProvider Provider lambda for platform host metrics and resources.
  *
- * @property shaders Master GLSL shader compiler and uniform registry.
  * @property blur Dual-Kawase scene background blur pipeline.
  * @property batch Master 1-draw-call UI batch renderer.
- * @property fontRenderer BMFont layout measurement and glyph renderer.
+ * @property fontMeasurer BMFont layout measurement and text metrics calculator.
  *
  * @see RenderPort
  * @see PlatformHost
  */
 class MindustryRenderPort(
-    private val hostProvider: () -> PlatformHost
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
 ) : RenderPort {
 
-    override val shaders: ShaderRegistry by lazy { ShaderRegistry(hostProvider) }
     override val blur: SceneBlur by lazy { SceneBlur(hostProvider) }
     override val batch: UIBatch by lazy { UIBatch(hostProvider) }
-    override val fontRenderer: FontRenderer by lazy { FontRenderer() }
+    override val fontMeasurer: FontMeasurer by lazy { FontMeasurer() }
 
     override fun beginFrame(width: Float, height: Float) {
         batch.begin(width, height)

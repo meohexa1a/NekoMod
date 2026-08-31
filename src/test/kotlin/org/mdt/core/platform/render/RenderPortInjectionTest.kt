@@ -60,19 +60,17 @@ class RenderPortInjectionTest {
     fun `MindustryRenderPort coordinates all render subsystems through PlatformHost`() {
         val renderPort = MindustryRenderPort { PlatformHost.NoOp }
 
-        assertNotNull(renderPort.shaders)
         assertNotNull(renderPort.blur)
         assertNotNull(renderPort.batch)
-        assertNotNull(renderPort.fontRenderer)
+        assertNotNull(renderPort.fontMeasurer)
     }
 
     @Test
     fun `PlatformHost exposes non-null RenderPort`() {
         assertNotNull(EngineRuntime.host.render)
-        assertNotNull(EngineRuntime.host.render.shaders)
         assertNotNull(EngineRuntime.host.render.blur)
         assertNotNull(EngineRuntime.host.render.batch)
-        assertNotNull(EngineRuntime.host.render.fontRenderer)
+        assertNotNull(EngineRuntime.host.render.fontMeasurer)
         assertNotNull(PlatformHost.NoOp.render)
     }
 

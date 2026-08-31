@@ -1,24 +1,6 @@
-// [AGENT ARCHITECTURE & INVARIANTS]
-// - Domain Role: Mindustry Game Engine & Arc Platform Host Implementation.
-// - Operating Mechanism: Instantiates Mindustry-specific port implementations ([MindustryWindowPort], [MindustryInputPort], [MindustryAssetPort], [MindustrySystemPort], [SdlReflectionImePort]).
-// - Invariants: Singleton instance wired during mod bootstrapping.
-// - Dependencies: [PlatformHost], [MindustryAssetPort], [MindustryInputPort], [MindustrySystemPort], [MindustryWindowPort], [SdlReflectionImePort].
-// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.platform
-
-import org.mdt.core.platform.AssetPort
-import org.mdt.core.platform.MindustryAssetPort
-import org.mdt.core.platform.ImePort
-import org.mdt.core.platform.SdlReflectionImePort
-import org.mdt.core.platform.InputPort
-import org.mdt.core.platform.MindustryInputPort
-import org.mdt.core.platform.MindustryRenderPort
-import org.mdt.core.platform.RenderPort
-import org.mdt.core.platform.MindustrySystemPort
-import org.mdt.core.platform.SystemPort
-import org.mdt.core.platform.MindustryWindowPort
-import org.mdt.core.platform.WindowPort
 
 /**
  * ## MindustryPlatformHost

@@ -49,5 +49,4 @@ class ComposePipeline {
         recomposer.cancel()
         scope.cancel()
     }
-
 }
