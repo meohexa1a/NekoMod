@@ -2,7 +2,6 @@
 
 package org.mdt.core.ui.input
 
-import arc.input.KeyCode
 import org.mdt.core.platform.PlatformHost
 
 /**
@@ -27,8 +26,8 @@ import org.mdt.core.platform.PlatformHost
  * @see org.mdt.ui.components.input.TextField
  */
 class TextEditState(
-    private val hostProvider: () -> PlatformHost ,
-    var onTextChange: ((String) -> Unit)? = null
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp },
+    var onTextChange: ((String) -> Unit)? = null,
 ) {
     private val host: PlatformHost get() = hostProvider()
 
@@ -116,16 +115,26 @@ class TextEditState(
 
     fun hasSelection(): Boolean = selectionStart != -1 && selectionStart != cursor
 
+    val selectionStartRange: Int
+        get() = if (selectionStart == -1) cursor else minOf(selectionStart, cursor).coerceIn(0, text.length)
+
+    val selectionEndRange: Int
+        get() = if (selectionStart == -1) cursor else maxOf(selectionStart, cursor).coerceIn(0, text.length)
+
+    val compositionStartRange: Int
+        get() = cursor.coerceIn(0, text.length)
+
+    val compositionEndRange: Int
+        get() = (cursor + compositionText.length).coerceIn(0, getDisplayText().length)
+
     fun getSelectionRange(): Pair<Int, Int>? {
         if (!hasSelection()) return null
-        val start = minOf(selectionStart, cursor).coerceIn(0, text.length)
-        val end = maxOf(selectionStart, cursor).coerceIn(0, text.length)
-        return Pair(start, end)
+        return Pair(selectionStartRange, selectionEndRange)
     }
 
     fun getSelectedText(): String {
-        val range = getSelectionRange() ?: return ""
-        return text.substring(range.first, range.second)
+        if (!hasSelection()) return ""
+        return text.substring(selectionStartRange, selectionEndRange)
     }
 
     fun selectAll() {
@@ -232,11 +241,13 @@ class TextEditState(
                 if (selectionStart == -1) selectionStart = cursor
                 cursor = (cursor - 1).coerceAtLeast(0)
             }
+
             hasSelection() -> {
                 val range = getSelectionRange() ?: return
                 cursor = range.first
                 selectionStart = -1
             }
+
             else -> {
                 cursor = (cursor - 1).coerceAtLeast(0)
             }
@@ -250,11 +261,13 @@ class TextEditState(
                 if (selectionStart == -1) selectionStart = cursor
                 cursor = (cursor + 1).coerceAtMost(text.length)
             }
+
             hasSelection() -> {
                 val range = getSelectionRange() ?: return
                 cursor = range.second
                 selectionStart = -1
             }
+
             else -> {
                 cursor = (cursor + 1).coerceAtMost(text.length)
             }
@@ -330,66 +343,80 @@ class TextEditState(
         return true
     }
 
-    fun onKeyDown(key: KeyCode): Boolean {
+    fun onKeyDown(key: Key): Boolean {
         if (!isFocused) return false
 
         val isCtrl = host.input.isCtrlPressed
         val isShift = host.input.isShiftPressed
 
         return when (key) {
-            KeyCode.backspace -> backspace()
-            KeyCode.del -> delete()
-            KeyCode.enter -> when {
+            Key.BACKSPACE -> backspace()
+            Key.DELETE -> delete()
+            Key.ENTER -> when {
                 isMultiline -> {
                     insert('\n')
                     true
                 }
+
                 else -> false
             }
-            KeyCode.left -> {
+
+            Key.LEFT -> {
                 moveLeft(isShift)
                 true
             }
-            KeyCode.right -> {
+
+            Key.RIGHT -> {
                 moveRight(isShift)
                 true
             }
-            KeyCode.home -> {
+
+            Key.HOME -> {
                 moveToStart(isShift)
                 true
             }
-            KeyCode.end -> {
+
+            Key.END -> {
                 moveToEnd(isShift)
                 true
             }
-            KeyCode.a -> when {
+
+            Key.A -> when {
                 isCtrl -> {
                     selectAll()
                     true
                 }
+
                 else -> false
             }
-            KeyCode.c -> when {
+
+            Key.C -> when {
                 isCtrl -> {
                     copy()
                     true
                 }
+
                 else -> false
             }
-            KeyCode.v -> when {
+
+            Key.V -> when {
                 isCtrl -> {
                     paste()
                     true
                 }
+
                 else -> false
             }
-            KeyCode.x -> when {
+
+            Key.X -> when {
                 isCtrl -> {
                     cut()
                     true
                 }
+
                 else -> false
             }
+
             else -> false
         }
     }

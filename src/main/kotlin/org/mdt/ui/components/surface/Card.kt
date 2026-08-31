@@ -3,7 +3,7 @@
 package org.mdt.ui.components.surface
 
 import androidx.compose.runtime.Composable
-import org.mdt.core.platform.unit.Color
+import org.mdt.core.ui.unit.Color
 import org.mdt.core.ui.modifier.UIModifier
 import org.mdt.core.ui.modifier.background
 import org.mdt.core.ui.modifier.border
@@ -11,7 +11,9 @@ import org.mdt.core.ui.modifier.glass
 import org.mdt.core.ui.modifier.opaque
 import org.mdt.core.ui.modifier.pad
 import org.mdt.core.ui.modifier.radius
+import org.mdt.core.ui.layout.BoxScope
 import org.mdt.ui.components.layout.Box
+import org.mdt.ui.theme.CardDefaults
 
 /**
  * ## Card
@@ -24,12 +26,12 @@ import org.mdt.ui.components.layout.Box
 @Composable
 fun Card(
     modifier: UIModifier = UIModifier,
-    color: Color = Color(0.12f, 0.12f, 0.18f, 0.45f),
-    radius: Float = 16.0f,
-    borderWidth: Float = 1.0f,
-    borderColor: Color = Color(1.0f, 1.0f, 1.0f, 0.18f),
+    color: Color = CardDefaults.color,
+    radius: Float = CardDefaults.radius,
+    borderWidth: Float = CardDefaults.borderWidth,
+    borderColor: Color = CardDefaults.borderColor,
     isGlass: Boolean = true,
-    content: @Composable () -> Unit
+    content: @Composable BoxScope.() -> Unit
 ) {
     Box(
         modifier = UIModifier

@@ -9,12 +9,12 @@
 
 package org.mdt.core.ui.modifier
 
-import org.mdt.core.ui.layout.Alignment
-import org.mdt.core.ui.layout.HorizontalAlign
-import org.mdt.core.ui.layout.LayoutPreset
-import org.mdt.core.ui.layout.SizeFlags
-import org.mdt.core.ui.layout.VerticalAlign
 import org.mdt.core.ui.node.UINode
+import org.mdt.core.ui.unit.Alignment
+import org.mdt.core.ui.unit.HorizontalAlign
+import org.mdt.core.ui.unit.LayoutPreset
+import org.mdt.core.ui.unit.SizeFlags
+import org.mdt.core.ui.unit.VerticalAlign
 
 // --- TYPED LAYOUT MODIFIER ELEMENTS ---
 
@@ -32,7 +32,7 @@ data class PaddingModifier(
     val left: Float,
     val top: Float,
     val right: Float,
-    val bottom: Float
+    val bottom: Float,
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) = node.pad(left, top, right, bottom)
 }
@@ -51,7 +51,7 @@ data class MarginModifier(
     val left: Float,
     val top: Float,
     val right: Float,
-    val bottom: Float
+    val bottom: Float,
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) = node.margin(left, top, right, bottom)
 }
@@ -66,7 +66,7 @@ data class MarginModifier(
  */
 data class SizeModifier(
     val width: Float = -1.0f,
-    val height: Float = -1.0f
+    val height: Float = -1.0f,
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         if (width >= 0.0f) {
@@ -88,7 +88,7 @@ data class SizeModifier(
  */
 data class MinSizeModifier(
     val minWidth: Float = -1.0f,
-    val minHeight: Float = -1.0f
+    val minHeight: Float = -1.0f,
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         if (minWidth >= 0.0f) {
@@ -110,7 +110,7 @@ data class MinSizeModifier(
  */
 data class MaxSizeModifier(
     val maxWidth: Float = -1.0f,
-    val maxHeight: Float = -1.0f
+    val maxHeight: Float = -1.0f,
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         if (maxWidth >= 0.0f) {
@@ -132,7 +132,7 @@ data class MaxSizeModifier(
  */
 data class FillModifier(
     val horizontal: Boolean = true,
-    val vertical: Boolean = true
+    val vertical: Boolean = true,
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         if (horizontal) {
@@ -156,7 +156,7 @@ data class FillModifier(
 data class ExpandModifier(
     val horizontal: Boolean = true,
     val vertical: Boolean = true,
-    val ratio: Float = 1.0f
+    val ratio: Float = 1.0f,
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         if (horizontal) {
@@ -170,16 +170,43 @@ data class ExpandModifier(
 }
 
 /**
+ * ## HorizontalWeightModifier
+ *
+ * Configures main-axis horizontal flex weight in a Row container on a [UINode].
+ *
+ * @property ratio Flex weight ratio relative to sibling nodes.
+ */
+data class HorizontalWeightModifier(val ratio: Float) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        node.sizeFlagsHorizontal = node.sizeFlagsHorizontal or SizeFlags.EXPAND_FILL
+        node.stretchRatio = ratio
+    }
+}
+
+/**
+ * ## VerticalWeightModifier
+ *
+ * Configures main-axis vertical flex weight in a Column container on a [UINode].
+ *
+ * @property ratio Flex weight ratio relative to sibling nodes.
+ */
+data class VerticalWeightModifier(val ratio: Float) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        node.sizeFlagsVertical = node.sizeFlagsVertical or SizeFlags.EXPAND_FILL
+        node.stretchRatio = ratio
+    }
+}
+
+/**
  * ## WeightModifier
  *
- * Configures proportional flex expansion weight on a [UINode].
+ * Backward-compatible weight modifier defaulting to single-axis main distribution.
  *
  * @property ratio Flex weight ratio relative to sibling nodes.
  */
 data class WeightModifier(val ratio: Float) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         node.sizeFlagsHorizontal = node.sizeFlagsHorizontal or SizeFlags.EXPAND_FILL
-        node.sizeFlagsVertical = node.sizeFlagsVertical or SizeFlags.EXPAND_FILL
         node.stretchRatio = ratio
     }
 }
@@ -194,15 +221,27 @@ data class WeightModifier(val ratio: Float) : UIModifier.Element {
 data class BoxAlignModifier(val alignment: Alignment) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         when (alignment.horizontal) {
-            HorizontalAlign.START -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal = SizeFlags.SHRINK_BEGIN
-            HorizontalAlign.CENTER -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal = SizeFlags.SHRINK_CENTER
-            HorizontalAlign.END -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal = SizeFlags.SHRINK_END
+            HorizontalAlign.START -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal =
+                SizeFlags.SHRINK_BEGIN
+
+            HorizontalAlign.CENTER -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal =
+                SizeFlags.SHRINK_CENTER
+
+            HorizontalAlign.END -> if ((node.sizeFlagsHorizontal and SizeFlags.FILL) == 0) node.sizeFlagsHorizontal =
+                SizeFlags.SHRINK_END
+
             HorizontalAlign.FILL -> node.sizeFlagsHorizontal = SizeFlags.FILL
         }
         when (alignment.vertical) {
-            VerticalAlign.TOP -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical = SizeFlags.SHRINK_BEGIN
-            VerticalAlign.CENTER -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical = SizeFlags.SHRINK_CENTER
-            VerticalAlign.BOTTOM -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical = SizeFlags.SHRINK_END
+            VerticalAlign.TOP -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical =
+                SizeFlags.SHRINK_BEGIN
+
+            VerticalAlign.CENTER -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical =
+                SizeFlags.SHRINK_CENTER
+
+            VerticalAlign.BOTTOM -> if ((node.sizeFlagsVertical and SizeFlags.FILL) == 0) node.sizeFlagsVertical =
+                SizeFlags.SHRINK_END
+
             VerticalAlign.FILL -> node.sizeFlagsVertical = SizeFlags.FILL
         }
     }
@@ -261,22 +300,27 @@ fun UIModifier.pad(all: Float): UIModifier = then(PaddingModifier(all, all, all,
 fun UIModifier.pad(all: Int): UIModifier = pad(all.toFloat())
 fun UIModifier.pad(horizontal: Float = 0.0f, vertical: Float = 0.0f): UIModifier =
     then(PaddingModifier(horizontal, vertical, horizontal, vertical))
+
 fun UIModifier.pad(horizontal: Int, vertical: Int): UIModifier =
     pad(horizontal.toFloat(), vertical.toFloat())
+
 fun UIModifier.pad(left: Float = 0.0f, top: Float = 0.0f, right: Float = 0.0f, bottom: Float = 0.0f): UIModifier =
     then(PaddingModifier(left, top, right, bottom))
 
 fun UIModifier.padding(all: Float): UIModifier = pad(all)
 fun UIModifier.padding(all: Int): UIModifier = pad(all)
 fun UIModifier.padding(horizontal: Float = 0.0f, vertical: Float = 0.0f): UIModifier = pad(horizontal, vertical)
-fun UIModifier.padding(left: Float = 0.0f, top: Float = 0.0f, right: Float = 0.0f, bottom: Float = 0.0f): UIModifier = pad(left, top, right, bottom)
+fun UIModifier.padding(left: Float = 0.0f, top: Float = 0.0f, right: Float = 0.0f, bottom: Float = 0.0f): UIModifier =
+    pad(left, top, right, bottom)
 
 fun UIModifier.margin(all: Float): UIModifier = then(MarginModifier(all, all, all, all))
 fun UIModifier.margin(all: Int): UIModifier = margin(all.toFloat())
 fun UIModifier.margin(horizontal: Float = 0.0f, vertical: Float = 0.0f): UIModifier =
     then(MarginModifier(horizontal, vertical, horizontal, vertical))
+
 fun UIModifier.margin(horizontal: Int, vertical: Int): UIModifier =
     margin(horizontal.toFloat(), vertical.toFloat())
+
 fun UIModifier.margin(left: Float = 0.0f, top: Float = 0.0f, right: Float = 0.0f, bottom: Float = 0.0f): UIModifier =
     then(MarginModifier(left, top, right, bottom))
 
@@ -301,7 +345,9 @@ fun UIModifier.maxWidth(maxWidth: Int): UIModifier = maxWidth(maxWidth.toFloat()
 fun UIModifier.maxHeight(maxHeight: Float): UIModifier = then(MaxSizeModifier(maxWidth = -1.0f, maxHeight = maxHeight))
 fun UIModifier.maxHeight(maxHeight: Int): UIModifier = maxHeight(maxHeight.toFloat())
 
-fun UIModifier.fill(horizontal: Boolean = true, vertical: Boolean = true): UIModifier = then(FillModifier(horizontal, vertical))
+fun UIModifier.fill(horizontal: Boolean = true, vertical: Boolean = true): UIModifier =
+    then(FillModifier(horizontal, vertical))
+
 fun UIModifier.fillMaxWidth(): UIModifier = then(FillModifier(horizontal = true, vertical = false))
 fun UIModifier.fillMaxHeight(): UIModifier = then(FillModifier(horizontal = false, vertical = true))
 fun UIModifier.fillMaxSize(): UIModifier = then(FillModifier(horizontal = true, vertical = true))
@@ -316,3 +362,7 @@ fun UIModifier.anchor(preset: LayoutPreset): UIModifier = then(AnchorPresetModif
 fun UIModifier.align(alignment: Alignment): UIModifier = then(BoxAlignModifier(alignment))
 fun UIModifier.align(alignment: VerticalAlign): UIModifier = then(RowAlignModifier(alignment))
 fun UIModifier.align(alignment: HorizontalAlign): UIModifier = then(ColumnAlignModifier(alignment))
+
+fun UIModifier.autoWidth(): UIModifier = then(SizeModifier(width = -1.0f, height = -1.0f))
+fun UIModifier.autoHeight(): UIModifier = then(SizeModifier(width = -1.0f, height = -1.0f))
+fun UIModifier.hugContent(): UIModifier = then(SizeModifier(width = -1.0f, height = -1.0f))

@@ -26,7 +26,6 @@ import org.mdt.core.ui.node.CanvasNode
  * @property canvas Root virtual screen node ([CanvasNode]) containing the entire UI hierarchy.
  * @property inputProcessor Master input processor routing pointer, touch, scroll, and key events.
  * @property host Active platform host implementation providing window, asset, input, system, and render ports.
- * @property isInitialized Whether the engine runtime has been initialized and platform hooks registered.
  *
  * @see PlatformHost
  * @see CanvasNode
@@ -45,8 +44,29 @@ object EngineRuntime {
         canvas.inputProcessor = inputProcessor
     }
 
-    private val pipeline by lazy(LazyThreadSafetyMode.NONE) { ComposePipeline() }
-    private val composition by lazy(LazyThreadSafetyMode.NONE) { UIComposition(canvas, pipeline.recomposer) }
+    private var pipelineInstance: ComposePipeline? = null
+    private var compositionInstance: UIComposition? = null
+
+    val pipeline: ComposePipeline
+        get() {
+            var currentPipeline = pipelineInstance
+            if (currentPipeline == null) {
+                currentPipeline = ComposePipeline()
+                pipelineInstance = currentPipeline
+            }
+            return currentPipeline
+        }
+
+    val composition: UIComposition
+        get() {
+            var currentComposition = compositionInstance
+            if (currentComposition == null) {
+                currentComposition = UIComposition(canvas, pipeline.recomposer)
+                compositionInstance = currentComposition
+            }
+            return currentComposition
+        }
+
     private var initialized = false
 
     private val frameEndListener: () -> Unit = { draw() }
@@ -59,8 +79,6 @@ object EngineRuntime {
 
         initialized = true
         host = platformHost
-
-        
 
         host.input.addInputProcessor(inputProcessor)
         canvas.resize(host.window.width, host.window.height)
@@ -90,9 +108,16 @@ object EngineRuntime {
             canvas.resize(screenWidth, screenHeight)
             pipeline.frame()
 
-            host.render.beginFrame(canvas.screenWidth, canvas.screenHeight)
-            canvas.draw(host.render.batch)
-            host.render.endFrame()
+            var frameBegun = false
+            try {
+                host.render.beginFrame(canvas.screenWidth, canvas.screenHeight)
+                frameBegun = true
+                canvas.draw(host.render.batch)
+            } finally {
+                if (frameBegun) {
+                    host.render.endFrame()
+                }
+            }
         } catch (renderError: Throwable) {
             Log.err("[NekoMod] Error in EngineRuntime.draw()", renderError)
         }
@@ -101,9 +126,11 @@ object EngineRuntime {
     // --- DISPOSAL ---
 
     fun dispose() {
-        composition.dispose()
+        compositionInstance?.dispose()
+        compositionInstance = null
 
-        pipeline.dispose()
+        pipelineInstance?.dispose()
+        pipelineInstance = null
 
         host.input.removeInputProcessor(inputProcessor)
         host.window.removeResize(resizeListener)

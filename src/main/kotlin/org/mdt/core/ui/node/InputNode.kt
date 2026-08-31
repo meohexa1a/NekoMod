@@ -1,21 +1,18 @@
-// [AGENT ARCHITECTURE & INVARIANTS]
-// - Domain Role: Interactive Text Input Virtual DOM Node.
-// - Operating Mechanism: Manages caret blinking, text selection, IME composition highlights, and keyboard routing via [TextEditState].
-// - Invariants: Backspace handled exclusively in `onKeyDown`; analytical scissor clipping pushed/popped during text/selection draw.
-// - Dependencies: [TextEditState], [FontRenderer], [UIBatch], [LayoutNode].
-// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.node
 
 import arc.graphics.g2d.Font
 import arc.util.Align
+import org.mdt.core.platform.PlatformHost
+import org.mdt.core.platform.render.FontMeasurer
+import org.mdt.core.platform.render.UIBatch
+import org.mdt.core.ui.input.Key
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.TextEditState
-import org.mdt.core.ui.layout.SizeFlags
-import org.mdt.core.platform.PlatformHost
-import org.mdt.core.platform.render.UIBatch
-import org.mdt.core.platform.render.FontMeasurer
-import org.mdt.core.platform.unit.Color
+import org.mdt.core.ui.unit.Color
+import org.mdt.core.ui.unit.SizeFlags
+import org.mdt.ui.theme.InputStyle
 
 /**
  * ## InputNode
@@ -25,42 +22,30 @@ import org.mdt.core.platform.unit.Color
  *
  * @property editState Underlying text editing state machine ([TextEditState]).
  * @property placeholder Placeholder hint string displayed when text is empty.
- * @property placeholderColor Fill color for placeholder text.
- * @property textColor Text rendering color.
- * @property cursorColor Caret vertical bar indicator color.
- * @property selectionColor Highlight selection background box color.
- * @property compositionColor IME composition background highlight color.
- * @property compositionUnderlineColor IME composition underline bar color.
+ * @property style Native visual configuration for text, placeholder, cursor, selection, and IME composition ([InputStyle]).
  * @property font BMFont instance used for measurement and layout.
  * @property isMultiline Whether multi-line text wrapping and vertical expansion are enabled.
  *
- * @see LayoutNode
  * @see TextEditState
- * @see org.mdt.ui.components.input.TextField
- * @see FontMeasurer
+ * @see InputStyle
+ * @see UIBatch
  */
 open class InputNode(
     text: String = "",
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp },
 ) : LayoutNode() {
 
     val fontMeasurer: FontMeasurer get() = hostProvider().render.fontMeasurer
 
     val editState = TextEditState(
-        hostProvider = hostProvider
+        hostProvider = hostProvider,
     ) {
         onValueChange?.invoke(it)
         invalidateLayout()
     }
 
     var placeholder: String = ""
-    var placeholderColor: Color = Color(1.0f, 1.0f, 1.0f, 0.40f)
-
-    var textColor: Color = Color.White
-    var cursorColor: Color = Color(0.52f, 0.75f, 0.86f, 1.0f)
-    var selectionColor: Color = Color(0.52f, 0.75f, 0.86f, 0.35f)
-    var compositionColor: Color = Color(0.52f, 0.75f, 0.86f, 0.20f)
-    var compositionUnderlineColor: Color = Color(0.52f, 0.75f, 0.86f, 0.90f)
+    var style: InputStyle = InputStyle.Default
 
     var scrollOffset: Float = 0.0f
         private set
@@ -92,68 +77,88 @@ open class InputNode(
     init {
         isFocusable = true
         hitTestBehavior = HitTestBehavior.OPAQUE
-        cursor = arc.Graphics.Cursor.SystemCursor.ibeam
+        cursor = org.mdt.core.ui.input.CursorIcon.IBEAM
         minHeight = 24.0f
         minWidth = 40.0f
         sizeFlagsHorizontal = SizeFlags.FILL
+    }
 
-        onKeyTyped = { character ->
-            val consumed = editState.onKeyTyped(character)
-            if (consumed) {
-                invalidateLayout()
-            }
-            consumed
-        }
-
-        onKeyDown = { keyCode ->
-            val consumed = editState.onKeyDown(keyCode)
-            if (consumed) {
-                invalidateLayout()
-            }
-            consumed
-        }
-
-        onPointerDown = { event: PointerEvent ->
-            requestFocus()
-            val currentTime = System.currentTimeMillis()
-            if (currentTime - lastClickTime < 350L) {
-                clickCount++
-            } else {
-                clickCount = 1
-            }
-            lastClickTime = currentTime
-
-            val innerX = bounds.x + padL
-            val clickLocalX = event.x - innerX
-            val charIndex = getCharIndexAtX(clickLocalX)
-
-            when (clickCount) {
-                2 -> editState.selectWordAt(charIndex)
-                3 -> editState.selectAll()
-                else -> {
-                    val isShift = host.input.isShiftPressed
-                    dragSelectionAnchor = if (isShift && editState.selectionStart != -1) editState.selectionStart else charIndex
-                    isDraggingSelection = true
-                    editState.moveCursor(charIndex, extendSelection = isShift)
-                }
+    override fun handleKeyTyped(character: Char): Boolean {
+        editState.isFocused = isFocused
+        val consumed = editState.onKeyTyped(character)
+        if (consumed) {
+            if (isFocused) {
+                activeInputProcessor?.syncIme(this)
             }
             invalidateLayout()
         }
+        return consumed
+    }
 
-        onPointerDrag = { event: PointerEvent ->
-            if (isDraggingSelection && dragSelectionAnchor != -1) {
-                val innerX = bounds.x + padL
-                val dragLocalX = event.x - innerX
-                val targetIndex = getCharIndexAtX(dragLocalX)
-                editState.setSelection(dragSelectionAnchor, targetIndex)
-                invalidateLayout()
-                event.consume()
+    override fun handleKeyDown(key: Key): Boolean {
+        editState.isFocused = isFocused
+        val consumed = editState.onKeyDown(key)
+        if (consumed) {
+            if (isFocused) {
+                activeInputProcessor?.syncIme(this)
+            }
+            invalidateLayout()
+        }
+        return consumed
+    }
+
+    override fun handlePointerDown(event: PointerEvent): Boolean {
+        requestFocus()
+        editState.isFocused = true
+        val currentTime = host.system.nowMillis()
+        if (currentTime - lastClickTime < 350L) {
+            clickCount++
+        } else {
+            clickCount = 1
+        }
+        lastClickTime = currentTime
+
+        val innerX = bounds.x + padL
+        val clickLocalX = event.x - innerX
+        val charIndex = getCharIndexAtX(clickLocalX)
+
+        when (clickCount) {
+            2 -> editState.selectWordAt(charIndex)
+            3 -> editState.selectAll()
+            else -> {
+                val isShift = host.input.isShiftPressed
+                dragSelectionAnchor =
+                    if (isShift && editState.selectionStart != -1) editState.selectionStart else charIndex
+                isDraggingSelection = true
+                editState.moveCursor(charIndex, extendSelection = isShift)
             }
         }
+        invalidateLayout()
+        return true
+    }
 
-        onPointerUp = {
-            isDraggingSelection = false
+    override fun handlePointerDrag(event: PointerEvent): Boolean {
+        if (isDraggingSelection && dragSelectionAnchor != -1) {
+            val innerX = bounds.x + padL
+            val dragLocalX = event.x - innerX
+            val targetIndex = getCharIndexAtX(dragLocalX)
+            editState.setSelection(dragSelectionAnchor, targetIndex)
+            invalidateLayout()
+            event.consume()
+            return true
         }
+        return false
+    }
+
+    override fun handlePointerUp(event: PointerEvent): Boolean {
+        isDraggingSelection = false
+        return true
+    }
+
+    override fun onFocusChanged(focused: Boolean) {
+        super.onFocusChanged(focused)
+        editState.isFocused = focused
+        invalidateLayout()
     }
 
     override fun onDetached() {
@@ -171,17 +176,22 @@ open class InputNode(
         val targetLocalX = if (!isMultiline) localX + scrollOffset else localX
         if (targetLocalX <= 0.0f) return 0
 
-        var bestIndex = text.length
-        var minDiff = Float.MAX_VALUE
+        val fontData = currentFont.data
+        val scaleX = fontData.scaleX
+        var accumulatedWidth = 0.0f
+        var bestIndex = 0
 
-        for (i in 0..text.length) {
-            val substring = text.substring(0, i)
-            val subWidth = fontMeasurer.getPrefWidth(currentFont, substring, 0.0f, false)
-            val diff = kotlin.math.abs(targetLocalX - subWidth)
-            if (diff < minDiff) {
-                minDiff = diff
-                bestIndex = i
+        for (i in 0 until text.length) {
+            val char = text[i]
+            val glyph = fontData.getGlyph(char)
+            val advance = if (glyph != null) glyph.xadvance * scaleX else 0.0f
+            val halfAdvance = advance * 0.5f
+
+            if (targetLocalX < accumulatedWidth + halfAdvance) {
+                return i
             }
+            accumulatedWidth += advance
+            bestIndex = i + 1
         }
 
         return bestIndex
@@ -190,10 +200,10 @@ open class InputNode(
     override fun getPrefWidth(): Float {
         if (width >= 0.0f) return width
 
-        val currentFont = activeFont ?: return padL + padR
-        val text = editState.getDisplayText().ifEmpty { placeholder }
-        val textWidth = if (text.isNotEmpty()) fontMeasurer.getPrefWidth(currentFont, text, 0.0f, false) else 0.0f
-        val baseWidth = if (minWidth >= 0.0f) maxOf(textWidth, minWidth) else maxOf(textWidth, 40.0f)
+        val baseWidth = when {
+            minWidth >= 0.0f -> minWidth
+            else -> 40.0f
+        }
         return baseWidth + padL + padR
     }
 
@@ -206,6 +216,21 @@ open class InputNode(
         return baseHeight + padT + padB
     }
 
+    fun setText(newText: String) {
+        editState.setText(newText)
+        if (isFocused) {
+            activeInputProcessor?.syncIme(this)
+        }
+        invalidateLayout()
+    }
+
+    override fun layout() {
+        super.layout()
+        if (isFocused) {
+            activeInputProcessor?.syncIme(this)
+        }
+    }
+
     override fun drawSelf(batch: UIBatch) {
         // 1. Render optional background & borders
         super.drawSelf(batch)
@@ -214,10 +239,6 @@ open class InputNode(
         val delta = host.system.deltaTime
         editState.isFocused = isFocused
         editState.updateBlink(delta)
-
-        if (isFocused) {
-            activeInputProcessor?.syncIme(this)
-        }
 
         val innerX = bounds.x + padL
         val innerY = bounds.y + padB
@@ -228,17 +249,47 @@ open class InputNode(
         val capHeight = currentFont.data.capHeight
         val lineHeight = currentFont.lineHeight
 
-        // 1. Calculate base text vertical baseline
-        val textY = when {
-            isMultiline -> innerY + innerHeight - currentFont.data.ascent
-            else -> innerY + (innerHeight + capHeight) * 0.5f
-        }
-        val lineCenterY = innerY + innerHeight * 0.5f
+        val textColor = style.textColor
+        val placeholderColor = style.placeholderColor
+        val cursorColor = style.cursorColor
+        val selectionColor = style.selectionColor
+        val compositionColor = style.compositionColor
+        val compositionUnderlineColor = style.compositionUnderlineColor
 
-        // 2. Cursor horizontal offset calculation
+        // 1. Calculate base text vertical baseline & cursor coordinates
         val cursorIndex = editState.getEffectiveCursor().coerceIn(0, displayText.length)
-        val cursorSub = displayText.substring(0, cursorIndex)
-        val cursorRelX = if (cursorSub.isNotEmpty()) fontMeasurer.getPrefWidth(currentFont, cursorSub, 0.0f, false) else 0.0f
+
+        val cursorRelX: Float
+        val cursorY: Float
+        val lineCenterY: Float
+        val textY: Float
+
+        when {
+            isMultiline -> {
+                val upToCursor = displayText.substring(0, cursorIndex)
+                val lineIndex = upToCursor.count { it == '\n' }
+                val lastBreak = upToCursor.lastIndexOf('\n')
+                val lineSub = if (lastBreak >= 0) upToCursor.substring(lastBreak + 1) else upToCursor
+                val relX =
+                    if (lineSub.isNotEmpty()) fontMeasurer.getPrefWidth(currentFont, lineSub, 0.0f, false) else 0.0f
+                val baselineY = innerY + innerHeight - (lineIndex + 1) * lineHeight
+                cursorRelX = relX
+                cursorY = baselineY
+                lineCenterY = baselineY + lineHeight * 0.5f
+                textY = innerY + innerHeight - currentFont.data.ascent
+            }
+
+            else -> {
+                val cursorSub = displayText.substring(0, cursorIndex)
+                val relX =
+                    if (cursorSub.isNotEmpty()) fontMeasurer.getPrefWidth(currentFont, cursorSub, 0.0f, false) else 0.0f
+                val cCenterY = innerY + innerHeight * 0.5f
+                cursorRelX = relX
+                cursorY = cCenterY - lineHeight * 0.5f
+                lineCenterY = cCenterY
+                textY = innerY + (innerHeight + capHeight) * 0.5f
+            }
+        }
 
         // Auto-scroll horizontal single-line text to keep caret visible
         scrollOffset = when {
@@ -253,29 +304,30 @@ open class InputNode(
 
         // 4. Draw Selection highlight quad
         if (editState.hasSelection()) {
-            val range = editState.getSelectionRange()!!
-            val selStartSub = editState.text.substring(0, range.first)
-            val selEndSub = editState.text.substring(0, range.second)
+            val selStart = editState.selectionStartRange
+            val selEnd = editState.selectionEndRange
+            val selStartSub = editState.text.substring(0, selStart)
+            val selEndSub = editState.text.substring(0, selEnd)
 
-            val selectionStartX = innerX + fontMeasurer.getPrefWidth(currentFont, selStartSub, 0.0f, false) - scrollOffset
-            val selectionEndX = innerX + fontMeasurer.getPrefWidth(currentFont, selEndSub, 0.0f, false) - scrollOffset
-            val selectionWidth = maxOf(2.0f, selectionEndX - selectionStartX)
+            val selStartX = innerX + fontMeasurer.getPrefWidth(currentFont, selStartSub, 0.0f, false) - scrollOffset
+            val selEndX = innerX + fontMeasurer.getPrefWidth(currentFont, selEndSub, 0.0f, false) - scrollOffset
 
             batch.drawBox(
-                x = selectionStartX,
+                x = minOf(selStartX, selEndX),
                 y = lineCenterY - lineHeight * 0.5f,
-                width = selectionWidth,
+                width = maxOf(2.0f, kotlin.math.abs(selEndX - selStartX)),
                 height = lineHeight,
                 color = selectionColor,
-                radius = 2.0f
+                radius = 2.0f,
             )
         }
 
         // 5. Draw Pre-edit / IME Composition Region
         if (editState.hasComposition()) {
-            val compRange = editState.getCompositionRange()!!
-            val compStartSub = displayText.substring(0, compRange.first)
-            val compEndSub = displayText.substring(0, compRange.second)
+            val compStart = editState.compositionStartRange
+            val compEnd = editState.compositionEndRange
+            val compStartSub = displayText.substring(0, compStart)
+            val compEndSub = displayText.substring(0, compEnd)
 
             val compStartX = innerX + fontMeasurer.getPrefWidth(currentFont, compStartSub, 0.0f, false) - scrollOffset
             val compEndX = innerX + fontMeasurer.getPrefWidth(currentFont, compEndSub, 0.0f, false) - scrollOffset
@@ -288,7 +340,7 @@ open class InputNode(
                 width = compositionWidth,
                 height = lineHeight,
                 color = compositionColor,
-                radius = 2.0f
+                radius = 2.0f,
             )
 
             // Composition underline
@@ -298,7 +350,7 @@ open class InputNode(
                 width = compositionWidth,
                 height = 2.0f,
                 color = compositionUnderlineColor,
-                radius = 1.0f
+                radius = 1.0f,
             )
         }
 
@@ -313,9 +365,10 @@ open class InputNode(
                     targetWidth = if (isMultiline) innerWidth else 0.0f,
                     align = if (isMultiline) Align.topLeft else Align.left,
                     wrap = isMultiline,
-                    color = textColor
+                    color = textColor,
                 )
             }
+
             placeholder.isNotEmpty() -> {
                 batch.drawText(
                     font = currentFont,
@@ -325,7 +378,7 @@ open class InputNode(
                     targetWidth = innerWidth,
                     align = if (isMultiline) Align.topLeft else Align.left,
                     wrap = isMultiline,
-                    color = placeholderColor
+                    color = placeholderColor,
                 )
             }
         }
@@ -336,14 +389,24 @@ open class InputNode(
 
             batch.drawBox(
                 x = cursorX,
-                y = lineCenterY - lineHeight * 0.5f,
+                y = cursorY,
                 width = 2.0f,
                 height = lineHeight,
                 color = cursorColor,
-                radius = 1.0f
+                radius = 1.0f,
             )
         }
 
         batch.popClip()
+    }
+
+    override fun resetModifiers() {
+        super.resetModifiers()
+        isFocusable = true
+        hitTestBehavior = HitTestBehavior.OPAQUE
+        cursor = org.mdt.core.ui.input.CursorIcon.IBEAM
+        minHeight = 24.0f
+        minWidth = 40.0f
+        sizeFlagsHorizontal = SizeFlags.FILL
     }
 }

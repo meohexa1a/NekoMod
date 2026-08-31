@@ -10,7 +10,7 @@ package org.mdt.core.ui.node
 import org.mdt.core.platform.PlatformHost
 import org.mdt.core.platform.render.UIBatch
 import org.mdt.core.ui.layout.GodotLayout
-import org.mdt.core.ui.layout.SizeFlags
+import org.mdt.core.ui.unit.SizeFlags
 
 /**
  * ## CanvasNode
@@ -26,7 +26,7 @@ import org.mdt.core.ui.layout.SizeFlags
  * @see GodotLayout
  */
 class CanvasNode(
-    val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    val hostProvider: () -> PlatformHost = { PlatformHost.NoOp },
 ) : UINode() {
 
     var inputProcessor: org.mdt.core.ui.input.EngineInputProcessor? = null
@@ -62,13 +62,14 @@ class CanvasNode(
 
             val anchor = child.anchorData
             val hasExplicitAnchor = anchor.isEnabled ||
-                    anchor.anchorLeft != 0.0f || anchor.anchorRight != 0.0f || anchor.anchorTop != 0.0f || anchor.anchorBottom != 0.0f ||
-                    anchor.offsetLeft != 0.0f || anchor.offsetRight != 0.0f || anchor.offsetTop != 0.0f || anchor.offsetBottom != 0.0f
+                anchor.anchorLeft != 0.0f || anchor.anchorRight != 0.0f || anchor.anchorTop != 0.0f || anchor.anchorBottom != 0.0f ||
+                anchor.offsetLeft != 0.0f || anchor.offsetRight != 0.0f || anchor.offsetTop != 0.0f || anchor.offsetBottom != 0.0f
 
             when {
                 hasExplicitAnchor -> {
                     GodotLayout.layoutSingleAnchor(child, 0.0f, 0.0f, screenWidth, screenHeight)
                 }
+
                 else -> {
                     // Root children without explicit anchors fill the full canvas viewport
                     GodotLayout.fitChildInRect(
@@ -78,7 +79,7 @@ class CanvasNode(
                         rectWidth = screenWidth,
                         rectHeight = screenHeight,
                         horizontalFlags = child.sizeFlagsHorizontal or SizeFlags.FILL,
-                        verticalFlags = child.sizeFlagsVertical or SizeFlags.FILL
+                        verticalFlags = child.sizeFlagsVertical or SizeFlags.FILL,
                     )
                 }
             }

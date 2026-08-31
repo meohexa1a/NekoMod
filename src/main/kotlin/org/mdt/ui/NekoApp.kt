@@ -13,9 +13,9 @@ import org.mdt.core.ui.modifier.align
 import org.mdt.core.ui.modifier.fillMaxSize
 import org.mdt.core.ui.modifier.fillMaxWidth
 import org.mdt.core.ui.modifier.width
-import org.mdt.core.ui.layout.Alignment
-import org.mdt.core.ui.layout.Arrangement
-import org.mdt.core.platform.unit.Color
+import org.mdt.core.ui.unit.Alignment
+import org.mdt.core.ui.unit.Arrangement
+import org.mdt.core.ui.unit.Color
 import org.mdt.ui.components.input.TextField
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Column

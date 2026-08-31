@@ -10,8 +10,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import arc.graphics.g2d.TextureRegion
+import org.mdt.core.ui.layout.BoxScope
 import org.mdt.core.ui.modifier.UIModifier
-import org.mdt.core.ui.modifier.align
+import org.mdt.core.ui.unit.Alignment
+import org.mdt.core.ui.unit.Color
 import org.mdt.core.ui.modifier.background
 import org.mdt.core.ui.modifier.border
 import org.mdt.core.ui.modifier.clickable
@@ -20,11 +22,11 @@ import org.mdt.core.ui.modifier.hoverable
 import org.mdt.core.ui.modifier.pad
 import org.mdt.core.ui.modifier.radius
 import org.mdt.core.ui.modifier.size
-import org.mdt.core.ui.layout.Alignment
-import org.mdt.core.platform.unit.Color
+import org.mdt.core.ui.unit.Insets
 import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.theme.ButtonDefaults
 
 // --- BUTTON VARIANTS ---
 
@@ -57,7 +59,8 @@ fun Button(
     modifier: UIModifier = UIModifier,
     variant: ButtonVariant = ButtonVariant.FILLED,
     enabled: Boolean = true,
-    content: @Composable () -> Unit
+    contentPadding: Insets = ButtonDefaults.contentPadding,
+    content: @Composable BoxScope.() -> Unit
 ) {
     var isHovered by remember { mutableStateOf(false) }
     var isPressed by remember { mutableStateOf(false) }
@@ -102,11 +105,16 @@ fun Button(
 
     Box(
         modifier = UIModifier
-            .radius(8.0f)
+            .radius(ButtonDefaults.radius)
             .background(currentBg)
-            .border(1.0f, currentBorder)
+            .border(ButtonDefaults.borderWidth, currentBorder)
             .glass(variant == ButtonVariant.GLASS)
-            .pad(horizontal = 16.0f, vertical = 8.0f)
+            .pad(
+                left = contentPadding.left,
+                top = contentPadding.top,
+                right = contentPadding.right,
+                bottom = contentPadding.bottom
+            )
             .hoverable { if (enabled) isHovered = it }
             .clickable(
                 onClick = { if (enabled) onClick() },
@@ -166,9 +174,10 @@ fun IconButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = UIModifier.size(36.0f).pad(0.0f).then(modifier),
+        modifier = UIModifier.size(36.0f).then(modifier),
         variant = variant,
-        enabled = enabled
+        enabled = enabled,
+        contentPadding = Insets.Zero
     ) {
         Image(
             region = region,

@@ -11,12 +11,15 @@ import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.Snapshot
 import arc.util.Log
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Runnable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import org.mdt.core.platform.PlatformHost
 
 /**
  * ## ComposePipeline
@@ -30,14 +33,28 @@ import kotlinx.coroutines.launch
  * @see org.mdt.core.ui.EngineRuntime
  * @see UIComposition
  */
-class ComposePipeline {
+class ComposePipeline(
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp },
+) {
     val clock = BroadcastFrameClock()
-    private val scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob() + clock)
+
+    private val dispatcher = object : CoroutineDispatcher() {
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            val host = hostProvider()
+            if (host === PlatformHost.NoOp) {
+                block.run()
+            } else {
+                host.system.postToMainThread { block.run() }
+            }
+        }
+    }
+
+    private val scope = CoroutineScope(dispatcher + SupervisorJob() + clock)
     val recomposer = Recomposer(scope.coroutineContext)
 
     init {
         scope.launch(start = CoroutineStart.UNDISPATCHED) { recomposer.runRecomposeAndApplyChanges() }
-        Log.info("[NekoMod] ComposePipeline initialized with fresh BroadcastFrameClock.")
+        Log.info("[NekoMod] ComposePipeline initialized with frame dispatcher and BroadcastFrameClock.")
     }
 
     fun frame() {

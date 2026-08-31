@@ -75,7 +75,7 @@ class PointerInputChange(
     val button: KeyCode = KeyCode.mouseLeft,
     val scrollX: Float = 0.0f,
     val scrollY: Float = 0.0f,
-    var isConsumed: Boolean = false
+    var isConsumed: Boolean = false,
 ) {
     /** Horizontal position delta from previous frame. */
     val dx: Float get() = x - prevX
@@ -99,7 +99,7 @@ class PointerInputChange(
 class PointerEvent(
     val change: PointerInputChange,
     val type: PointerEventType,
-    var pass: PointerEventPass = PointerEventPass.MAIN
+    var pass: PointerEventPass = PointerEventPass.MAIN,
 ) {
     val x: Float get() = change.x
     val y: Float get() = change.y
@@ -141,7 +141,7 @@ interface PointerInputFilter {
 class ScrollEvent(
     val amountX: Float,
     val amountY: Float,
-    var isConsumed: Boolean = false
+    var isConsumed: Boolean = false,
 )
 
 /**
@@ -149,5 +149,5 @@ class ScrollEvent(
  */
 class KeyEvent(
     val keyCode: KeyCode,
-    var isConsumed: Boolean = false
+    var isConsumed: Boolean = false,
 )

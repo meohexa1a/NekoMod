@@ -9,11 +9,10 @@ import androidx.compose.runtime.ComposeNode
 import arc.graphics.g2d.Font
 import arc.util.Align
 import org.mdt.core.platform.LocalPlatformHost
-import org.mdt.core.platform.unit.Color
 import org.mdt.core.ui.compose.NodeApplier
 import org.mdt.core.ui.modifier.UIModifier
-import org.mdt.core.ui.modifier.fillMaxWidth
 import org.mdt.core.ui.node.TextNode
+import org.mdt.core.ui.unit.Color
 
 /**
  * ## Text
@@ -40,7 +39,6 @@ fun Text(
     ellipsis: Boolean = false
 ) {
     val host = LocalPlatformHost.current
-    val effectiveModifier = if (wrap) UIModifier.fillMaxWidth().then(modifier) else modifier
     ComposeNode<TextNode, NodeApplier>(
         factory = {
             val node = TextNode(text, hostProvider = { host })
@@ -49,20 +47,17 @@ fun Text(
             node.align = align
             node.wrap = wrap
             node.ellipsis = ellipsis
-            effectiveModifier.applyTo(node)
+            node.modifier = modifier
             node
         },
         update = {
+            set(modifier) { this.modifier = it }
             set(text) { this.text = it }
             set(color) { this.textColor = it }
             set(font) { this.font = it }
             set(align) { this.align = it }
             set(wrap) { this.wrap = it }
             set(ellipsis) { this.ellipsis = it }
-            set(effectiveModifier) {
-                it.applyTo(this)
-                invalidateLayout()
-            }
         }
     )
 }

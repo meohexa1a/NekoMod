@@ -1,9 +1,4 @@
-// [AGENT ARCHITECTURE & INVARIANTS]
-// - Domain Role: Input Event Router & Focus Coordinator.
-// - Operating Mechanism: 3-pass pointer pipeline (`INITIAL` -> `MAIN` -> `FINAL`); event-driven drag tracking; IME key filtering.
-// - Invariants: `Backspace` exclusively in `onKeyDown`; printable chars in `onKeyTyped`; scissor clipping respected during hit testing.
-// - Dependencies: [InputEvents], [CanvasNode], [UINode], [InputNode], [EngineRuntime].
-// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.ui.input
 
@@ -33,7 +28,7 @@ import org.mdt.core.ui.node.UINode
  */
 class EngineInputProcessor(
     val canvas: CanvasNode,
-    private val hostProvider: () -> PlatformHost
+    private val hostProvider: () -> PlatformHost,
 ) : InputProcessor {
 
     private val host: PlatformHost get() = hostProvider()
@@ -70,7 +65,9 @@ class EngineInputProcessor(
         val now = host.system.nowMillis()
         if (now - pendingSingleClickTime >= doubleClickTimeout) {
             pendingSingleClickNode = null
-            node.onClick?.invoke()
+            if (node.parent != null) {
+                node.onClick?.invoke()
+            }
         }
     }
 
@@ -205,7 +202,7 @@ class EngineInputProcessor(
             prevY = clickY,
             pressed = true,
             prevPressed = false,
-            button = button
+            button = button,
         )
         prevMouseX = clickX
         prevMouseY = clickY
@@ -223,7 +220,7 @@ class EngineInputProcessor(
                 clearFocus()
             }
 
-            validHitNode.onPointerDown?.invoke(PointerEvent(change, PointerEventType.Press))
+            validHitNode.dispatchPointerDown(PointerEvent(change, PointerEventType.Press))
         } else {
             clearFocus()
             pressedNode = null
@@ -247,7 +244,7 @@ class EngineInputProcessor(
             prevY = prevMouseY,
             pressed = false,
             prevPressed = isPointerPressed,
-            button = button
+            button = button,
         )
         isPointerPressed = false
         prevMouseX = clickX
@@ -260,7 +257,7 @@ class EngineInputProcessor(
         dispatch3Pass(change, PointerEventType.Release)
 
         if (pressed != null) {
-            pressed.onPointerUp?.invoke(PointerEvent(change, PointerEventType.Release))
+            pressed.dispatchPointerUp(PointerEvent(change, PointerEventType.Release))
 
             val isInsideTarget = hitNode === pressed || isDescendantOrSelf(hitNode, pressed)
             if (isInsideTarget) {
@@ -284,6 +281,7 @@ class EngineInputProcessor(
                 lastClickNode = null
                 pressed.onDoubleClick?.invoke()
             }
+
             hasDoubleClick -> {
                 lastClickNode = pressed
                 lastClickTime = now
@@ -292,11 +290,14 @@ class EngineInputProcessor(
                     pendingSingleClickTime = now
                 }
             }
+
             else -> {
                 pendingSingleClickNode?.let { previousPending ->
-                    pendingSingleClickNode = null
-                    previousPending.onClick?.invoke()
+                    if (previousPending !== pressed && previousPending.parent != null) {
+                        previousPending.onClick?.invoke()
+                    }
                 }
+                pendingSingleClickNode = null
                 pressed.onClick?.invoke()
                 lastClickTime = now
                 lastClickNode = pressed
@@ -318,15 +319,13 @@ class EngineInputProcessor(
             prevY = prevMouseY,
             pressed = true,
             prevPressed = true,
-            button = KeyCode.mouseLeft
+            button = KeyCode.mouseLeft,
         )
         prevMouseX = dragX
         prevMouseY = dragY
 
         val pressed = pressedNode
-        if (pressed != null) {
-            pressed.onPointerDrag?.invoke(PointerEvent(change, PointerEventType.Drag))
-        }
+        pressed?.dispatchPointerDrag(PointerEvent(change, PointerEventType.Drag))
 
         return dispatch3Pass(change, PointerEventType.Drag) || pressed != null
     }
@@ -345,7 +344,7 @@ class EngineInputProcessor(
             prevY = prevMouseY,
             pressed = isPointerPressed,
             prevPressed = isPointerPressed,
-            button = KeyCode.mouseLeft
+            button = KeyCode.mouseLeft,
         )
         prevMouseX = moveX
         prevMouseY = moveY
@@ -359,10 +358,12 @@ class EngineInputProcessor(
             hoveredNode?.let {
                 it.isHovered = false
                 it.onPointerExit?.invoke()
+                it.onHover?.invoke(false)
             }
             target?.let {
                 it.isHovered = true
                 it.onPointerEnter?.invoke()
+                it.onHover?.invoke(true)
             }
             hoveredNode = target
 
@@ -391,18 +392,20 @@ class EngineInputProcessor(
             x = scrollX,
             y = scrollY,
             scrollX = amountX,
-            scrollY = amountY
+            scrollY = amountY,
         )
 
         val handled3Pass = dispatch3Pass(change, PointerEventType.Scroll)
         if (handled3Pass) return true
 
-        // Legacy fallback bubbling
         val hitNode = canvas.hitTest(scrollX, scrollY) ?: hoveredNode ?: return false
         val event = ScrollEvent(amountX, amountY)
 
         var current: UINode? = hitNode
         while (current != null) {
+            if (current is org.mdt.core.ui.node.LayoutNode && current.scrollable) {
+                if (current.handleScrollEvent(event)) return true
+            }
             if (current.onScroll != null) {
                 current.onScroll!!.invoke(event)
                 if (event.isConsumed) return true
@@ -415,13 +418,17 @@ class EngineInputProcessor(
 
     // --- KEYBOARD EVENTS ---
 
-    override fun keyDown(keyCode: KeyCode): Boolean =
-        focusedNode?.onKeyDown?.invoke(keyCode) ?: false
+    override fun keyDown(keyCode: KeyCode): Boolean {
+        val pureKey = Key.fromArcKeyCode(keyCode)
+        return focusedNode?.dispatchKeyDown(pureKey) ?: false
+    }
 
-    override fun keyUp(keyCode: KeyCode): Boolean =
-        focusedNode?.onKeyUp?.invoke(keyCode) ?: false
+    override fun keyUp(keyCode: KeyCode): Boolean {
+        val pureKey = Key.fromArcKeyCode(keyCode)
+        return focusedNode?.dispatchKeyUp(pureKey) ?: false
+    }
 
     override fun keyTyped(character: Char): Boolean =
-        focusedNode?.onKeyTyped?.invoke(character) ?: false
+        focusedNode?.dispatchKeyTyped(character) ?: false
 }
 

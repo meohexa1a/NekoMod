@@ -16,25 +16,13 @@ import org.mdt.core.ui.modifier.border
 import org.mdt.core.ui.modifier.fillMaxWidth
 import org.mdt.core.ui.modifier.pad
 import org.mdt.core.ui.modifier.radius
-import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.node.InputNode
-import org.mdt.core.platform.unit.Color
+import org.mdt.core.ui.unit.Alignment
+import org.mdt.core.ui.unit.Color
 import org.mdt.ui.components.layout.Box
-
-/**
- * ## TextFieldColors
- *
- * Visual color palette state for declarative [TextField].
- */
-data class TextFieldColors(
-    val background: Color = Color(0.08f, 0.08f, 0.12f, 0.70f),
-    val text: Color = Color.White,
-    val placeholder: Color = Color(1.0f, 1.0f, 1.0f, 0.40f),
-    val border: Color = Color(1.0f, 1.0f, 1.0f, 0.15f),
-    val focusBorder: Color = Color(0.52f, 0.75f, 0.86f, 0.90f),
-    val cursor: Color = Color(0.52f, 0.75f, 0.86f, 1.0f),
-    val selection: Color = Color(0.52f, 0.75f, 0.86f, 0.35f)
-)
+import org.mdt.ui.theme.InputStyle
+import org.mdt.ui.theme.LocalInputStyle
+import org.mdt.ui.theme.TextFieldDefaults
 
 /**
  * ## BasicInput
@@ -42,7 +30,18 @@ data class TextFieldColors(
  * Primitive, unstyled raw text input composable wrapping [InputNode].
  * Provides core focus, horizontal scrolling, IME bridging, and typing state.
  *
- * See: docs/components-guide/components_guide_en.md
+ * @param value Current text value string.
+ * @param onValueChange Callback invoked on user text entry.
+ * @param modifier Chainable [UIModifier].
+ * @param placeholder Placeholder string shown when text is empty.
+ * @param style Native input visual configuration ([InputStyle]). Defaults to [LocalInputStyle.current].
+ * @param font Optional font override.
+ * @param enabled Whether the text input accepts user focus and input.
+ * @param isMultiline Whether multiple lines and Enter keybreaks are supported.
+ *
+ * @see InputStyle
+ * @see LocalInputStyle
+ * @see InputNode
  */
 @Composable
 fun BasicInput(
@@ -50,33 +49,30 @@ fun BasicInput(
     onValueChange: (String) -> Unit,
     modifier: UIModifier = UIModifier,
     placeholder: String = "",
-    placeholderColor: Color = Color(1.0f, 1.0f, 1.0f, 0.40f),
-    textColor: Color = Color.White,
-    cursorColor: Color = Color(0.52f, 0.75f, 0.86f, 1.0f),
-    selectionColor: Color = Color(0.52f, 0.75f, 0.86f, 0.35f),
+    style: InputStyle? = null,
     font: Font? = null,
     enabled: Boolean = true,
     isMultiline: Boolean = false
 ) {
     val host = LocalPlatformHost.current
+    val activeStyle = style ?: LocalInputStyle.current
+
     ComposeNode<InputNode, NodeApplier>(
         factory = {
             val node = InputNode(hostProvider = { host })
             node.editState.setText(value)
             node.onValueChange = onValueChange
             node.placeholder = placeholder
-            node.placeholderColor = placeholderColor
+            node.style = activeStyle
             node.touchable = enabled
             node.isFocusable = enabled
             node.isMultiline = isMultiline
-            node.textColor = textColor
-            node.cursorColor = cursorColor
-            node.selectionColor = selectionColor
             node.font = font
-            modifier.applyTo(node)
+            node.modifier = modifier
             node
         },
         update = {
+            set(modifier) { this.modifier = it }
             set(value) {
                 if (this.editState.text != it) {
                     this.editState.setText(it)
@@ -87,7 +83,7 @@ fun BasicInput(
                 this.placeholder = it
                 invalidateLayout()
             }
-            set(placeholderColor) { this.placeholderColor = it }
+            set(activeStyle) { this.style = it }
             set(onValueChange) { this.onValueChange = it }
             set(enabled) {
                 this.touchable = it
@@ -97,14 +93,7 @@ fun BasicInput(
                 this.isMultiline = it
                 invalidateLayout()
             }
-            set(textColor) { this.textColor = it }
-            set(cursorColor) { this.cursorColor = it }
-            set(selectionColor) { this.selectionColor = it }
             set(font) { this.font = it }
-            set(modifier) {
-                it.applyTo(this)
-                invalidateLayout()
-            }
         }
     )
 }
@@ -121,10 +110,15 @@ fun BasicInput(
  * @param placeholder Hint text displayed when [value] and IME buffer are empty.
  * @param enabled Whether this text input accepts focus and typing.
  * @param isMultiline Whether multiple lines and Enter keybreaks are supported.
- * @param radius Corner radius.
- * @param colors Color palette.
+ * @param inputStyle Native input visual configuration ([InputStyle]). Defaults to [LocalInputStyle.current].
+ * @param backgroundColor Fill color for the input box container.
+ * @param borderColor Outline border color for the input box container.
+ * @param borderWidth Outline border stroke thickness in pixels.
+ * @param radius Corner radius in pixels.
+ * @param font Optional font override.
  *
- * See: docs/components-guide/components_guide_en.md
+ * @see BasicInput
+ * @see InputStyle
  */
 @Composable
 fun TextField(
@@ -134,15 +128,18 @@ fun TextField(
     placeholder: String = "",
     enabled: Boolean = true,
     isMultiline: Boolean = false,
-    radius: Float = 8.0f,
-    font: Font? = null,
-    colors: TextFieldColors = TextFieldColors()
+    inputStyle: InputStyle? = null,
+    backgroundColor: Color = TextFieldDefaults.backgroundColor,
+    borderColor: Color = TextFieldDefaults.borderColor,
+    borderWidth: Float = TextFieldDefaults.borderWidth,
+    radius: Float = TextFieldDefaults.radius,
+    font: Font? = null
 ) {
     Box(
         modifier = UIModifier
-            .background(colors.background)
+            .background(backgroundColor)
             .radius(radius)
-            .border(1.0f, colors.border)
+            .border(borderWidth, borderColor)
             .pad(left = 12.0f, right = 12.0f, top = 8.0f, bottom = 8.0f)
             .then(modifier)
     ) {
@@ -150,10 +147,7 @@ fun TextField(
             value = value,
             onValueChange = onValueChange,
             placeholder = placeholder,
-            placeholderColor = colors.placeholder,
-            textColor = colors.text,
-            cursorColor = colors.cursor,
-            selectionColor = colors.selection,
+            style = inputStyle,
             font = font,
             enabled = enabled,
             isMultiline = isMultiline,
@@ -161,3 +155,5 @@ fun TextField(
         )
     }
 }
+
+

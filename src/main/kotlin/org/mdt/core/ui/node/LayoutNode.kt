@@ -8,12 +8,16 @@
 package org.mdt.core.ui.node
 
 import arc.graphics.g2d.TextureRegion
+import org.mdt.core.platform.render.UIBatch
+import org.mdt.core.ui.unit.Color
 import org.mdt.core.ui.input.PointerEvent
+import org.mdt.core.ui.input.PointerEventPass
+import org.mdt.core.ui.input.PointerEventType
+import org.mdt.core.ui.input.PointerInputFilter
 import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.layout.BoxMeasurePolicy
 import org.mdt.core.ui.layout.MeasurePolicy
-import org.mdt.core.platform.render.UIBatch
-import org.mdt.core.platform.unit.Color
+import org.mdt.ui.theme.ScrollbarStyle
 
 /**
  * ## LayoutNode
@@ -98,97 +102,107 @@ open class LayoutNode : UINode() {
     var maxScrollY: Float = 0.0f
         private set
 
-    // Scrollbar Visual Style Tokens
-    var scrollbarThumbColor: Color = Color(0.65f, 0.65f, 0.68f, 0.50f)
-    var scrollbarTrackColor: Color = Color.Clear
-    var scrollbarThickness: Float = 4.0f
-    var scrollbarRadius: Float = 2.0f
-    var scrollbarAutoHide: Boolean = true
-    var scrollbarIdleTimeoutMs: Long = 1200L
-    var scrollbarFadeDurationMs: Long = 350L
-    var scrollSpeed: Float = 36.0f
+    // Scrollbar Visual Style Configuration
+    var scrollbarStyle: ScrollbarStyle = ScrollbarStyle.Default
 
     private var lastActivityTime: Long = 0L
     private var lastDragX: Float = 0.0f
     private var lastDragY: Float = 0.0f
     private var isDraggingPointer: Boolean = false
 
-    // --- SCROLL POINTER HANDLER LIFECYCLE ---
+    private val scrollPointerFilter = object : PointerInputFilter {
+        override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
+            if (!scrollable) return
+            if (pass == PointerEventPass.MAIN) {
+                when (event.type) {
+                    PointerEventType.Press -> {
+                        lastDragX = event.x
+                        lastDragY = event.y
+                        isDraggingPointer = true
+                        lastActivityTime = host.system.nowMillis()
+                    }
+
+                    PointerEventType.Drag -> {
+                        if (isDraggingPointer) {
+                            var consumed = false
+                            lastActivityTime = host.system.nowMillis()
+
+                            if (enableVerticalScroll && maxScrollY > 0.0f) {
+                                val deltaY = event.y - lastDragY
+                                scrollY = (scrollY + deltaY).coerceIn(0.0f, maxScrollY)
+                                lastDragY = event.y
+                                consumed = true
+                            }
+                            if (enableHorizontalScroll && maxScrollX > 0.0f) {
+                                val deltaX = event.x - lastDragX
+                                scrollX = (scrollX - deltaX).coerceIn(0.0f, maxScrollX)
+                                lastDragX = event.x
+                                consumed = true
+                            }
+
+                            if (consumed) {
+                                event.consume()
+                                invalidateLayout()
+                            }
+                        }
+                    }
+
+                    PointerEventType.Release, PointerEventType.Cancel -> {
+                        isDraggingPointer = false
+                        lastActivityTime = host.system.nowMillis()
+                    }
+
+                    else -> Unit
+                }
+            }
+        }
+    }
 
     private fun attachScrollPointerHandlers() {
-        onScroll = { event: ScrollEvent ->
-            var consumed = false
-            val isShift = host.input.isShiftPressed
-            lastActivityTime = host.system.nowMillis()
-
-            val isHorizontalOnly = isShift || (!enableVerticalScroll && enableHorizontalScroll)
-            when {
-                isHorizontalOnly -> {
-                    if (enableHorizontalScroll && maxScrollX > 0.0f) {
-                        val delta = if (event.amountX != 0.0f) event.amountX else event.amountY
-                        scrollX = (scrollX + delta * scrollSpeed).coerceIn(0.0f, maxScrollX)
-                        consumed = true
-                    }
-                }
-                else -> {
-                    if (enableVerticalScroll && maxScrollY > 0.0f) {
-                        scrollY = (scrollY + event.amountY * scrollSpeed).coerceIn(0.0f, maxScrollY)
-                        consumed = true
-                    }
-                    if (enableHorizontalScroll && maxScrollX > 0.0f && event.amountX != 0.0f) {
-                        scrollX = (scrollX + event.amountX * scrollSpeed).coerceIn(0.0f, maxScrollX)
-                        consumed = true
-                    }
-                }
-            }
-
-            if (consumed) {
-                event.isConsumed = true
-                invalidateLayout()
-            }
-        }
-
-        onPointerDown = { event: PointerEvent ->
-            lastDragX = event.x
-            lastDragY = event.y
-            isDraggingPointer = true
-            lastActivityTime = host.system.nowMillis()
-        }
-
-        onPointerDrag = { event: PointerEvent ->
-            var consumed = false
-            lastActivityTime = host.system.nowMillis()
-
-            if (enableVerticalScroll && maxScrollY > 0.0f) {
-                val deltaY = event.y - lastDragY
-                scrollY = (scrollY + deltaY).coerceIn(0.0f, maxScrollY)
-                lastDragY = event.y
-                consumed = true
-            }
-            if (enableHorizontalScroll && maxScrollX > 0.0f) {
-                val deltaX = event.x - lastDragX
-                scrollX = (scrollX - deltaX).coerceIn(0.0f, maxScrollX)
-                lastDragX = event.x
-                consumed = true
-            }
-
-            if (consumed) {
-                event.consume()
-                invalidateLayout()
-            }
-        }
-
-        onPointerUp = {
-            isDraggingPointer = false
-            lastActivityTime = host.system.nowMillis()
+        if (!pointerFilters.contains(scrollPointerFilter)) {
+            pointerFilters.add(scrollPointerFilter)
         }
     }
 
     private fun detachScrollPointerHandlers() {
-        onScroll = null
-        onPointerDown = null
-        onPointerDrag = null
-        onPointerUp = null
+        pointerFilters.remove(scrollPointerFilter)
+        isDraggingPointer = false
+    }
+
+    fun handleScrollEvent(event: ScrollEvent): Boolean {
+        if (!scrollable) return false
+        var consumed = false
+        val isShift = host.input.isShiftPressed
+        lastActivityTime = host.system.nowMillis()
+        val speed = scrollbarStyle.scrollSpeed
+
+        val isHorizontalOnly = isShift || (!enableVerticalScroll && enableHorizontalScroll)
+        when {
+            isHorizontalOnly -> {
+                if (enableHorizontalScroll && maxScrollX > 0.0f) {
+                    val delta = if (event.amountX != 0.0f) event.amountX else event.amountY
+                    scrollX = (scrollX + delta * speed).coerceIn(0.0f, maxScrollX)
+                    consumed = true
+                }
+            }
+
+            else -> {
+                if (enableVerticalScroll && maxScrollY > 0.0f) {
+                    scrollY = (scrollY + event.amountY * speed).coerceIn(0.0f, maxScrollY)
+                    consumed = true
+                }
+                if (enableHorizontalScroll && maxScrollX > 0.0f && event.amountX != 0.0f) {
+                    scrollX = (scrollX + event.amountX * speed).coerceIn(0.0f, maxScrollX)
+                    consumed = true
+                }
+            }
+        }
+
+        if (consumed) {
+            event.isConsumed = true
+            invalidateLayout()
+        }
+        return consumed
     }
 
     override fun buildHitPath(pointX: Float, pointY: Float, path: ArrayList<UINode>): Boolean {
@@ -229,19 +243,19 @@ open class LayoutNode : UINode() {
     // --- LAYOUT ENGINE ---
 
     override fun layout() {
-        val computedWidth = when {
-            width >= 0.0f -> width
-            bounds.width > 0.0f -> bounds.width
-            else -> getPrefWidth()
-        }
-        val computedHeight = when {
-            height >= 0.0f -> height
-            bounds.height > 0.0f -> bounds.height
-            else -> getPrefHeight()
-        }
+        if (parent == null) {
+            val computedWidth = when {
+                width >= 0.0f -> width
+                else -> getPrefWidth()
+            }
+            val computedHeight = when {
+                height >= 0.0f -> height
+                else -> getPrefHeight()
+            }
 
-        if (bounds.width != computedWidth || bounds.height != computedHeight) {
-            setSize(computedWidth, computedHeight)
+            if (bounds.width != computedWidth || bounds.height != computedHeight) {
+                setSize(computedWidth, computedHeight)
+            }
         }
 
         val availableWidth = maxOf(0.0f, bounds.width - padL - padR)
@@ -253,6 +267,15 @@ open class LayoutNode : UINode() {
 
             maxScrollX = maxOf(0.0f, contentWidth - availableWidth)
             maxScrollY = maxOf(0.0f, contentHeight - availableHeight)
+
+            if (!enableHorizontalScroll) {
+                scrollX = 0.0f
+                maxScrollX = 0.0f
+            }
+            if (!enableVerticalScroll) {
+                scrollY = 0.0f
+                maxScrollY = 0.0f
+            }
             scrollX = scrollX.coerceIn(0.0f, maxScrollX)
             scrollY = scrollY.coerceIn(0.0f, maxScrollY)
         }
@@ -260,35 +283,47 @@ open class LayoutNode : UINode() {
         val innerX = if (scrollable) bounds.x + padL - scrollX else bounds.x + padL
         val innerY = if (scrollable) bounds.y + padB + scrollY else bounds.y + padB
         measurePolicy.layout(this, innerX, innerY, availableWidth, availableHeight)
-
         isLayoutDirty = false
+
         for (i in children.indices) {
             val child = children[i]
-            if (child.visible) {
-                child.layout()
-            }
+            child.layout()
         }
     }
 
-    // --- RENDERING & FLOATING SCROLLBARS ---
+    override fun resetModifiers() {
+        super.resetModifiers()
+        color = Color.Clear
+        borderColor = Color.Clear
+        borderWidth = 0.0f
+        radius = 0.0f
+        region = null
+        isGlass = false
+        shadowRadius = 0.0f
+        shadowColor = Color.Clear
+        shadowOffsetX = 0.0f
+        shadowOffsetY = 0.0f
+    }
+
+    // --- DRAWING & SCROLLBAR RENDERING ---
 
     override fun draw(batch: UIBatch) {
         if (!visible) return
 
-        val shouldClip = (clip || scrollable) && bounds.width > 0.0f && bounds.height > 0.0f
-        if (shouldClip) {
+        if (clip || scrollable) {
             val innerX = bounds.x + padL
             val innerY = bounds.y + padB
             val innerWidth = maxOf(0.0f, bounds.width - padL - padR)
             val innerHeight = maxOf(0.0f, bounds.height - padT - padB)
+
+            drawSelf(batch)
+
             batch.pushClip(innerX, innerY, innerWidth, innerHeight)
-        }
-
-        drawSelf(batch)
-        drawChildren(batch)
-
-        if (shouldClip) {
+            drawChildren(batch)
             batch.popClip()
+        } else {
+            drawSelf(batch)
+            drawChildren(batch)
         }
 
         if (scrollable) {
@@ -297,6 +332,20 @@ open class LayoutNode : UINode() {
     }
 
     override fun drawSelf(batch: UIBatch) {
+        // 1. Draw optional drop shadow behind node background
+        if (shadowRadius > 0.001f && shadowColor.alpha > 0.001f) {
+            val shadowExpansion = shadowRadius * 0.5f
+            batch.drawBox(
+                x = bounds.x + shadowOffsetX - shadowExpansion,
+                y = bounds.y + shadowOffsetY - shadowExpansion,
+                width = bounds.width + shadowExpansion * 2.0f,
+                height = bounds.height + shadowExpansion * 2.0f,
+                radius = radius + shadowExpansion,
+                color = shadowColor,
+            )
+        }
+
+        // 2. Draw node background / borders / glass
         if (color.alpha > 0.001f || borderWidth > 0.001f || region != null || isGlass) {
             batch.drawBox(
                 x = bounds.x,
@@ -308,7 +357,7 @@ open class LayoutNode : UINode() {
                 color = color,
                 borderWidth = borderWidth,
                 borderColor = borderColor,
-                isGlass = isGlass
+                isGlass = isGlass,
             )
         }
     }
@@ -317,9 +366,20 @@ open class LayoutNode : UINode() {
         val currentTime = host.system.nowMillis()
         val timeSinceActivity = currentTime - lastActivityTime
 
+        val autoHide = scrollbarStyle.autoHide
+        val idleTimeoutMs = scrollbarStyle.idleTimeoutMs
+        val fadeDurationMs = scrollbarStyle.fadeDurationMs
+        val thickness = scrollbarStyle.thickness
+        val radius = scrollbarStyle.radius
+        val thumbColor = scrollbarStyle.thumbColor
+        val trackColor = scrollbarStyle.trackColor
+
         val scrollbarAlpha: Float = when {
-            !scrollbarAutoHide || isDraggingPointer || timeSinceActivity < scrollbarIdleTimeoutMs -> 1.0f
-            else -> (1.0f - (timeSinceActivity - scrollbarIdleTimeoutMs).toFloat() / scrollbarFadeDurationMs.toFloat()).coerceIn(0.0f, 1.0f)
+            !autoHide || isDraggingPointer || timeSinceActivity < idleTimeoutMs -> 1.0f
+            else -> (1.0f - (timeSinceActivity - idleTimeoutMs).toFloat() / fadeDurationMs.toFloat()).coerceIn(
+                0.0f,
+                1.0f,
+            )
         }
 
         if (scrollbarAlpha <= 0.001f) return
@@ -328,7 +388,7 @@ open class LayoutNode : UINode() {
         val availableHeight = maxOf(0.0f, bounds.height - padT - padB)
         val innerX = bounds.x + padL
         val innerY = bounds.y + padB
-        val effectiveThumbColor = scrollbarThumbColor.withAlpha(scrollbarThumbColor.alpha * scrollbarAlpha)
+        val effectiveThumbColor = thumbColor.withAlpha(thumbColor.alpha * scrollbarAlpha)
 
         // 1. Draw Vertical Floating Scrollbar
         if (enableVerticalScroll && maxScrollY > 0.0f) {
@@ -336,26 +396,26 @@ open class LayoutNode : UINode() {
             val thumbHeight = maxOf(20.0f, (availableHeight / contentHeight) * availableHeight)
             val scrollRatio = if (maxScrollY > 0.0f) scrollY / maxScrollY else 0.0f
             val thumbY = innerY + availableHeight - thumbHeight - scrollRatio * (availableHeight - thumbHeight)
-            val thumbX = innerX + availableWidth - scrollbarThickness - 2.0f
+            val thumbX = innerX + availableWidth - thickness - 2.0f
 
-            if (scrollbarTrackColor.alpha > 0.001f) {
+            if (trackColor.alpha > 0.001f) {
                 batch.drawBox(
                     x = thumbX,
                     y = innerY,
-                    width = scrollbarThickness,
+                    width = thickness,
                     height = availableHeight,
-                    color = scrollbarTrackColor.withAlpha(scrollbarTrackColor.alpha * scrollbarAlpha),
-                    radius = scrollbarRadius
+                    color = trackColor.withAlpha(trackColor.alpha * scrollbarAlpha),
+                    radius = radius,
                 )
             }
 
             batch.drawBox(
                 x = thumbX,
                 y = thumbY,
-                width = scrollbarThickness,
+                width = thickness,
                 height = thumbHeight,
                 color = effectiveThumbColor,
-                radius = scrollbarRadius
+                radius = radius,
             )
         }
 
@@ -367,14 +427,14 @@ open class LayoutNode : UINode() {
             val thumbX = innerX + scrollRatio * (availableWidth - thumbWidth)
             val thumbY = innerY + 2.0f
 
-            if (scrollbarTrackColor.alpha > 0.001f) {
+            if (trackColor.alpha > 0.001f) {
                 batch.drawBox(
                     x = innerX,
                     y = thumbY,
                     width = availableWidth,
-                    height = scrollbarThickness,
-                    color = scrollbarTrackColor.withAlpha(scrollbarTrackColor.alpha * scrollbarAlpha),
-                    radius = scrollbarRadius
+                    height = thickness,
+                    color = trackColor.withAlpha(trackColor.alpha * scrollbarAlpha),
+                    radius = radius,
                 )
             }
 
@@ -382,9 +442,9 @@ open class LayoutNode : UINode() {
                 x = thumbX,
                 y = thumbY,
                 width = thumbWidth,
-                height = scrollbarThickness,
+                height = thickness,
                 color = effectiveThumbColor,
-                radius = scrollbarRadius
+                radius = radius,
             )
         }
     }

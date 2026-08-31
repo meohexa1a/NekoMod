@@ -5,16 +5,18 @@
 package org.mdt.ui.components.surface
 
 import androidx.compose.runtime.Composable
-import org.mdt.core.platform.unit.Color
-import org.mdt.core.ui.layout.Alignment
-import org.mdt.core.ui.layout.LayoutPreset
+import org.mdt.core.ui.layout.BoxScope
 import org.mdt.core.ui.modifier.UIModifier
 import org.mdt.core.ui.modifier.align
 import org.mdt.core.ui.modifier.anchor
 import org.mdt.core.ui.modifier.background
+import org.mdt.core.ui.modifier.consumePointer
 import org.mdt.core.ui.modifier.glass
 import org.mdt.core.ui.modifier.onClick
 import org.mdt.core.ui.modifier.opaque
+import org.mdt.core.ui.unit.Alignment
+import org.mdt.core.ui.unit.Color
+import org.mdt.core.ui.unit.LayoutPreset
 import org.mdt.ui.components.layout.Box
 
 /**
@@ -28,7 +30,7 @@ fun ModalDialog(
     onDismiss: () -> Unit,
     modifier: UIModifier = UIModifier,
     scrimColor: Color = Color(0.0f, 0.0f, 0.0f, 0.55f),
-    content: @Composable () -> Unit
+    content: @Composable BoxScope.() -> Unit
 ) {
     if (!visible) return
 
@@ -45,7 +47,7 @@ fun ModalDialog(
         Card(
             modifier = UIModifier
                 .align(Alignment.Center)
-                .onClick { /* absorb click inside modal card */ }
+                .consumePointer()
                 .then(modifier),
             content = content
         )

@@ -12,9 +12,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
-import org.mdt.core.platform.unit.Color
-import org.mdt.core.ui.layout.Alignment
+import org.mdt.core.ui.layout.BoxScope
 import org.mdt.core.ui.modifier.UIModifier
+import org.mdt.core.ui.unit.Alignment
+import org.mdt.core.ui.unit.Color
 import org.mdt.core.ui.modifier.align
 import org.mdt.core.ui.modifier.background
 import org.mdt.core.ui.modifier.border
@@ -33,10 +34,10 @@ import org.mdt.ui.components.text.Text
  */
 @Composable
 fun TooltipBox(
-    tooltip: @Composable () -> Unit,
+    tooltip: @Composable BoxScope.() -> Unit,
     modifier: UIModifier = UIModifier,
     delayMs: Long = 350L,
-    content: @Composable () -> Unit
+    content: @Composable BoxScope.() -> Unit
 ) {
     var isHovered by remember { mutableStateOf(false) }
     var isVisible by remember { mutableStateOf(false) }
@@ -83,7 +84,7 @@ fun TooltipBox(
     text: String,
     modifier: UIModifier = UIModifier,
     delayMs: Long = 350L,
-    content: @Composable () -> Unit
+    content: @Composable BoxScope.() -> Unit
 ) {
     TooltipBox(
         tooltip = {

@@ -6,12 +6,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
 import org.mdt.core.ui.compose.NodeApplier
 import org.mdt.core.ui.modifier.UIModifier
-import org.mdt.core.ui.layout.Alignment
-import org.mdt.core.ui.layout.Arrangement
 import org.mdt.core.ui.layout.ColumnMeasurePolicy
 import org.mdt.core.ui.layout.FlowRowMeasurePolicy
 import org.mdt.core.ui.layout.RowMeasurePolicy
 import org.mdt.core.ui.node.LayoutNode
+import org.mdt.core.ui.unit.Alignment
+import org.mdt.core.ui.unit.Arrangement
 
 // --- ROW COMPOSABLE ---
 
@@ -27,16 +27,17 @@ fun Row(
     modifier: UIModifier = UIModifier,
     arrangement: Arrangement = Arrangement.Start,
     alignment: Alignment = Alignment.CenterStart,
-    content: @Composable () -> Unit
+    content: @Composable org.mdt.core.ui.layout.RowScope.() -> Unit
 ) {
     ComposeNode<LayoutNode, NodeApplier>(
         factory = {
             val node = LayoutNode()
             node.measurePolicy = RowMeasurePolicy(arrangement = arrangement, alignment = alignment)
-            modifier.applyTo(node)
+            node.modifier = modifier
             node
         },
         update = {
+            set(modifier) { this.modifier = it }
             set(arrangement) {
                 val currentPolicy = measurePolicy
                 measurePolicy = when (currentPolicy) {
@@ -53,12 +54,10 @@ fun Row(
                 }
                 invalidateLayout()
             }
-            set(modifier) {
-                it.applyTo(this)
-                invalidateLayout()
-            }
         },
-        content = content
+        content = {
+            org.mdt.core.ui.layout.RowScopeInstance.content()
+        }
     )
 }
 
@@ -76,16 +75,17 @@ fun Column(
     modifier: UIModifier = UIModifier,
     arrangement: Arrangement = Arrangement.Start,
     alignment: Alignment = Alignment.TopStart,
-    content: @Composable () -> Unit
+    content: @Composable org.mdt.core.ui.layout.ColumnScope.() -> Unit
 ) {
     ComposeNode<LayoutNode, NodeApplier>(
         factory = {
             val node = LayoutNode()
             node.measurePolicy = ColumnMeasurePolicy(arrangement = arrangement, alignment = alignment)
-            modifier.applyTo(node)
+            node.modifier = modifier
             node
         },
         update = {
+            set(modifier) { this.modifier = it }
             set(arrangement) {
                 val currentPolicy = measurePolicy
                 measurePolicy = when (currentPolicy) {
@@ -102,12 +102,10 @@ fun Column(
                 }
                 invalidateLayout()
             }
-            set(modifier) {
-                it.applyTo(this)
-                invalidateLayout()
-            }
         },
-        content = content
+        content = {
+            org.mdt.core.ui.layout.ColumnScopeInstance.content()
+        }
     )
 }
 
@@ -136,10 +134,11 @@ fun FlowRow(
                 arrangement = arrangement,
                 alignment = alignment
             )
-            modifier.applyTo(node)
+            node.modifier = modifier
             node
         },
         update = {
+            set(modifier) { this.modifier = it }
             set(horizontalGap) {
                 val currentPolicy = measurePolicy
                 measurePolicy = when (currentPolicy) {
@@ -170,10 +169,6 @@ fun FlowRow(
                     is FlowRowMeasurePolicy -> currentPolicy.copy(alignment = alignment)
                     else -> FlowRowMeasurePolicy(horizontalGap, verticalGap, arrangement, alignment)
                 }
-                invalidateLayout()
-            }
-            set(modifier) {
-                it.applyTo(this)
                 invalidateLayout()
             }
         },

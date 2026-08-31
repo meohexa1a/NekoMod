@@ -12,7 +12,8 @@ import arc.util.Align
 import org.mdt.core.platform.PlatformHost
 import org.mdt.core.platform.render.FontMeasurer
 import org.mdt.core.platform.render.UIBatch
-import org.mdt.core.platform.unit.Color
+import org.mdt.core.ui.unit.Color
+import org.mdt.core.ui.unit.SizeFlags
 
 /**
  * ## TextNode
@@ -35,7 +36,7 @@ import org.mdt.core.platform.unit.Color
  */
 open class TextNode(
     text: String = "",
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp },
 ) : LayoutNode() {
 
     val fontMeasurer: FontMeasurer get() = hostProvider().render.fontMeasurer
@@ -68,6 +69,9 @@ open class TextNode(
         set(value) {
             if (field != value) {
                 field = value
+                if (value && sizeFlagsHorizontal == 0) {
+                    sizeFlagsHorizontal = SizeFlags.FILL
+                }
                 invalidateLayout()
             }
         }
@@ -81,26 +85,43 @@ open class TextNode(
 
     override fun getPrefWidth(): Float {
         if (width >= 0.0f) return width
-        if (wrap) return maxOf(0.0f, minWidth) + padL + padR
 
-        val currentFont = activeFont ?: return padL + padR
-        val measuredWidth = fontMeasurer.getPrefWidth(currentFont, text, 0.0f, false)
-        val baseWidth = if (minWidth >= 0.0f) maxOf(measuredWidth, minWidth) else measuredWidth
+        val currentFont = activeFont
+        val measuredWidth = if (currentFont != null) {
+            fontMeasurer.getPrefWidth(currentFont, text, 0.0f, false)
+        } else {
+            text.length * 8.0f
+        }
+        val baseWidth = when {
+            minWidth >= 0.0f -> maxOf(measuredWidth, minWidth)
+            else -> measuredWidth
+        }
         return baseWidth + padL + padR
+    }
+
+    override fun resetModifiers() {
+        super.resetModifiers()
+        if (wrap && sizeFlagsHorizontal == 0) {
+            sizeFlagsHorizontal = SizeFlags.FILL
+        }
     }
 
     override fun getPrefHeight(availableWidth: Float): Float {
         if (height >= 0.0f) return height
 
-        val currentFont = activeFont ?: return padT + padB
-        val targetWidth = when {
-            availableWidth >= 0.0f -> availableWidth - padL - padR
-            bounds.width > 0.0f -> bounds.width - padL - padR
-            width > 0.0f -> width - padL - padR
-            parent != null && parent!!.bounds.width > 0.0f -> parent!!.bounds.width - parent!!.padL - parent!!.padR - padL - padR
-            else -> 0.0f
+        val currentFont = activeFont
+        val measuredHeight = if (currentFont != null) {
+            val targetWidth = when {
+                availableWidth >= 0.0f -> availableWidth - padL - padR
+                bounds.width > 0.0f -> bounds.width - padL - padR
+                width > 0.0f -> width - padL - padR
+                parent != null && parent!!.bounds.width > 0.0f -> parent!!.bounds.width - parent!!.padL - parent!!.padR - padL - padR
+                else -> 0.0f
+            }
+            fontMeasurer.getPrefHeight(currentFont, text, maxOf(0.0f, targetWidth), align, wrap)
+        } else {
+            16.0f
         }
-        val measuredHeight = fontMeasurer.getPrefHeight(currentFont, text, maxOf(0.0f, targetWidth), align, wrap)
         val baseHeight = if (minHeight >= 0.0f) maxOf(measuredHeight, minHeight) else measuredHeight
         return baseHeight + padT + padB
     }
@@ -130,7 +151,7 @@ open class TextNode(
             align = align,
             wrap = wrap,
             ellipsis = ellipsis,
-            color = textColor
+            color = textColor,
         )
     }
 }

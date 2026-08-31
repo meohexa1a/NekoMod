@@ -1,16 +1,10 @@
-// [AGENT ARCHITECTURE & INVARIANTS]
-// - Domain Role: Pointer & Input Interaction Element Modifiers & Fluent Builders.
-// - Operating Mechanism: Attaches click, double-click, hover, continuous drag, scroll wheel, key down, and focus listeners to [UINode].
-// - Invariants: 3-pass event dispatch pipeline (`INITIAL`, `MAIN`, `FINAL`); event consumption stops propagation.
-// - Dependencies: [UIModifier], [UINode], [PointerEventPass], [PointerEventType], [EngineInputProcessor].
-// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 @file:Suppress("unused")
 
 package org.mdt.core.ui.modifier
 
-import arc.Graphics.Cursor
-import arc.input.KeyCode
+import org.mdt.core.ui.input.CursorIcon
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.PointerEventPass
 import org.mdt.core.ui.input.PointerEventType
@@ -32,42 +26,17 @@ import kotlin.math.hypot
  */
 data class ClickableModifier(
     val onClick: () -> Unit,
-    val onPressStateChanged: ((Boolean) -> Unit)? = null
+    val onPressStateChanged: ((Boolean) -> Unit)? = null,
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         node.hitTestBehavior = HitTestBehavior.OPAQUE
-        node.cursor = Cursor.SystemCursor.hand
-
-        node.addPointerInputFilter(object : PointerInputFilter {
-            private var isPointerDownInside = false
-
-            override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
-                if (pass != PointerEventPass.MAIN) return
-
-                when (event.type) {
-                    PointerEventType.Press -> {
-                        isPointerDownInside = true
-                        onPressStateChanged?.invoke(true)
-                        event.consume()
-                    }
-                    PointerEventType.Release -> {
-                        if (isPointerDownInside) {
-                            isPointerDownInside = false
-                            onPressStateChanged?.invoke(false)
-                            onClick()
-                            event.consume()
-                        }
-                    }
-                    PointerEventType.Exit, PointerEventType.Cancel -> {
-                        if (isPointerDownInside) {
-                            isPointerDownInside = false
-                            onPressStateChanged?.invoke(false)
-                        }
-                    }
-                    else -> {}
-                }
-            }
-        })
+        node.cursor = CursorIcon.HAND
+        node.onClick = onClick
+        if (onPressStateChanged != null) {
+            node.onPointerDown = { onPressStateChanged.invoke(true) }
+            node.onPointerUp = { onPressStateChanged.invoke(false) }
+            node.onPointerExit = { onPressStateChanged.invoke(false) }
+        }
     }
 }
 
@@ -93,17 +62,7 @@ data class DoubleClickModifier(val onDoubleClick: () -> Unit) : UIModifier.Eleme
  */
 data class HoverableModifier(val onHover: (Boolean) -> Unit) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        node.addPointerInputFilter(object : PointerInputFilter {
-            override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
-                if (pass != PointerEventPass.FINAL) return
-
-                when (event.type) {
-                    PointerEventType.Enter -> onHover(true)
-                    PointerEventType.Exit -> onHover(false)
-                    else -> {}
-                }
-            }
-        })
+        node.onHover = onHover
     }
 }
 
@@ -123,51 +82,41 @@ data class DraggableModifier(
     val onDragStart: ((Float, Float) -> Unit)? = null,
     val onDragEnd: (() -> Unit)? = null,
     val onDragCancel: (() -> Unit)? = null,
-    val touchSlop: Float = 4.0f
+    val touchSlop: Float = 4.0f,
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        node.addPointerInputFilter(object : PointerInputFilter {
-            private var isDragging = false
-            private var totalDistance = 0.0f
+        node.hitTestBehavior = HitTestBehavior.OPAQUE
+        var isDragging = false
+        var totalDistance = 0.0f
+        var startX = 0.0f
+        var startY = 0.0f
 
-            override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
-                if (pass != PointerEventPass.MAIN) return
-
-                when (event.type) {
-                    PointerEventType.Press -> {
-                        isDragging = false
-                        totalDistance = 0.0f
-                    }
-                    PointerEventType.Drag, PointerEventType.Move -> {
-                        if (event.change.pressed) {
-                            totalDistance += hypot(event.dx, event.dy)
-                            if (!isDragging && totalDistance >= touchSlop) {
-                                isDragging = true
-                                onDragStart?.invoke(event.x, event.y)
-                            }
-                            if (isDragging) {
-                                onDrag(event.dx, event.dy)
-                                event.consume()
-                            }
-                        }
-                    }
-                    PointerEventType.Release -> {
-                        if (isDragging) {
-                            isDragging = false
-                            onDragEnd?.invoke()
-                            event.consume()
-                        }
-                    }
-                    PointerEventType.Cancel -> {
-                        if (isDragging) {
-                            isDragging = false
-                            onDragCancel?.invoke()
-                        }
-                    }
-                    else -> {}
+        node.onPointerDown = { event ->
+            isDragging = false
+            totalDistance = 0.0f
+            startX = event.x
+            startY = event.y
+        }
+        node.onPointerDrag = { event ->
+            if (event.change.pressed) {
+                totalDistance += hypot(event.dx, event.dy)
+                if (!isDragging && totalDistance >= touchSlop) {
+                    isDragging = true
+                    onDragStart?.invoke(startX, startY)
+                }
+                if (isDragging) {
+                    onDrag(event.dx, event.dy)
+                    event.consume()
                 }
             }
-        })
+        }
+        node.onPointerUp = { event ->
+            if (isDragging) {
+                isDragging = false
+                onDragEnd?.invoke()
+                event.consume()
+            }
+        }
     }
 }
 
@@ -179,7 +128,7 @@ data class DraggableModifier(
  * @property filter The custom filter instance.
  */
 data class PointerInputModifier(val filter: PointerInputFilter) : UIModifier.Element {
-    override fun applyTo(node: UINode) = node.addPointerInputFilter(filter)
+    override fun applyTo(node: UINode) = node.addPointerFilter(filter)
 }
 
 /**
@@ -191,13 +140,7 @@ data class PointerInputModifier(val filter: PointerInputFilter) : UIModifier.Ele
  */
 data class PointerDownModifier(val onDown: (PointerEvent) -> Unit) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        node.addPointerInputFilter(object : PointerInputFilter {
-            override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
-                if (pass == PointerEventPass.MAIN && event.type == PointerEventType.Press) {
-                    onDown(event)
-                }
-            }
-        })
+        node.onPointerDown = onDown
     }
 }
 
@@ -210,13 +153,7 @@ data class PointerDownModifier(val onDown: (PointerEvent) -> Unit) : UIModifier.
  */
 data class PointerUpModifier(val onUp: (PointerEvent) -> Unit) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        node.addPointerInputFilter(object : PointerInputFilter {
-            override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
-                if (pass == PointerEventPass.MAIN && event.type == PointerEventType.Release) {
-                    onUp(event)
-                }
-            }
-        })
+        node.onPointerUp = onUp
     }
 }
 
@@ -229,13 +166,7 @@ data class PointerUpModifier(val onUp: (PointerEvent) -> Unit) : UIModifier.Elem
  */
 data class PointerDragModifier(val onDrag: (PointerEvent) -> Unit) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        node.addPointerInputFilter(object : PointerInputFilter {
-            override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
-                if (pass == PointerEventPass.MAIN && event.type == PointerEventType.Drag) {
-                    onDrag(event)
-                }
-            }
-        })
+        node.onPointerDrag = onDrag
     }
 }
 
@@ -266,19 +197,6 @@ data class TouchableModifier(val touchable: Boolean) : UIModifier.Element {
 }
 
 /**
- * ## KeyDownModifier
- *
- * Intercepts physical key down events when the [UINode] has input focus.
- *
- * @property onKeyDown Key handler callback returning `true` if consumed.
- */
-data class KeyDownModifier(val onKeyDown: (KeyCode) -> Boolean) : UIModifier.Element {
-    override fun applyTo(node: UINode) {
-        node.onKeyDown = onKeyDown
-    }
-}
-
-/**
  * ## FocusableModifier
  *
  * Configures keyboard focus eligibility on a [UINode].
@@ -288,19 +206,6 @@ data class KeyDownModifier(val onKeyDown: (KeyCode) -> Boolean) : UIModifier.Ele
 data class FocusableModifier(val focusable: Boolean = true) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         node.isFocusable = focusable
-    }
-}
-
-/**
- * ## CursorModifier
- *
- * Configures OS/Game mouse cursor icon displayed when hovering over a [UINode].
- *
- * @property cursor System or custom mouse cursor icon.
- */
-data class CursorModifier(val cursor: Cursor) : UIModifier.Element {
-    override fun applyTo(node: UINode) {
-        node.cursor = cursor
     }
 }
 
@@ -334,7 +239,7 @@ data class TagModifier(val tag: Any?) : UIModifier.Element {
 
 fun UIModifier.clickable(
     onPressStateChanged: ((Boolean) -> Unit)? = null,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ): UIModifier = then(ClickableModifier(onClick, onPressStateChanged))
 
 fun UIModifier.onClick(block: () -> Unit): UIModifier = clickable(onClick = block)
@@ -348,15 +253,15 @@ fun UIModifier.draggable(
     onDragEnd: (() -> Unit)? = null,
     onDragCancel: (() -> Unit)? = null,
     touchSlop: Float = 4.0f,
-    onDrag: (dx: Float, dy: Float) -> Unit
+    onDrag: (dx: Float, dy: Float) -> Unit,
 ): UIModifier = then(
     DraggableModifier(
         onDragStart = onDragStart,
         onDrag = onDrag,
         onDragEnd = onDragEnd,
         onDragCancel = onDragCancel,
-        touchSlop = touchSlop
-    )
+        touchSlop = touchSlop,
+    ),
 )
 
 fun UIModifier.onPointerDown(block: (PointerEvent) -> Unit): UIModifier = then(PointerDownModifier(block))
@@ -364,10 +269,50 @@ fun UIModifier.onPointerUp(block: (PointerEvent) -> Unit): UIModifier = then(Poi
 fun UIModifier.onPointerDrag(block: (PointerEvent) -> Unit): UIModifier = then(PointerDragModifier(block))
 fun UIModifier.onScroll(block: (ScrollEvent) -> Unit): UIModifier = then(ScrollModifier(block))
 
-fun UIModifier.touchable(touchable: Boolean): UIModifier = then(TouchableModifier(touchable))
-fun UIModifier.onKeyDown(block: (KeyCode) -> Boolean): UIModifier = then(KeyDownModifier(block))
+/**
+ * ## KeyDownModifier
+ *
+ * Attaches a keyboard key down listener to a [UINode].
+ *
+ * @property onKeyDown Key press handler returning `true` to consume the event.
+ */
+data class KeyDownModifier(val onKeyDown: (org.mdt.core.ui.input.Key) -> Boolean) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        node.onKeyDown = onKeyDown
+    }
+}
+
+/**
+ * ## CursorModifier
+ *
+ * Configures the mouse cursor displayed when pointer hovers over a [UINode].
+ *
+ * @property cursor Cursor icon to display.
+ */
+data class CursorModifier(val cursor: CursorIcon) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        node.cursor = cursor
+    }
+}
+
+/**
+ * ## ConsumePointerModifier
+ *
+ * Intercepts and consumes pointer events to prevent them from bubbling to underlying background scrims.
+ */
+data class ConsumePointerModifier(val dummy: Unit = Unit) : UIModifier.Element {
+    override fun applyTo(node: UINode) {
+        node.hitTestBehavior = HitTestBehavior.OPAQUE
+        node.onPointerDown = { it.consume() }
+        node.onClick = { /* consumes click event without action */ }
+    }
+}
+
+fun UIModifier.consumePointer(): UIModifier = then(ConsumePointerModifier())
+
+fun UIModifier.onKeyDown(block: (org.mdt.core.ui.input.Key) -> Boolean): UIModifier = then(KeyDownModifier(block))
+fun UIModifier.cursor(cursor: CursorIcon): UIModifier = then(CursorModifier(cursor))
 fun UIModifier.focusable(focusable: Boolean = true): UIModifier = then(FocusableModifier(focusable))
-fun UIModifier.cursor(cursor: Cursor): UIModifier = then(CursorModifier(cursor))
 fun UIModifier.hitTestBehavior(behavior: HitTestBehavior): UIModifier = then(HitTestBehaviorModifier(behavior))
 fun UIModifier.opaque(): UIModifier = hitTestBehavior(HitTestBehavior.OPAQUE)
 fun UIModifier.tag(tag: Any?): UIModifier = then(TagModifier(tag))

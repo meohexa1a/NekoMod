@@ -27,17 +27,17 @@ import org.mdt.core.ui.node.UINode
  */
 class UIComposition(
     root: UINode,
-    parentRecomposer: Recomposer
+    parentRecomposer: Recomposer,
 ) {
     private val composition: Composition = Composition(
         applier = NodeApplier(root),
-        parent = parentRecomposer
+        parent = parentRecomposer,
     )
 
     fun setContent(content: @Composable () -> Unit) {
         composition.setContent {
             CompositionLocalProvider(
-                LocalPlatformHost provides org.mdt.core.ui.EngineRuntime.host
+                LocalPlatformHost provides org.mdt.core.ui.EngineRuntime.host,
             ) {
                 content()
             }

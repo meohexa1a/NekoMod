@@ -12,7 +12,7 @@ package org.mdt.core.ui.modifier
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.ui.node.LayoutNode
 import org.mdt.core.ui.node.UINode
-import org.mdt.core.platform.unit.Color
+import org.mdt.core.ui.unit.Color
 
 // --- TYPED DRAW MODIFIER ELEMENTS ---
 
@@ -99,7 +99,7 @@ data class ShadowModifier(
     val radius: Float,
     val color: Color,
     val offsetX: Float = 0.0f,
-    val offsetY: Float = 0.0f
+    val offsetY: Float = 0.0f,
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
         if (node is LayoutNode) {
@@ -173,7 +173,7 @@ fun UIModifier.shadow(
     radius: Float = 8.0f,
     color: Color = Color(0.0f, 0.0f, 0.0f, 0.35f),
     offsetX: Float = 0.0f,
-    offsetY: Float = -2.0f
+    offsetY: Float = -2.0f,
 ): UIModifier = then(ShadowModifier(radius, color, offsetX, offsetY))
 
 fun UIModifier.opacity(opacity: Float): UIModifier = then(OpacityModifier(opacity))

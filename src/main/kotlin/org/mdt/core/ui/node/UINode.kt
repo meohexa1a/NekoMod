@@ -7,16 +7,19 @@
 
 package org.mdt.core.ui.node
 
-import arc.input.KeyCode
-import arc.math.geom.Vec2
+import org.mdt.core.platform.PlatformHost
 import org.mdt.core.platform.render.UIBatch
-import org.mdt.core.ui.EngineRuntime
+import org.mdt.core.ui.input.CursorIcon
+import org.mdt.core.ui.input.EngineInputProcessor
+import org.mdt.core.ui.input.Key
 import org.mdt.core.ui.input.KeyEvent
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.PointerEventPass
 import org.mdt.core.ui.input.PointerInputFilter
 import org.mdt.core.ui.input.ScrollEvent
-import org.mdt.core.ui.layout.AnchorData
+import org.mdt.core.ui.modifier.UIModifier
+import org.mdt.core.ui.unit.AnchorData
+import org.mdt.core.ui.unit.Offset
 import org.mdt.core.ui.unit.Rect
 
 /**
@@ -57,21 +60,34 @@ open class UINode {
 
     // --- PLATFORM ACCESS ---
 
-    val host: org.mdt.core.platform.PlatformHost
+    private var cachedHost: PlatformHost? = null
+    private var cachedInputProcessor: EngineInputProcessor? = null
+
+    val host: PlatformHost
         get() {
+            cachedHost?.let { return it }
             var current: UINode? = this
             while (current != null) {
-                if (current is CanvasNode) return current.hostProvider()
+                if (current is CanvasNode) {
+                    val resolved = current.hostProvider()
+                    cachedHost = resolved
+                    return resolved
+                }
                 current = current.parent
             }
-            return org.mdt.core.platform.PlatformHost.NoOp
+            return PlatformHost.NoOp
         }
 
-    val activeInputProcessor: org.mdt.core.ui.input.EngineInputProcessor?
+    val activeInputProcessor: EngineInputProcessor?
         get() {
+            cachedInputProcessor?.let { return it }
             var current: UINode? = this
             while (current != null) {
-                if (current is CanvasNode) return current.inputProcessor
+                if (current is CanvasNode) {
+                    val processor = current.inputProcessor
+                    cachedInputProcessor = processor
+                    return processor
+                }
                 current = current.parent
             }
             return null
@@ -90,7 +106,62 @@ open class UINode {
         internal set
 
     /** List of child nodes belonging to this node. */
-    val children = ArrayList<UINode>()
+    val children: ArrayList<UINode> = object : ArrayList<UINode>() {
+        override fun add(element: UINode): Boolean {
+            element.parent = this@UINode
+            element.onAttached()
+            return super.add(element)
+        }
+
+        override fun add(index: Int, element: UINode) {
+            element.parent = this@UINode
+            element.onAttached()
+            super.add(index, element)
+        }
+
+        override fun addAll(elements: Collection<UINode>): Boolean {
+            for (element in elements) {
+                element.parent = this@UINode
+                element.onAttached()
+            }
+            return super.addAll(elements)
+        }
+
+        override fun addAll(index: Int, elements: Collection<UINode>): Boolean {
+            for (element in elements) {
+                element.parent = this@UINode
+                element.onAttached()
+            }
+            return super.addAll(index, elements)
+        }
+
+        override fun remove(element: UINode): Boolean {
+            if (element.parent === this@UINode) {
+                element.onDetached()
+                element.parent = null
+            }
+            return super.remove(element)
+        }
+
+        override fun removeAt(index: Int): UINode {
+            val removed = super.removeAt(index)
+            if (removed.parent === this@UINode) {
+                removed.onDetached()
+                removed.parent = null
+            }
+            return removed
+        }
+
+        override fun clear() {
+            for (child in this) {
+                if (child.parent === this@UINode) {
+                    child.onDetached()
+                    child.parent = null
+                }
+            }
+            super.clear()
+        }
+    }
 
     /**
      * Absolute screen boundary rectangle.
@@ -102,58 +173,147 @@ open class UINode {
 
     /** Horizontal size flags for container slot allocation. Default: 0 (Hug content). */
     var sizeFlagsHorizontal: Int = 0
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
 
     /** Vertical size flags for container slot allocation. Default: 0 (Hug content). */
     var sizeFlagsVertical: Int = 0
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
 
-    /** Weight ratio for distributing excess container space when [org.mdt.core.ui.layout.SizeFlags.EXPAND] is set. */
+    /** Weight ratio for distributing excess container space when [org.mdt.core.ui.unit.SizeFlags.EXPAND] is set. */
     var stretchRatio: Float = 1.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
 
     /** Anchor and offset data for absolute/relative screen anchoring. */
     val anchorData: AnchorData = AnchorData()
 
     /** Fixed desired width (-1f for auto size). */
     var width: Float = -1.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
 
     /** Fixed desired height (-1f for auto size). */
     var height: Float = -1.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
 
     /** Minimum allowed width (-1f for unconstrained). */
     var minWidth: Float = -1.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
 
     /** Minimum allowed height (-1f for unconstrained). */
     var minHeight: Float = -1.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
 
     /** Maximum allowed width (-1f for unconstrained). */
     var maxWidth: Float = -1.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
 
     /** Maximum allowed height (-1f for unconstrained). */
     var maxHeight: Float = -1.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
 
     // --- BOX MODEL (MARGIN & PADDING) ---
 
     /** Outward margin on the left side (pixels). */
     var marginL: Float = 0.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
+
     /** Outward margin on the top side (pixels). */
     var marginT: Float = 0.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
+
     /** Outward margin on the right side (pixels). */
     var marginR: Float = 0.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
+
     /** Outward margin on the bottom side (pixels). */
     var marginB: Float = 0.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
 
     // Semantic margin aliases
     var marginLeft: Float
         get() = marginL
-        set(value) { marginL = value }
+        set(value) {
+            marginL = value
+        }
     var marginTop: Float
         get() = marginT
-        set(value) { marginT = value }
+        set(value) {
+            marginT = value
+        }
     var marginRight: Float
         get() = marginR
-        set(value) { marginR = value }
+        set(value) {
+            marginR = value
+        }
     var marginBottom: Float
         get() = marginB
-        set(value) { marginB = value }
+        set(value) {
+            marginB = value
+        }
 
     fun margin(all: Float) = margin(all, all, all, all)
 
@@ -170,26 +330,61 @@ open class UINode {
 
     /** Inward padding on the left side (pixels). */
     var padL: Float = 0.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
+
     /** Inward padding on the top side (pixels). */
     var padT: Float = 0.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
+
     /** Inward padding on the right side (pixels). */
     var padR: Float = 0.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
+
     /** Inward padding on the bottom side (pixels). */
     var padB: Float = 0.0f
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidateLayout()
+            }
+        }
 
     // Semantic padding aliases
     var paddingLeft: Float
         get() = padL
-        set(value) { padL = value }
+        set(value) {
+            padL = value
+        }
     var paddingTop: Float
         get() = padT
-        set(value) { padT = value }
+        set(value) {
+            padT = value
+        }
     var paddingRight: Float
         get() = padR
-        set(value) { padR = value }
+        set(value) {
+            padR = value
+        }
     var paddingBottom: Float
         get() = padB
-        set(value) { padB = value }
+        set(value) {
+            padB = value
+        }
 
     fun pad(all: Float) = pad(all, all, all, all)
 
@@ -223,7 +418,15 @@ open class UINode {
 
     /** Whether this node currently holds keyboard focus. */
     var isFocused: Boolean = false
-        internal set
+        internal set(value) {
+            if (field != value) {
+                field = value
+                onFocusChanged(value)
+            }
+        }
+
+    /** Lifecycle callback triggered when keyboard focus state changes. */
+    protected open fun onFocusChanged(focused: Boolean) {}
 
     /** Alpha rendering opacity in range 0.0f..1.0f. */
     var opacity: Float = 1.0f
@@ -265,7 +468,7 @@ open class UINode {
     var onHover: ((Boolean) -> Unit)? = null
 
     /** Custom mouse cursor displayed when pointer hovers over this node. */
-    var cursor: arc.Graphics.Cursor? = null
+    var cursor: CursorIcon? = null
 
     /** Invoked on scroll wheel action. */
     var onScroll: ((ScrollEvent) -> Unit)? = null
@@ -274,10 +477,10 @@ open class UINode {
     var onKeyTyped: ((Char) -> Boolean)? = null
 
     /** Invoked when a key is pressed while focused. Return true to consume. */
-    var onKeyDown: ((KeyCode) -> Boolean)? = null
+    var onKeyDown: ((Key) -> Boolean)? = null
 
     /** Invoked when a key is released while focused. Return true to consume. */
-    var onKeyUp: ((KeyCode) -> Boolean)? = null
+    var onKeyUp: ((Key) -> Boolean)? = null
 
     /** Whether pointer is currently hovering over this node. */
     var isHovered: Boolean = false
@@ -287,6 +490,50 @@ open class UINode {
                 onHover?.invoke(value)
             }
         }
+
+    // --- INTRINSIC EVENT HANDLERS (OVERRIDDEN BY LEAF NODES LIKE INPUTNODE) ---
+
+    open fun handlePointerDown(event: PointerEvent): Boolean = false
+    open fun handlePointerDrag(event: PointerEvent): Boolean = false
+    open fun handlePointerUp(event: PointerEvent): Boolean = false
+    open fun handleKeyDown(key: Key): Boolean = false
+    open fun handleKeyUp(key: Key): Boolean = false
+    open fun handleKeyTyped(character: Char): Boolean = false
+
+    // --- EVENT DISPATCH METHODS ---
+
+    open fun dispatchPointerDown(event: PointerEvent): Boolean {
+        onPointerDown?.invoke(event)
+        val intrinsicHandled = handlePointerDown(event)
+        return event.isConsumed || intrinsicHandled
+    }
+
+    open fun dispatchPointerDrag(event: PointerEvent): Boolean {
+        onPointerDrag?.invoke(event)
+        val intrinsicHandled = handlePointerDrag(event)
+        return event.isConsumed || intrinsicHandled
+    }
+
+    open fun dispatchPointerUp(event: PointerEvent): Boolean {
+        onPointerUp?.invoke(event)
+        val intrinsicHandled = handlePointerUp(event)
+        return event.isConsumed || intrinsicHandled
+    }
+
+    open fun dispatchKeyDown(key: Key): Boolean {
+        if (onKeyDown?.invoke(key) == true) return true
+        return handleKeyDown(key)
+    }
+
+    open fun dispatchKeyUp(key: Key): Boolean {
+        if (onKeyUp?.invoke(key) == true) return true
+        return handleKeyUp(key)
+    }
+
+    open fun dispatchKeyTyped(character: Char): Boolean {
+        if (onKeyTyped?.invoke(character) == true) return true
+        return handleKeyTyped(character)
+    }
 
     // --- LAYOUT & INTRINSIC MEASUREMENT ---
 
@@ -339,6 +586,65 @@ open class UINode {
         }
     }
 
+    // --- MODIFIER PIPELINE & RESET ---
+
+    /** Active modifier chain applied to this node. */
+    var modifier: UIModifier = UIModifier
+        set(value) {
+            field = value
+            resetModifiers()
+            value.applyTo(this)
+            invalidateLayout()
+        }
+
+    /**
+     * Resets all visual styling, layout constraints, and event listener slots to their pristine defaults.
+     * Invoked before applying a new modifier chain during Compose recomposition.
+     */
+    open fun resetModifiers() {
+        sizeFlagsHorizontal = 0
+        sizeFlagsVertical = 0
+        stretchRatio = 1.0f
+        width = -1.0f
+        height = -1.0f
+        minWidth = -1.0f
+        minHeight = -1.0f
+        maxWidth = -1.0f
+        maxHeight = -1.0f
+        anchorData.reset()
+
+        marginL = 0.0f
+        marginT = 0.0f
+        marginR = 0.0f
+        marginB = 0.0f
+        padL = 0.0f
+        padT = 0.0f
+        padR = 0.0f
+        padB = 0.0f
+
+        visible = true
+        opacity = 1.0f
+        zIndex = 0.0f
+        clip = false
+
+        hitTestBehavior = HitTestBehavior.TRANSLUCENT
+        cursor = null
+        touchable = true
+        isFocusable = false
+        onClick = null
+        onDoubleClick = null
+        onHover = null
+        onPointerDown = null
+        onPointerUp = null
+        onPointerDrag = null
+        onPointerEnter = null
+        onPointerExit = null
+        onScroll = null
+        onKeyDown = null
+        pointerFilters.clear()
+        tag = null
+    }
+
     // --- RENDERING & DRAW ---
 
     /** Renders this node and its children directly to [batch]. */
@@ -361,13 +667,32 @@ open class UINode {
     /** Renders the visual representation of this node. */
     protected open fun drawSelf(batch: UIBatch) {}
 
-    /** Renders all visible children in order. */
+    /** Renders all visible children respecting [zIndex] ordering. */
     protected open fun drawChildren(batch: UIBatch) {
-        for (i in children.indices) {
-            val child = children[i]
-            if (child.visible) {
-                child.draw(batch)
+        val size = children.size
+        if (size == 0) return
+
+        var hasVaryingZ = false
+        val firstZ = children[0].zIndex
+        for (i in 1 until size) {
+            if (children[i].zIndex != firstZ) {
+                hasVaryingZ = true
+                break
             }
+        }
+
+        if (!hasVaryingZ) {
+            for (i in 0 until size) {
+                val child = children[i]
+                if (child.visible) child.draw(batch)
+            }
+            return
+        }
+
+        val sorted = children.sortedWith(compareBy { it.zIndex })
+        for (i in sorted.indices) {
+            val child = sorted[i]
+            if (child.visible) child.draw(batch)
         }
     }
 
@@ -396,6 +721,7 @@ open class UINode {
      */
     open fun dispatchPointerEvent(event: PointerEvent, pass: PointerEventPass) {
         for (i in pointerFilters.indices) {
+            if (event.isConsumed) break
             pointerFilters[i].onPointerEvent(event, pass, this)
         }
     }
@@ -415,14 +741,44 @@ open class UINode {
 
         path.add(this)
 
-        for (i in children.indices.reversed()) {
-            val child = children[i]
-            if (child.buildHitPath(pointX, pointY, path)) {
-                return true
+        val size = children.size
+        var hasVaryingZ = false
+        if (size > 1) {
+            val firstZ = children[0].zIndex
+            for (i in 1 until size) {
+                if (children[i].zIndex != firstZ) {
+                    hasVaryingZ = true
+                    break
+                }
             }
         }
 
-        if (isInteractiveOrOpaque()) {
+        val handled = when {
+            hasVaryingZ -> {
+                val sorted = children.sortedWith(compareByDescending { it.zIndex })
+                var childHandled = false
+                for (i in sorted.indices) {
+                    if (sorted[i].buildHitPath(pointX, pointY, path)) {
+                        childHandled = true
+                        break
+                    }
+                }
+                childHandled
+            }
+
+            else -> {
+                var childHandled = false
+                for (i in children.indices.reversed()) {
+                    if (children[i].buildHitPath(pointX, pointY, path)) {
+                        childHandled = true
+                        break
+                    }
+                }
+                childHandled
+            }
+        }
+
+        if (handled || isInteractiveOrOpaque()) {
             return true
         }
 
@@ -435,10 +791,29 @@ open class UINode {
         if (!visible || !touchable || hitTestBehavior == HitTestBehavior.NONE) return null
         if (!bounds.contains(pointX, pointY)) return null
 
-        for (i in children.indices.reversed()) {
-            val child = children[i]
-            val hit = child.hitTest(pointX, pointY)
-            if (hit != null) return hit
+        val size = children.size
+        var hasVaryingZ = false
+        if (size > 1) {
+            val firstZ = children[0].zIndex
+            for (i in 1 until size) {
+                if (children[i].zIndex != firstZ) {
+                    hasVaryingZ = true
+                    break
+                }
+            }
+        }
+
+        if (hasVaryingZ) {
+            val sorted = children.sortedWith(compareByDescending { it.zIndex })
+            for (i in sorted.indices) {
+                val hit = sorted[i].hitTest(pointX, pointY)
+                if (hit != null) return hit
+            }
+        } else {
+            for (i in children.indices.reversed()) {
+                val hit = children[i].hitTest(pointX, pointY)
+                if (hit != null) return hit
+            }
         }
 
         return when {
@@ -450,18 +825,18 @@ open class UINode {
     /** Returns true if this node absorbs pointer hit-testing or responds to pointer events. */
     open fun isInteractiveOrOpaque(): Boolean =
         hitTestBehavior == HitTestBehavior.OPAQUE ||
-        pointerFilters.isNotEmpty() ||
-        onClick != null ||
-        onDoubleClick != null ||
-        onPointerDown != null ||
-        onPointerUp != null ||
-        onPointerDrag != null ||
-        onHover != null ||
-        onPointerEnter != null ||
-        onPointerExit != null ||
-        onScroll != null ||
-        isFocusable ||
-        cursor != null
+            pointerFilters.isNotEmpty() ||
+            onClick != null ||
+            onDoubleClick != null ||
+            onPointerDown != null ||
+            onPointerUp != null ||
+            onPointerDrag != null ||
+            onHover != null ||
+            onPointerEnter != null ||
+            onPointerExit != null ||
+            onScroll != null ||
+            isFocusable ||
+            cursor != null
 
     // --- TREE MANIPULATION ---
 
@@ -520,8 +895,18 @@ open class UINode {
         invalidateLayout()
     }
 
-    open fun onAttached() {}
-    open fun onDetached() {}
+    open fun onAttached() {
+        cachedHost = parent?.host
+        cachedInputProcessor = parent?.activeInputProcessor
+    }
+
+    open fun onDetached() {
+        if (activeInputProcessor?.focusedNode === this) {
+            activeInputProcessor?.clearFocus()
+        }
+        cachedHost = null
+        cachedInputProcessor = null
+    }
 
     fun requestFocus() {
         if (!isFocusable || isFocused) return
@@ -537,8 +922,8 @@ open class UINode {
 
     // --- COORDINATE TRANSFORMATIONS ---
 
-    fun localToGlobal(localX: Float, localY: Float): Vec2 = Vec2(bounds.x + localX, bounds.y + localY)
-    fun globalToLocal(globalX: Float, globalY: Float): Vec2 = Vec2(globalX - bounds.x, globalY - bounds.y)
+    fun localToGlobal(localX: Float, localY: Float): Offset = Offset(bounds.x + localX, bounds.y + localY)
+    fun globalToLocal(globalX: Float, globalY: Float): Offset = Offset(globalX - bounds.x, globalY - bounds.y)
 }
 
 /**

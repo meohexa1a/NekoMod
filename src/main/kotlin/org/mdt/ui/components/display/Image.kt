@@ -7,8 +7,8 @@ package org.mdt.ui.components.display
 import androidx.compose.runtime.Composable
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.platform.LocalPlatformHost
-import org.mdt.core.platform.unit.Color
 import org.mdt.core.ui.modifier.UIModifier
+import org.mdt.core.ui.unit.Color
 import org.mdt.core.ui.modifier.background
 import org.mdt.core.ui.modifier.texture
 import org.mdt.ui.components.layout.Box

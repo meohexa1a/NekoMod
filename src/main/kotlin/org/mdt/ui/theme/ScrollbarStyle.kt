@@ -3,7 +3,7 @@
 package org.mdt.ui.theme
 
 import androidx.compose.runtime.compositionLocalOf
-import org.mdt.core.platform.unit.Color
+import org.mdt.core.ui.unit.Color
 
 /**
  * ## ScrollbarStyle

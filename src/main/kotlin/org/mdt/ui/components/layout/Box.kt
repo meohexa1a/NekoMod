@@ -20,8 +20,10 @@ import org.mdt.ui.theme.ScrollbarStyle
 fun Box(
     modifier: UIModifier = UIModifier,
     scrollable: Boolean = false,
+    enableVerticalScroll: Boolean = true,
+    enableHorizontalScroll: Boolean = false,
     scrollbarStyle: ScrollbarStyle? = null,
-    content: @Composable () -> Unit = {}
+    content: @Composable org.mdt.core.ui.layout.BoxScope.() -> Unit = {}
 ) {
     val activeStyle = scrollbarStyle ?: LocalScrollbarStyle.current
 
@@ -30,39 +32,34 @@ fun Box(
             val node = LayoutNode()
             node.measurePolicy = BoxMeasurePolicy
             node.scrollable = scrollable
-            node.scrollbarThumbColor = activeStyle.thumbColor
-            node.scrollbarTrackColor = activeStyle.trackColor
-            node.scrollbarThickness = activeStyle.thickness
-            node.scrollbarRadius = activeStyle.radius
-            node.scrollbarAutoHide = activeStyle.autoHide
-            node.scrollbarIdleTimeoutMs = activeStyle.idleTimeoutMs
-            node.scrollbarFadeDurationMs = activeStyle.fadeDurationMs
-            node.scrollSpeed = activeStyle.scrollSpeed
-            modifier.applyTo(node)
+            node.enableVerticalScroll = enableVerticalScroll
+            node.enableHorizontalScroll = enableHorizontalScroll
+            node.scrollbarStyle = activeStyle
+            node.modifier = modifier
             node
         },
         update = {
+            set(modifier) { this.modifier = it }
             set(scrollable) {
                 this.scrollable = it
                 invalidateLayout()
             }
-            set(activeStyle) {
-                this.scrollbarThumbColor = it.thumbColor
-                this.scrollbarTrackColor = it.trackColor
-                this.scrollbarThickness = it.thickness
-                this.scrollbarRadius = it.radius
-                this.scrollbarAutoHide = it.autoHide
-                this.scrollbarIdleTimeoutMs = it.idleTimeoutMs
-                this.scrollbarFadeDurationMs = it.fadeDurationMs
-                this.scrollSpeed = it.scrollSpeed
+            set(enableVerticalScroll) {
+                this.enableVerticalScroll = it
                 invalidateLayout()
             }
-            set(modifier) {
-                it.applyTo(this)
+            set(enableHorizontalScroll) {
+                this.enableHorizontalScroll = it
+                invalidateLayout()
+            }
+            set(activeStyle) {
+                this.scrollbarStyle = it
                 invalidateLayout()
             }
         },
-        content = content
+        content = {
+            org.mdt.core.ui.layout.BoxScopeInstance.content()
+        }
     )
 }
 
@@ -77,11 +74,13 @@ fun ScrollBox(
     enableVertical: Boolean = true,
     enableHorizontal: Boolean = false,
     scrollbarStyle: ScrollbarStyle? = null,
-    content: @Composable () -> Unit
+    content: @Composable org.mdt.core.ui.layout.BoxScope.() -> Unit
 ) {
     Box(
         modifier = modifier,
         scrollable = true,
+        enableVerticalScroll = enableVertical,
+        enableHorizontalScroll = enableHorizontal,
         scrollbarStyle = scrollbarStyle,
         content = content
     )

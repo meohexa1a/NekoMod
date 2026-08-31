@@ -43,9 +43,6 @@ interface UIModifier {
     }
 }
 
-/** Top-level modifier factory returning an empty [UIModifier]. */
-fun Modifier(): UIModifier = UIModifier
-
 /** Ambient top-level accessor returning an empty [UIModifier]. */
 val Modifier: UIModifier get() = UIModifier
 
@@ -63,7 +60,7 @@ fun Modifier(block: UIModifier.() -> UIModifier): UIModifier = UIModifier.block(
  * @see UIModifier
  */
 class ModifierChain internal constructor(
-    val elements: Array<UIModifier.Element>
+    val elements: Array<UIModifier.Element>,
 ) : UIModifier {
 
     override fun applyTo(node: UINode) {
@@ -105,6 +102,7 @@ class ModifierChain internal constructor(
                         out.add(elems[i])
                     }
                 }
+
                 else -> {}
             }
         }
