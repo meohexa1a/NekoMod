@@ -8,6 +8,10 @@
 package org.mdt.core.ui.layout
 
 import org.mdt.core.ui.node.LayoutNode
+import org.mdt.core.ui.unit.Alignment
+import org.mdt.core.ui.unit.Arrangement
+import org.mdt.core.ui.unit.ArrangementType
+import org.mdt.core.ui.unit.VerticalAlign
 
 /**
  * ## MeasurePolicy
@@ -88,7 +92,7 @@ object BoxMeasurePolicy : MeasurePolicy {
                     rectWidth = availableWidth,
                     rectHeight = availableHeight,
                     horizontalFlags = child.sizeFlagsHorizontal,
-                    verticalFlags = child.sizeFlagsVertical
+                    verticalFlags = child.sizeFlagsVertical,
                 )
             }
         }
@@ -112,7 +116,7 @@ object BoxMeasurePolicy : MeasurePolicy {
 data class ColumnMeasurePolicy(
     val gap: Float = 0.0f,
     val arrangement: Arrangement = Arrangement.Start,
-    val alignment: Alignment = Alignment.TopStart
+    val alignment: Alignment = Alignment.TopStart,
 ) : MeasurePolicy {
 
     private val effectiveArrangement: Arrangement =
@@ -162,7 +166,7 @@ data class ColumnMeasurePolicy(
             padBottom = node.padB,
             isVertical = true,
             arrangement = effectiveArrangement,
-            alignment = alignment
+            alignment = alignment,
         )
     }
 }
@@ -184,7 +188,7 @@ data class ColumnMeasurePolicy(
 data class RowMeasurePolicy(
     val gap: Float = 0.0f,
     val arrangement: Arrangement = Arrangement.Start,
-    val alignment: Alignment = Alignment.CenterStart
+    val alignment: Alignment = Alignment.CenterStart,
 ) : MeasurePolicy {
 
     private val effectiveArrangement: Arrangement =
@@ -228,7 +232,7 @@ data class RowMeasurePolicy(
             padBottom = node.padB,
             isVertical = false,
             arrangement = effectiveArrangement,
-            alignment = alignment
+            alignment = alignment,
         )
     }
 }
@@ -253,13 +257,8 @@ data class FlowRowMeasurePolicy(
     val horizontalGap: Float = 0.0f,
     val verticalGap: Float = 0.0f,
     val arrangement: Arrangement = Arrangement.Start,
-    val alignment: Alignment = Alignment.TopStart
+    val alignment: Alignment = Alignment.TopStart,
 ) : MeasurePolicy {
-
-    private val lineChildStartIndex = IntList(16)
-    private val lineChildCounts = IntList(16)
-    private val lineHeights = FloatList(16)
-    private val lineTotalWidths = FloatList(16)
 
     override fun measureWidth(node: LayoutNode): Float {
         var maxLineWidth = 0.0f
@@ -320,14 +319,20 @@ data class FlowRowMeasurePolicy(
         return totalHeight + totalGaps
     }
 
+    companion object {
+        private val scratchLineChildStartIndex = IntList(32)
+        private val scratchLineChildCounts = IntList(32)
+        private val scratchLineHeights = FloatList(32)
+        private val scratchLineTotalWidths = FloatList(32)
+    }
+
     override fun layout(node: LayoutNode, innerX: Float, innerY: Float, availableWidth: Float, availableHeight: Float) {
         val maxContainerWidth = if (availableWidth > 0.0f) availableWidth else Float.MAX_VALUE
 
-        // Pass 1: Group children into lines (Zero-GC with reused sequences)
-        lineChildStartIndex.clear()
-        lineChildCounts.clear()
-        lineHeights.clear()
-        lineTotalWidths.clear()
+        val lineChildStartIndex = scratchLineChildStartIndex.apply { clear() }
+        val lineChildCounts = scratchLineChildCounts.apply { clear() }
+        val lineHeights = scratchLineHeights.apply { clear() }
+        val lineTotalWidths = scratchLineTotalWidths.apply { clear() }
 
         var currentLineStart = 0
         var currentChildrenInLine = 0
@@ -406,7 +411,13 @@ data class FlowRowMeasurePolicy(
                         VerticalAlign.FILL -> lineSlotY
                     }
 
-                    GodotLayout.fitChildInRect(child, currentItemX, childY, childWidth, if (alignment.vertical == VerticalAlign.FILL) lineH else childHeight)
+                    GodotLayout.fitChildInRect(
+                        child,
+                        currentItemX,
+                        childY,
+                        childWidth,
+                        if (alignment.vertical == VerticalAlign.FILL) lineH else childHeight,
+                    )
                     currentItemX += childWidth + horizontalGap
                     processed++
                 }

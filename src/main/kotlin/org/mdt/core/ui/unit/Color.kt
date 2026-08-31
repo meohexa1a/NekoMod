@@ -1,6 +1,6 @@
 // [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
-package org.mdt.core.platform.unit
+package org.mdt.core.ui.unit
 
 import arc.util.Tmp
 
@@ -50,8 +50,8 @@ value class Color(val value: ULong) {
             (alpha.coerceIn(0.0f, 1.0f) * 255.0f + 0.5f).toInt(),
             (red.coerceIn(0.0f, 1.0f) * 255.0f + 0.5f).toInt(),
             (green.coerceIn(0.0f, 1.0f) * 255.0f + 0.5f).toInt(),
-            (blue.coerceIn(0.0f, 1.0f) * 255.0f + 0.5f).toInt()
-        )
+            (blue.coerceIn(0.0f, 1.0f) * 255.0f + 0.5f).toInt(),
+        ),
     )
 
     constructor(red: Int, green: Int, blue: Int, alpha: Int = 255) : this(
@@ -59,8 +59,8 @@ value class Color(val value: ULong) {
             alpha.coerceIn(0, 255),
             red.coerceIn(0, 255),
             green.coerceIn(0, 255),
-            blue.coerceIn(0, 255)
-        )
+            blue.coerceIn(0, 255),
+        ),
     )
 
     constructor(argbHex: UInt) : this((argbHex.toULong() and 0xFFFFFFFFuL) shl 32)
@@ -74,7 +74,7 @@ value class Color(val value: ULong) {
         red: Float = this.red,
         green: Float = this.green,
         blue: Float = this.blue,
-        alpha: Float = this.alpha
+        alpha: Float = this.alpha,
     ): Color = Color(red, green, blue, alpha)
 
     /**
@@ -92,7 +92,7 @@ value class Color(val value: ULong) {
             red = this.red * inverseFraction + target.red * clampedFraction,
             green = this.green * inverseFraction + target.green * clampedFraction,
             blue = this.blue * inverseFraction + target.blue * clampedFraction,
-            alpha = this.alpha * inverseFraction + target.alpha * clampedFraction
+            alpha = this.alpha * inverseFraction + target.alpha * clampedFraction,
         )
     }
 
@@ -103,7 +103,7 @@ value class Color(val value: ULong) {
         red = (this.red * factor).coerceIn(0.0f, 1.0f),
         green = (this.green * factor).coerceIn(0.0f, 1.0f),
         blue = (this.blue * factor).coerceIn(0.0f, 1.0f),
-        alpha = this.alpha
+        alpha = this.alpha,
     )
 
     /**
@@ -113,7 +113,7 @@ value class Color(val value: ULong) {
         red = (this.red * target.red).coerceIn(0.0f, 1.0f),
         green = (this.green * target.green).coerceIn(0.0f, 1.0f),
         blue = (this.blue * target.blue).coerceIn(0.0f, 1.0f),
-        alpha = (this.alpha * target.alpha).coerceIn(0.0f, 1.0f)
+        alpha = (this.alpha * target.alpha).coerceIn(0.0f, 1.0f),
     )
 
     /**
@@ -125,9 +125,12 @@ value class Color(val value: ULong) {
         val outputAlpha = sourceAlpha + destinationAlpha * (1.0f - sourceAlpha)
         if (outputAlpha <= 0.0001f) return Clear
 
-        val outputRed = (this.red * sourceAlpha + background.red * destinationAlpha * (1.0f - sourceAlpha)) / outputAlpha
-        val outputGreen = (this.green * sourceAlpha + background.green * destinationAlpha * (1.0f - sourceAlpha)) / outputAlpha
-        val outputBlue = (this.blue * sourceAlpha + background.blue * destinationAlpha * (1.0f - sourceAlpha)) / outputAlpha
+        val outputRed =
+            (this.red * sourceAlpha + background.red * destinationAlpha * (1.0f - sourceAlpha)) / outputAlpha
+        val outputGreen =
+            (this.green * sourceAlpha + background.green * destinationAlpha * (1.0f - sourceAlpha)) / outputAlpha
+        val outputBlue =
+            (this.blue * sourceAlpha + background.blue * destinationAlpha * (1.0f - sourceAlpha)) / outputAlpha
         return Color(outputRed, outputGreen, outputBlue, outputAlpha)
     }
 
@@ -157,13 +160,21 @@ value class Color(val value: ULong) {
         return java.lang.Float.intBitsToFloat(abgrPacked and 0xFEFFFFFF.toInt())
     }
 
-    override fun toString(): String =
-        "Color(red=${(red * 255).toInt()}, green=${(green * 255).toInt()}, blue=${(blue * 255).toInt()}, alpha=${(alpha * 255).toInt()})"
+    /** Whether this color represents a specified, valid color value. */
+    val isSpecified: Boolean get() = this.value != Unspecified.value
+
+    /** Whether this color is the [Unspecified] sentinel placeholder. */
+    val isUnspecified: Boolean get() = this.value == Unspecified.value
+
+    override fun toString(): String = when {
+        isUnspecified -> "Color.Unspecified"
+        else -> "Color(red=${(red * 255).toInt()}, green=${(green * 255).toInt()}, blue=${(blue * 255).toInt()}, alpha=${(alpha * 255).toInt()})"
+    }
 
     // --- COMPANION OBJECT & FACTORIES ---
 
     companion object {
-        val Unspecified: Color = Color(0UL)
+        val Unspecified: Color = Color(0x00000000_00000001UL)
         val Transparent: Color = Color(0.0f, 0.0f, 0.0f, 0.0f)
         val Clear: Color = Color(0.0f, 0.0f, 0.0f, 0.0f)
         val White: Color = Color(1.0f, 1.0f, 1.0f, 1.0f)
@@ -180,14 +191,14 @@ value class Color(val value: ULong) {
 
         private fun pack(alpha: Int, red: Int, green: Int, blue: Int): ULong =
             (((alpha and 0xFF).toULong() shl 56) or
-             ((red and 0xFF).toULong() shl 48) or
-             ((green and 0xFF).toULong() shl 40) or
-             ((blue and 0xFF).toULong() shl 32))
+                ((red and 0xFF).toULong() shl 48) or
+                ((green and 0xFF).toULong() shl 40) or
+                ((blue and 0xFF).toULong() shl 32))
 
         /**
-         * Parses a hex color string (#RGB, #RGBA, #RRGGBB, #RRGGBBAA, or raw hex without #).
+         * Safely parses a hex color string (#RGB, #RGBA, #RRGGBB, #RRGGBBAA), returning null on failure.
          */
-        fun parse(hex: String): Color {
+        fun parseOrNull(hex: String): Color? {
             var trimmedHex = hex.trim()
             if (trimmedHex.startsWith("#")) {
                 trimmedHex = trimmedHex.substring(1)
@@ -195,37 +206,53 @@ value class Color(val value: ULong) {
 
             return try {
                 when (trimmedHex.length) {
-                    3 -> { // RGB
+                    3 -> {
                         val parsedRed = trimmedHex.substring(0, 1).repeat(2).toInt(16)
                         val parsedGreen = trimmedHex.substring(1, 2).repeat(2).toInt(16)
                         val parsedBlue = trimmedHex.substring(2, 3).repeat(2).toInt(16)
                         Color(parsedRed, parsedGreen, parsedBlue, 255)
                     }
-                    4 -> { // RGBA
+
+                    4 -> {
                         val parsedRed = trimmedHex.substring(0, 1).repeat(2).toInt(16)
                         val parsedGreen = trimmedHex.substring(1, 2).repeat(2).toInt(16)
                         val parsedBlue = trimmedHex.substring(2, 3).repeat(2).toInt(16)
                         val parsedAlpha = trimmedHex.substring(3, 4).repeat(2).toInt(16)
                         Color(parsedRed, parsedGreen, parsedBlue, parsedAlpha)
                     }
-                    6 -> { // RRGGBB
+
+                    6 -> {
                         val parsedRed = trimmedHex.substring(0, 2).toInt(16)
                         val parsedGreen = trimmedHex.substring(2, 4).toInt(16)
                         val parsedBlue = trimmedHex.substring(4, 6).toInt(16)
                         Color(parsedRed, parsedGreen, parsedBlue, 255)
                     }
-                    8 -> { // RRGGBBAA
+
+                    8 -> {
                         val parsedRed = trimmedHex.substring(0, 2).toInt(16)
                         val parsedGreen = trimmedHex.substring(2, 4).toInt(16)
                         val parsedBlue = trimmedHex.substring(4, 6).toInt(16)
                         val parsedAlpha = trimmedHex.substring(6, 8).toInt(16)
                         Color(parsedRed, parsedGreen, parsedBlue, parsedAlpha)
                     }
-                    else -> White
+
+                    else -> null
                 }
             } catch (_: Throwable) {
-                White
+                null
             }
+        }
+
+        /**
+         * Parses a hex color string, falling back to [fallback] with a diagnostic warning if invalid.
+         */
+        fun parse(hex: String, fallback: Color = White): Color {
+            val parsed = parseOrNull(hex)
+            if (parsed == null) {
+                arc.util.Log.warn("[NekoMod] Failed to parse hex color: '$hex', falling back to $fallback")
+                return fallback
+            }
+            return parsed
         }
 
         /**

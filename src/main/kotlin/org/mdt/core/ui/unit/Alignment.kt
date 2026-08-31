@@ -2,7 +2,7 @@
 
 @file:Suppress("unused")
 
-package org.mdt.core.ui.layout
+package org.mdt.core.ui.unit
 
 // --- ARRANGEMENT DEFINITIONS ---
 
@@ -27,7 +27,7 @@ enum class ArrangementType {
  */
 data class Arrangement(
     val type: ArrangementType = ArrangementType.START,
-    val spacing: Float = 0.0f
+    val spacing: Float = 0.0f,
 ) {
     companion object {
         val Start = Arrangement(ArrangementType.START, 0.0f)
@@ -83,7 +83,7 @@ enum class VerticalAlign {
  */
 data class Alignment(
     val horizontal: HorizontalAlign = HorizontalAlign.START,
-    val vertical: VerticalAlign = VerticalAlign.CENTER
+    val vertical: VerticalAlign = VerticalAlign.CENTER,
 ) {
     companion object {
         val TopStart = Alignment(HorizontalAlign.START, VerticalAlign.TOP)

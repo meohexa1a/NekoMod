@@ -1,6 +1,6 @@
 // [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
-package org.mdt.core.ui.layout
+package org.mdt.core.ui.unit
 
 // --- SIZE FLAGS & SLOTS ---
 
@@ -66,8 +66,10 @@ enum class LayoutPreset {
 enum class GrowDirection {
     /** Control grows towards the left or top (negative offset). */
     BEGIN,
+
     /** Control grows towards the right or bottom (positive offset). */
     END,
+
     /** Control grows outward equally in both directions from the anchor pivot. */
     BOTH
 }
@@ -92,7 +94,7 @@ enum class GrowDirection {
  *
  * @see LayoutPreset
  * @see GrowDirection
- * @see GodotLayout
+ * @see org.mdt.core.ui.layout.GodotLayout
  */
 class AnchorData {
 
@@ -134,76 +136,91 @@ class AnchorData {
                 growHorizontal = GrowDirection.END
                 growVertical = GrowDirection.END
             }
+
             LayoutPreset.TOP_RIGHT -> {
                 setAnchors(1.0f, 0.0f, 1.0f, 0.0f)
                 growHorizontal = GrowDirection.BEGIN
                 growVertical = GrowDirection.END
             }
+
             LayoutPreset.BOTTOM_LEFT -> {
                 setAnchors(0.0f, 1.0f, 0.0f, 1.0f)
                 growHorizontal = GrowDirection.END
                 growVertical = GrowDirection.BEGIN
             }
+
             LayoutPreset.BOTTOM_RIGHT -> {
                 setAnchors(1.0f, 1.0f, 1.0f, 1.0f)
                 growHorizontal = GrowDirection.BEGIN
                 growVertical = GrowDirection.BEGIN
             }
+
             LayoutPreset.CENTER_LEFT -> {
                 setAnchors(0.0f, 0.5f, 0.0f, 0.5f)
                 growHorizontal = GrowDirection.END
                 growVertical = GrowDirection.BOTH
             }
+
             LayoutPreset.CENTER_TOP -> {
                 setAnchors(0.5f, 0.0f, 0.5f, 0.0f)
                 growHorizontal = GrowDirection.BOTH
                 growVertical = GrowDirection.END
             }
+
             LayoutPreset.CENTER_RIGHT -> {
                 setAnchors(1.0f, 0.5f, 1.0f, 0.5f)
                 growHorizontal = GrowDirection.BEGIN
                 growVertical = GrowDirection.BOTH
             }
+
             LayoutPreset.CENTER_BOTTOM -> {
                 setAnchors(0.5f, 1.0f, 0.5f, 1.0f)
                 growHorizontal = GrowDirection.BOTH
                 growVertical = GrowDirection.BEGIN
             }
+
             LayoutPreset.CENTER -> {
                 setAnchors(0.5f, 0.5f, 0.5f, 0.5f)
                 growHorizontal = GrowDirection.BOTH
                 growVertical = GrowDirection.BOTH
             }
+
             LayoutPreset.LEFT_WIDE -> {
                 setAnchors(0.0f, 0.0f, 0.0f, 1.0f)
                 growHorizontal = GrowDirection.END
                 growVertical = GrowDirection.BOTH
             }
+
             LayoutPreset.TOP_WIDE -> {
                 setAnchors(0.0f, 0.0f, 1.0f, 0.0f)
                 growHorizontal = GrowDirection.BOTH
                 growVertical = GrowDirection.END
             }
+
             LayoutPreset.RIGHT_WIDE -> {
                 setAnchors(1.0f, 0.0f, 1.0f, 1.0f)
                 growHorizontal = GrowDirection.BEGIN
                 growVertical = GrowDirection.BOTH
             }
+
             LayoutPreset.BOTTOM_WIDE -> {
                 setAnchors(0.0f, 1.0f, 1.0f, 1.0f)
                 growHorizontal = GrowDirection.BOTH
                 growVertical = GrowDirection.BEGIN
             }
+
             LayoutPreset.VCENTER_WIDE -> {
                 setAnchors(0.5f, 0.0f, 0.5f, 1.0f)
                 growHorizontal = GrowDirection.BOTH
                 growVertical = GrowDirection.BOTH
             }
+
             LayoutPreset.HCENTER_WIDE -> {
                 setAnchors(0.0f, 0.5f, 1.0f, 0.5f)
                 growHorizontal = GrowDirection.BOTH
                 growVertical = GrowDirection.BOTH
             }
+
             LayoutPreset.FULL_RECT -> {
                 setAnchors(0.0f, 0.0f, 1.0f, 1.0f)
                 growHorizontal = GrowDirection.BOTH
