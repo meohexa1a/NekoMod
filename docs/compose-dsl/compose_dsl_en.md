@@ -1,6 +1,6 @@
 # Compose DSL Guide
 
-This document provides a comprehensive guide to utilizing NekoMod's declarative Kotlin DSL, fluent `UIModifier` chaining, and built-in component library.
+This document provides a comprehensive guide to utilizing NekoMod's declarative Kotlin DSL, scoped modifiers (`RowScope`, `ColumnScope`, `BoxScope`), fluent `UIModifier` chaining, and built-in component library.
 
 ---
 
@@ -9,45 +9,57 @@ This document provides a comprehensive guide to utilizing NekoMod's declarative 
 ```kotlin
 EngineRuntime.setContent {
     var count by remember { mutableStateOf(0) }
-    var toggled by remember { mutableStateOf(true) }
-    var sliderVal by remember { mutableStateOf(0.75f) }
+    var textInput by remember { mutableStateOf("") }
+    var showModal by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.anchor(LayoutPreset.CENTER),
-        backgroundColor = Color.valueOf("1e2030").a(0.85f),
-        borderColor = Color.valueOf("363a4f").a(0.8f),
-        radius = 12f,
-        padding = 18f
+        color = CardDefaults.color,
+        borderColor = CardDefaults.borderColor,
+        radius = CardDefaults.radius,
+        isGlass = true
     ) {
-        Column(gap = 10f) {
-            Text(text = "NekoMod Dashboard", scale = 1.0f, color = Color.white)
-            Text(text = "Declarative Pure KMP Engine", scale = 1.0f, color = Color.valueOf("9399b2"))
-            Divider(modifier = Modifier.margin(vertical = 2f))
-            
-            // Modern Capsule Pill Slider with Integrated Title & Value
-            Slider(
-                value = sliderVal,
-                onValueChange = { sliderVal = it },
-                label = "Power Level",
-                modifier = Modifier.fillMaxWidth().height(30f)
+        Column(gap = 12.0f) {
+            Text(
+                text = "NekoMod Dashboard",
+                color = ThemeTokens.textPrimary
+            )
+            Text(
+                text = "Declarative Pure KMP Compose Engine",
+                color = ThemeTokens.textSecondary
             )
 
-            Row(arrangement = Arrangement.spacedBy(10f)) {
+            TextField(
+                value = textInput,
+                onValueChange = { textInput = it },
+                placeholder = "Type something...",
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(gap = 8.0f) {
                 Button(
                     text = "Count: $count",
-                    colors = ButtonColors.Primary,
-                    onClick = { count++ }
+                    onClick = { count++ },
+                    variant = ButtonVariant.FILLED,
+                    modifier = Modifier.weight(1.0f)
                 )
                 Button(
                     text = "Reset",
-                    colors = ButtonColors.Danger,
-                    onClick = { count = 0 }
-                )
-                Toggle(
-                    checked = toggled,
-                    onToggle = { toggled = it }
+                    onClick = { count = 0 },
+                    variant = ButtonVariant.OUTLINED,
+                    modifier = Modifier.weight(1.0f)
                 )
             }
+        }
+    }
+
+    ModalDialog(
+        visible = showModal,
+        onDismiss = { showModal = false }
+    ) {
+        Column(gap = 16.0f) {
+            Text("Modal Dialog Content")
+            Button("Close", onClick = { showModal = false })
         }
     }
 }
@@ -55,42 +67,58 @@ EngineRuntime.setContent {
 
 ---
 
-## 2. The `UIModifier` System
+## 2. Scoped Layout Modifiers
 
-The `Modifier` chain configures dimensions, insets, graphics styling, and interaction:
+NekoMod enforces strict Jetpack/JetBrains Compose modifier scoping to prevent cross-axis distortion:
 
-### A. Box Model & Sizing
-* `Modifier.pad(all = 16f)`: Inset padding on all 4 sides.
-* `Modifier.pad(horizontal = 16f, vertical = 8f)`: Axis-specific padding.
-* `Modifier.margin(all = 8f)`: Outer margin on all 4 sides.
-* `Modifier.size(w = 100f, h = 50f)`: Explicit width and height.
-* `Modifier.width(120f)` / `Modifier.height(32f)`: Independent width or height.
-* `Modifier.fillMaxWidth()` / `Modifier.fillMaxHeight()`: Expands to match parent bounds.
-* `Modifier.weight(1.5f)`: Flexible flex-ratio growth within `Row` or `Column`.
+### A. `RowScope` (Horizontal Containers)
+* `Modifier.weight(weight: Float)`: Allocates free horizontal space proportionally without distorting vertical sizing.
+* `Modifier.align(alignment: VerticalAlign)`: Cross-axis vertical alignment (`VerticalAlign.Top`, `VerticalAlign.Center`, `VerticalAlign.Bottom`, `VerticalAlign.Fill`).
 
-### B. Visuals & Styling (SDF Shaders)
-* `Modifier.background(Color.valueOf("1e2030"))`: Background fill color.
-* `Modifier.cornerRadius(12f)`: Quad corner radii (`Float`).
-* `Modifier.border(width = 1f, color = Color.white)`: Outline border stroke.
-* `Modifier.shadow(color = Color.black.a(0.4f), blur = 16f, spread = 2f)`: Soft SDF outer drop shadow.
-* `Modifier.glow(color = Color.valueOf("2563eb").a(0.4f), spread = 4f, blur = 8f)`: Outer radiant aura.
+### B. `ColumnScope` (Vertical Containers)
+* `Modifier.weight(weight: Float)`: Allocates free vertical space proportionally without distorting horizontal sizing.
+* `Modifier.align(alignment: HorizontalAlign)`: Cross-axis horizontal alignment (`HorizontalAlign.Left`, `HorizontalAlign.Center`, `HorizontalAlign.Right`, `HorizontalAlign.Fill`).
 
-### C. Interactivity & Gestures
-* `Modifier.clickable { ... }`: Left pointer click handler.
-* `Modifier.hoverable { isHovered -> ... }`: Hover state listener.
-* `Modifier.tooltip("Action description")`: Hover tooltip popup.
+### C. `BoxScope` (2D Coordinate & Overlays)
+* `Modifier.align(alignment: Alignment)`: 2D spatial alignment (`Alignment.Center`, `Alignment.TopStart`, `Alignment.BottomEnd`, etc.).
 
 ---
 
-## 3. Built-in Component Library
+## 3. General `UIModifier` Elements
 
-| Component | Responsibility | Highlighted Parameters |
+### A. Box Model & Sizing
+* `Modifier.pad(all = 16.0f)` / `Modifier.pad(horizontal = 16.0f, vertical = 8.0f)`: Inner padding.
+* `Modifier.margin(all = 8.0f)`: Outer layout margin.
+* `Modifier.size(width = 100.0f, height = 50.0f)`: Fixed explicit dimensions.
+* `Modifier.minWidth(100.0f)` / `Modifier.minHeight(40.0f)`: Protective minimum sizing bounds.
+* `Modifier.fillMaxWidth()` / `Modifier.fillMaxHeight()` / `Modifier.fillMaxSize()`: Container expansion.
+* `Modifier.autoWidth()` / `Modifier.autoHeight()` / `Modifier.hugContent()`: Intrinsic auto-layout sizing.
+
+### B. Visuals & Styling (1-Draw-Call UIBatch)
+* `Modifier.background(color: Color)`: Solid or translucent background fill.
+* `Modifier.radius(radius: Float)`: Rounded corner SDF radius in pixels.
+* `Modifier.border(width: Float, color: Color)`: Outline border stroke.
+* `Modifier.glass(enabled: Boolean = true)`: Dual-Kawase frosted glass background blur sampling.
+* `Modifier.shadow(radius: Float, color: Color, offsetX: Float, offsetY: Float)`: Drop-shadow rendering.
+
+### C. Interactivity & Gestures
+* `Modifier.clickable(onClick = { ... })`: Left pointer click release handler.
+* `Modifier.hoverable { isHovered -> ... }`: Hover enter/exit state listener.
+* `Modifier.draggable(onDrag = { dx, dy -> ... })`: Continuous drag gesture tracking.
+* `Modifier.consumePointer()`: Intercepts and consumes pointer events to prevent bubbling to background scrims.
+* `Modifier.cursor(cursor: CursorIcon)`: Hover mouse cursor icon configuration.
+
+---
+
+## 4. Built-in Component Library
+
+| Component | Scope / Description | Key Parameters |
 | :--- | :--- | :--- |
-| `Card()` | Glassmorphic SDF container surface | `backgroundColor`, `borderColor`, `radius`, `padding` |
-| `Slider()` | Modern Capsule Pill Slider with integrated labels | `value`, `label`, `valueText`, `valueRange`, `colors` |
-| `Toggle()` | Modern pill switch with 3D inset thumb knob | `checked`, `onToggle`, `activeColor`, `inactiveColor` |
-| `TextField()` | Interactive text input with Telex and focus glow | `value`, `onValueChange`, `placeholder` |
-| `Button()` | Stateful interactive button with hover/press styles | `text`, `onClick`, `colors = ButtonColors.Primary` |
-| `ProgressBar()` | Rounded progress bar with smooth fill | `progress`, `barHeight`, `colors` |
-| `Text()` | Pixel-perfect BMFont label at $1.0\times$ natural scale | `text`, `color`, `font = Fonts.def`, `scale = 1.0f` |
-| `Image()` | Async web/asset texture display with LRU cache | `source = "url / asset / region"`, `scaleType` |
+| `Card()` | Glassmorphic SDF container surface | `modifier`, `color`, `radius`, `borderWidth`, `borderColor`, `isGlass`, `content: BoxScope` |
+| `Button()` | Clickable interactive action button | `onClick`, `modifier`, `variant`, `enabled`, `contentPadding`, `content: BoxScope` |
+| `IconButton()` | Compact action button for icon glyphs | `region`, `onClick`, `modifier`, `variant`, `tint`, `enabled` |
+| `TextField()` | Controlled text input with IME support | `value`, `onValueChange`, `placeholder`, `enabled`, `isMultiline`, `font` |
+| `Text()` | BMFont text label at natural scale | `text`, `modifier`, `color`, `font`, `align`, `wrap`, `ellipsis` |
+| `Image()` | Texture region display | `region`, `modifier`, `tint`, `aspectRatio` |
+| `ModalDialog()` | Full-screen modal overlay with backdrop scrim | `visible`, `onDismiss`, `modifier`, `scrimColor`, `content: BoxScope` |
+| `TooltipBox()` | Delayed hover tooltip overlay container | `tooltip: BoxScope`, `modifier`, `delayMs`, `content: BoxScope` |

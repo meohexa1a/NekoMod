@@ -74,4 +74,19 @@ This document establishes the mandatory programming standards, naming convention
 * Maintain parallel bilingual documentation pairs (`*_vi.md` and `*_en.md`) in `docs/`. All inter-document markdown links must strictly use relative paths (`./` or `../`).
 
 ### 15. In-Source KDoc Documentation
-* All KDoc comments in Kotlin source files (`*.kt`) must be strictly 100% English. Reference documentation using plain text `See: docs/path/file_en.md`.
+* All KDoc comments in Kotlin source files (`*.kt`) must be strictly 100% English. Reference documentation using type-checked `@see [Symbol]` annotations.
+
+---
+
+## 🏛️ VI. Compose Modifier & Virtual DOM Lifecycle Standards
+
+### 16. Encapsulated Modifier Pipeline (`node.modifier`)
+* `UINode` encapsulates modifier lifecycle and state synchronization via `node.modifier = modifier`.
+* When `node.modifier` is assigned, it resets internal modifier styling and applies the new chain automatically.
+* All composables must declare `set(modifier) { this.modifier = it }` inside their Compose `update` block. Manual invocation of `resetModifiers()` across public composables is banned.
+
+### 17. Strict Separation of Component Props vs Modifiers
+* **Component Props** (`text`, `wrap`, `color`, `font`, `placeholder`, `style`) belong exclusively to the Composable parameter contract and the virtual node.
+* **Modifiers** (`padding`, `margin`, `size`, `background`, `border`, `weight`, `clickable`) configure general layout constraints, visual decorations, and input handlers.
+* Modifier recomposition updates must never touch, clobber, or reset Component Props.
+

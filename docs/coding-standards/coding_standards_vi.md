@@ -74,4 +74,19 @@ Tài liệu này xác lập toàn bộ các quy chuẩn lập trình, quy ước
 * Duy trì song song 2 bản `*_vi.md` và `*_en.md` trong `docs/`. Toàn bộ liên kết liên-tài-liệu bắt buộc dùng đường dẫn tương đối (`./` hoặc `../`).
 
 ### 15. KDoc Trong Mã Nguồn Kotlin
-* 100% Tiếng Anh chuẩn. Dẫn chiếu tài liệu bằng `See: docs/path/file_en.md` (không dùng `@see` với đường dẫn file).
+* 100% Tiếng Anh chuẩn. Dẫn chiếu biểu tượng kiểu dữ liệu bằng `@see [Symbol]` có kiểm tra kiểu tự động.
+
+---
+
+## 🏛️ VI. Quy chuẩn Modifier & Vòng đời Virtual DOM trong Compose
+
+### 16. Đường ống Đóng gói Modifier (`node.modifier`)
+* `UINode` tự quản lý vòng đời và đồng bộ trạng thái modifier thông qua thuộc tính `node.modifier = modifier`.
+* Khi gán `node.modifier`, node tự động reset kiểu dáng modifier nội bộ và áp dụng chuỗi modifier mới.
+* Mọi composable phải khai báo `set(modifier) { this.modifier = it }` bên trong khối `update` của Compose. Nghiêm cấm việc gọi thủ công hàm `resetModifiers()` rải rác ngoài composable.
+
+### 17. Phân định Rạch ròi giữa Component Props và Modifiers
+* **Component Props** (`text`, `wrap`, `color`, `font`, `placeholder`, `style`) thuộc quyền quản lý tuyệt đối của tham số Composable và Virtual Node.
+* **Modifiers** (`padding`, `margin`, `size`, `background`, `border`, `weight`, `clickable`) định hình các ràng buộc bố cục và kiểu dáng trang trí chung.
+* Quá trình recomposition của Modifier tuyệt đối không bao giờ được phép can thiệp, xóa bỏ hoặc ghi đè Component Props.
+
