@@ -10,6 +10,7 @@ import mindustry.game.EventType.ResizeEvent
 import org.mdt.core.platform.render.FontMeasurer
 import org.mdt.core.platform.render.SceneBlur
 import org.mdt.core.platform.render.UIBatch
+import org.mdt.core.ui.input.CursorIcon
 
 /**
  * ## WindowPort
@@ -40,8 +41,8 @@ interface WindowPort {
     /** Sets the system cursor to a hand/pointer cursor for clickable elements. */
     fun setCursorHand()
 
-    /** Sets the active hardware/software cursor. */
-    fun setCursor(cursor: Cursor?)
+    /** Sets the active hardware/software cursor using platform-agnostic [CursorIcon]. */
+    fun setCursor(cursor: CursorIcon?)
 
     /** Restores the hardware/software cursor to default. */
     fun restoreCursor()
@@ -53,12 +54,10 @@ interface WindowPort {
         override fun onResize(block: (width: Float, height: Float) -> Unit) = Unit
         override fun removeResize(block: (width: Float, height: Float) -> Unit) = Unit
         override fun setCursorHand() = Unit
-        override fun setCursor(cursor: Cursor?) = Unit
+        override fun setCursor(cursor: CursorIcon?) = Unit
         override fun restoreCursor() = Unit
     }
 }
-
-
 
 /**
  * ## MindustryWindowPort
@@ -69,6 +68,19 @@ interface WindowPort {
  * @see org.mdt.core.platform.PlatformHost
  */
 class MindustryWindowPort : WindowPort {
+
+    private val resizeListeners = CopyOnWriteArrayList<(width: Float, height: Float) -> Unit>()
+
+    init {
+        Events.on(ResizeEvent::class.java) {
+            val currentWidth = Core.graphics?.width?.toFloat() ?: 0.0f
+            val currentHeight = Core.graphics?.height?.toFloat() ?: 0.0f
+
+            for (listener in resizeListeners) {
+                listener(currentWidth, currentHeight)
+            }
+        }
+    }
 
     override val width: Float
         get() = Core.graphics?.width?.toFloat() ?: 0.0f
@@ -90,35 +102,27 @@ class MindustryWindowPort : WindowPort {
         Core.graphics?.cursor(Cursor.SystemCursor.hand)
     }
 
-    override fun setCursor(cursor: Cursor?) {
-        when {
-            cursor != null -> Core.graphics?.cursor(cursor)
-            else -> Core.graphics?.restoreCursor()
+    override fun setCursor(cursor: CursorIcon?) {
+        val arcCursor = when (cursor) {
+            CursorIcon.IBEAM -> Cursor.SystemCursor.ibeam
+            CursorIcon.HAND -> Cursor.SystemCursor.hand
+            CursorIcon.CROSSHAIR -> Cursor.SystemCursor.crosshair
+            CursorIcon.ARROW, CursorIcon.DEFAULT -> Cursor.SystemCursor.arrow
+            CursorIcon.RESIZE_HORIZONTAL -> Cursor.SystemCursor.horizontalResize
+            CursorIcon.RESIZE_VERTICAL -> Cursor.SystemCursor.verticalResize
+            null -> null
+        }
+        if (arcCursor != null) {
+            Core.graphics?.cursor(arcCursor)
+        } else {
+            restoreCursor()
         }
     }
 
     override fun restoreCursor() {
         Core.graphics?.restoreCursor()
     }
-
-    companion object {
-        private val resizeListeners by lazy {
-            val list = CopyOnWriteArrayList<(width: Float, height: Float) -> Unit>()
-
-            Events.on(ResizeEvent::class.java) {
-                val currentWidth = Core.graphics?.width?.toFloat() ?: 0.0f
-                val currentHeight = Core.graphics?.height?.toFloat() ?: 0.0f
-
-                for (listener in list) {
-                    listener(currentWidth, currentHeight)
-                }
-            }
-
-            list
-        }
-    }
 }
-
 
 
 /**
@@ -168,7 +172,6 @@ interface RenderPort {
 }
 
 
-
 /**
  * ## MindustryRenderPort
  *
@@ -184,7 +187,7 @@ interface RenderPort {
  * @see PlatformHost
  */
 class MindustryRenderPort(
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp },
 ) : RenderPort {
 
     override val blur: SceneBlur by lazy { SceneBlur(hostProvider) }
@@ -201,5 +204,6 @@ class MindustryRenderPort(
 
     override fun dispose() {
         batch.dispose()
+        blur.dispose()
     }
 }

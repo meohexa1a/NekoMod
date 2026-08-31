@@ -28,7 +28,7 @@ class MindustryPlatformHost(
     override val assets: AssetPort = MindustryAssetPort(),
     override val system: SystemPort = MindustrySystemPort(),
     ime: ImePort? = null,
-    render: RenderPort? = null
+    render: RenderPort? = null,
 ) : PlatformHost {
     override val ime: ImePort = ime ?: SdlReflectionImePort { this }
     override val render: RenderPort = render ?: MindustryRenderPort { this }

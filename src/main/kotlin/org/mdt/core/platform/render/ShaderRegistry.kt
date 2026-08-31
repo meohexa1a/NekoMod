@@ -22,7 +22,7 @@ import org.mdt.core.platform.AssetPort
  * @see SceneBlur
  */
 class ShaderRegistry(
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp },
 ) {
 
     private val assets: AssetPort
@@ -35,12 +35,29 @@ class ShaderRegistry(
         const val FRAG_UBER = "shaders/uber_ui.frag"
         const val VERT_BLUR = "shaders/blur.vert"
         const val FRAG_BLUR = "shaders/blur.frag"
+
+        private const val MINIMAL_VERT = """
+attribute vec4 a_position;
+attribute vec4 a_color;
+varying vec4 v_color;
+void main() {
+    v_color = a_color;
+    gl_Position = a_position;
+}
+"""
+
+        private const val MINIMAL_FRAG = """
+varying vec4 v_color;
+void main() {
+    gl_FragColor = v_color;
+}
+"""
     }
 
     // --- FALLBACK SHADER ---
 
     private val fallbackShader: Shader by lazy(LazyThreadSafetyMode.NONE) {
-        Shader("", "")
+        Shader(MINIMAL_VERT, MINIMAL_FRAG)
     }
 
     // --- SHADER INSTANCES ---
@@ -87,4 +104,24 @@ class ShaderRegistry(
     // --- HELPERS ---
 
     internal fun readString(path: String): String = assets.readShaderSource(path)
+
+    // --- DISPOSAL ---
+
+    /**
+     * Disposes compiled OpenGL shaders to prevent GPU memory leaks.
+     */
+    fun dispose() {
+        try {
+            if (uberShader !== fallbackShader) uberShader.dispose()
+        } catch (_: Throwable) {
+        }
+        try {
+            if (blurShader !== fallbackShader) blurShader.dispose()
+        } catch (_: Throwable) {
+        }
+        try {
+            fallbackShader.dispose()
+        } catch (_: Throwable) {
+        }
+    }
 }

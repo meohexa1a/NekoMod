@@ -29,7 +29,7 @@ class FontMeasurer {
         font: Font,
         text: CharSequence,
         targetWidth: Float = 0.0f,
-        wrap: Boolean = false
+        wrap: Boolean = false,
     ): Float {
         if (text.isEmpty()) return 0.0f
 
@@ -45,7 +45,7 @@ class FontMeasurer {
         text: CharSequence,
         targetWidth: Float = 0.0f,
         align: Int = Align.left,
-        wrap: Boolean = false
+        wrap: Boolean = false,
     ): Float {
         if (text.isEmpty()) return 0.0f
 
@@ -59,7 +59,7 @@ class FontMeasurer {
     fun truncateWithEllipsis(
         font: Font,
         text: String,
-        availableWidth: Float
+        availableWidth: Float,
     ): String {
         if (text.isEmpty() || availableWidth <= 0.0f) return ""
 

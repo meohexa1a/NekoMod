@@ -73,8 +73,6 @@ interface SystemPort {
     }
 }
 
-
-
 /**
  * ## MindustrySystemPort
  *
@@ -155,8 +153,6 @@ class MindustrySystemPort : SystemPort {
     }
 }
 
-
-
 /**
  * ## AssetPort
  *
@@ -202,8 +198,6 @@ interface AssetPort {
         override fun resolveWhiteRegion(): TextureRegion = dummyRegion
     }
 }
-
-
 
 /**
  * ## MindustryAssetPort

@@ -14,20 +14,20 @@ import arc.math.Mat
 import arc.util.Align
 import java.nio.FloatBuffer
 import org.mdt.core.platform.PlatformHost
-import org.mdt.core.platform.unit.Color
+import org.mdt.core.ui.unit.Color
 
 /**
  * ## UIBatch
  *
- * Master 1-Draw-Call GPU UI Batch Renderer.
- * Batches text glyphs, rounded SDF boxes, borders, textures, and frosted glass into a single draw call.
- * Streams 14-float vertex data into a pre-allocated mesh buffer and executes per-pixel analytical scissor clipping in shaders.
+ * Master GPU UI Batch Renderer.
+ * Batches text glyphs, rounded SDF boxes, borders, textures, and frosted glass.
+ * Streams 18-float vertex data into a pre-allocated mesh buffer and executes per-pixel analytical scissor clipping in shaders.
+ * Flushes transparently when switching texture atlas pages or when buffer capacity is reached.
  *
  * @param hostProvider Non-null provider lambda returning [PlatformHost] for asset texture and shader resolution.
  *
- * @property isDrawing Whether the batch is currently recording draw commands between [begin] and [end].
- * @property totalQuads Total number of quads queued in the current frame batch.
- * @property totalDrawCalls Total number of GPU draw calls dispatched in the current frame.
+ * @property lastBatchDurationMs Execution time of the latest UIBatch draw call in milliseconds.
+ * @property totalQuadsLastFrame Total number of quads rendered in the latest frame.
  *
  * @see ShaderRegistry
  * @see SceneBlur
@@ -36,7 +36,7 @@ import org.mdt.core.platform.unit.Color
  * @see org.mdt.core.ui.node.TextNode
  */
 class UIBatch(
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp },
 ) {
 
     val host: PlatformHost
@@ -57,10 +57,11 @@ class UIBatch(
         const val MODE_GLASS = 3.0f
 
         private const val MAX_QUADS = 16384
-        private const val FLOATS_PER_VERTEX = 14
+        private const val FLOATS_PER_VERTEX = 18
         private const val FLOATS_PER_QUAD = FLOATS_PER_VERTEX * 4
         private const val MAX_VERTICES = MAX_QUADS * 4
         private const val MAX_INDICES = MAX_QUADS * 6
+        private const val MAX_CLIP_DEPTH = 64
     }
 
     private val quadBuffer = FloatArray(FLOATS_PER_QUAD)
@@ -70,11 +71,23 @@ class UIBatch(
 
     private val mesh: Mesh by lazy {
         val attributes = arrayOf(
-            VertexAttribute(4, "a_position"),                       // xy = screen pos, zw = uv coords
-            VertexAttribute(4, Gl.unsignedByte, true, "a_color"),   // rgba = packed ABGR color (unpacked by GL hardware)
-            VertexAttribute(4, "a_boxData"),                        // xy = local pos, zw = box dimensions
-            VertexAttribute(4, "a_style"),                          // x = radius, y = borderWidth, z = mode, w = texUnit
-            VertexAttribute(4, Gl.unsignedByte, true, "a_borderColor") // rgba = packed ABGR border color
+            VertexAttribute(4, "a_position"),                          // xy = screen pos, zw = uv coords
+            VertexAttribute(
+                4,
+                Gl.unsignedByte,
+                true,
+                "a_color",
+            ),      // rgba = packed ABGR color (unpacked by GL hardware)
+            VertexAttribute(4, "a_boxData"),                           // xy = local pos, zw = box dimensions
+            VertexAttribute(
+                4,
+                "a_style",
+            ),                             // x = radius, y = borderWidth, z = mode, w = texUnit
+            VertexAttribute(4, Gl.unsignedByte, true, "a_borderColor"),// rgba = packed ABGR border color
+            VertexAttribute(
+                4,
+                "a_clipRect",
+            ),                           // xy = min(x,y), zw = max(x,y) analytical scissor clip
         )
 
         val indices = ShortArray(MAX_INDICES)
@@ -100,9 +113,9 @@ class UIBatch(
     private var screenHeight = 1080.0f
 
     // Analytical Scissor Clip Stack (minX, minY, maxX, maxY)
-    private val clipStack = ArrayList<FloatArray>()
-    private val defaultClip = floatArrayOf(0.0f, 0.0f, 100000.0f, 100000.0f)
-    private var currentClip = defaultClip
+    private val clipStackBuffer = FloatArray(MAX_CLIP_DEPTH * 4)
+    private var clipDepth = 0
+    private val currentClip = FloatArray(4)
 
     private var activeAtlasTexture: Texture? = null
     private var activeBlurTexture: Texture? = null
@@ -164,7 +177,6 @@ class UIBatch(
         shader.setUniformMatrix4("u_projTrans", Draw.proj())
         shader.setUniformf("u_screenSize", screenWidth, screenHeight)
         shader.setUniformf("u_hasBlur", if (blurTexture != null) 1.0f else 0.0f)
-        shader.setUniformf("u_clipRect", defaultClip[0], defaultClip[1], defaultClip[2], defaultClip[3])
         shader.setUniformi("u_atlas", 0)
         shader.setUniformi("u_gameBlur", 2)
 
@@ -176,8 +188,11 @@ class UIBatch(
         queuedQuadCount = 0
         verticesBuffer.position(0)
         verticesBuffer.limit(verticesBuffer.capacity())
-        clipStack.clear()
-        currentClip = defaultClip
+        clipDepth = 0
+        currentClip[0] = 0.0f
+        currentClip[1] = 0.0f
+        currentClip[2] = 100000.0f
+        currentClip[3] = 100000.0f
         batchStartNanos = System.nanoTime()
     }
 
@@ -211,7 +226,7 @@ class UIBatch(
         color: Color = Color.White,
         borderWidth: Float = 0.0f,
         borderColor: Color = Color.Clear,
-        isGlass: Boolean = false
+        isGlass: Boolean = false,
     ) {
         if (width <= 0.001f || height <= 0.001f) return
 
@@ -249,36 +264,60 @@ class UIBatch(
 
         val packedColor = color.toGLPackedFloat()
         val packedBorderColor = borderColor.toGLPackedFloat()
+        val clipMinX = currentClip[0]
+        val clipMinY = currentClip[1]
+        val clipMaxX = currentClip[2]
+        val clipMaxY = currentClip[3]
 
         var offset = 0
 
         // Vertex 0: Bottom-Left (leftX, bottomY)
-        quadBuffer[offset++] = leftX; quadBuffer[offset++] = bottomY; quadBuffer[offset++] = uvMinU; quadBuffer[offset++] = uvMinV
+        quadBuffer[offset++] = leftX; quadBuffer[offset++] = bottomY; quadBuffer[offset++] =
+            uvMinU; quadBuffer[offset++] = uvMinV
         quadBuffer[offset++] = packedColor
-        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = width; quadBuffer[offset++] = height
-        quadBuffer[offset++] = radius; quadBuffer[offset++] = borderWidth; quadBuffer[offset++] = mode; quadBuffer[offset++] = textureUnit
+        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = width; quadBuffer[offset++] =
+            height
+        quadBuffer[offset++] = radius; quadBuffer[offset++] = borderWidth; quadBuffer[offset++] =
+            mode; quadBuffer[offset++] = textureUnit
         quadBuffer[offset++] = packedBorderColor
+        quadBuffer[offset++] = clipMinX; quadBuffer[offset++] = clipMinY; quadBuffer[offset++] =
+            clipMaxX; quadBuffer[offset++] = clipMaxY
 
         // Vertex 1: Top-Left (leftX, topY)
-        quadBuffer[offset++] = leftX; quadBuffer[offset++] = topY; quadBuffer[offset++] = uvMinU; quadBuffer[offset++] = uvMaxV
+        quadBuffer[offset++] = leftX; quadBuffer[offset++] = topY; quadBuffer[offset++] = uvMinU; quadBuffer[offset++] =
+            uvMaxV
         quadBuffer[offset++] = packedColor
-        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = height; quadBuffer[offset++] = width; quadBuffer[offset++] = height
-        quadBuffer[offset++] = radius; quadBuffer[offset++] = borderWidth; quadBuffer[offset++] = mode; quadBuffer[offset++] = textureUnit
+        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = height; quadBuffer[offset++] = width; quadBuffer[offset++] =
+            height
+        quadBuffer[offset++] = radius; quadBuffer[offset++] = borderWidth; quadBuffer[offset++] =
+            mode; quadBuffer[offset++] = textureUnit
         quadBuffer[offset++] = packedBorderColor
+        quadBuffer[offset++] = clipMinX; quadBuffer[offset++] = clipMinY; quadBuffer[offset++] =
+            clipMaxX; quadBuffer[offset++] = clipMaxY
 
         // Vertex 2: Top-Right (rightX, topY)
-        quadBuffer[offset++] = rightX; quadBuffer[offset++] = topY; quadBuffer[offset++] = uvMaxU; quadBuffer[offset++] = uvMaxV
+        quadBuffer[offset++] = rightX; quadBuffer[offset++] = topY; quadBuffer[offset++] =
+            uvMaxU; quadBuffer[offset++] = uvMaxV
         quadBuffer[offset++] = packedColor
-        quadBuffer[offset++] = width; quadBuffer[offset++] = height; quadBuffer[offset++] = width; quadBuffer[offset++] = height
-        quadBuffer[offset++] = radius; quadBuffer[offset++] = borderWidth; quadBuffer[offset++] = mode; quadBuffer[offset++] = textureUnit
+        quadBuffer[offset++] = width; quadBuffer[offset++] = height; quadBuffer[offset++] =
+            width; quadBuffer[offset++] = height
+        quadBuffer[offset++] = radius; quadBuffer[offset++] = borderWidth; quadBuffer[offset++] =
+            mode; quadBuffer[offset++] = textureUnit
         quadBuffer[offset++] = packedBorderColor
+        quadBuffer[offset++] = clipMinX; quadBuffer[offset++] = clipMinY; quadBuffer[offset++] =
+            clipMaxX; quadBuffer[offset++] = clipMaxY
 
         // Vertex 3: Bottom-Right (rightX, bottomY)
-        quadBuffer[offset++] = rightX; quadBuffer[offset++] = bottomY; quadBuffer[offset++] = uvMaxU; quadBuffer[offset++] = uvMinV
+        quadBuffer[offset++] = rightX; quadBuffer[offset++] = bottomY; quadBuffer[offset++] =
+            uvMaxU; quadBuffer[offset++] = uvMinV
         quadBuffer[offset++] = packedColor
-        quadBuffer[offset++] = width; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = width; quadBuffer[offset++] = height
-        quadBuffer[offset++] = radius; quadBuffer[offset++] = borderWidth; quadBuffer[offset++] = mode; quadBuffer[offset++] = textureUnit
+        quadBuffer[offset++] = width; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = width; quadBuffer[offset++] =
+            height
+        quadBuffer[offset++] = radius; quadBuffer[offset++] = borderWidth; quadBuffer[offset++] =
+            mode; quadBuffer[offset++] = textureUnit
         quadBuffer[offset++] = packedBorderColor
+        quadBuffer[offset++] = clipMinX; quadBuffer[offset++] = clipMinY; quadBuffer[offset++] =
+            clipMaxX; quadBuffer[offset++] = clipMaxY
 
         verticesBuffer.position(vertexIndex)
         verticesBuffer.put(quadBuffer, 0, FLOATS_PER_QUAD)
@@ -299,7 +338,7 @@ class UIBatch(
         uvMaxU: Float,
         uvMaxV: Float,
         color: Color,
-        fontTexture: Texture? = null
+        fontTexture: Texture? = null,
     ) {
         if (width <= 0.001f || height <= 0.001f) return
 
@@ -322,36 +361,60 @@ class UIBatch(
 
         val packedColor = color.toGLPackedFloat()
         val packedBorderColor = Color.Clear.toGLPackedFloat()
+        val clipMinX = currentClip[0]
+        val clipMinY = currentClip[1]
+        val clipMaxX = currentClip[2]
+        val clipMaxY = currentClip[3]
 
         var offset = 0
 
         // Vertex 0: Bottom-Left (leftX, bottomY) -> (uvMinU, uvMinV)
-        quadBuffer[offset++] = leftX; quadBuffer[offset++] = bottomY; quadBuffer[offset++] = uvMinU; quadBuffer[offset++] = uvMinV
+        quadBuffer[offset++] = leftX; quadBuffer[offset++] = bottomY; quadBuffer[offset++] =
+            uvMinU; quadBuffer[offset++] = uvMinV
         quadBuffer[offset++] = packedColor
-        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = width; quadBuffer[offset++] = height
-        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = MODE_FONT; quadBuffer[offset++] = 0.0f
+        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = width; quadBuffer[offset++] =
+            height
+        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] =
+            MODE_FONT; quadBuffer[offset++] = 0.0f
         quadBuffer[offset++] = packedBorderColor
+        quadBuffer[offset++] = clipMinX; quadBuffer[offset++] = clipMinY; quadBuffer[offset++] =
+            clipMaxX; quadBuffer[offset++] = clipMaxY
 
         // Vertex 1: Top-Left (leftX, topY) -> (uvMinU, uvMaxV)
-        quadBuffer[offset++] = leftX; quadBuffer[offset++] = topY; quadBuffer[offset++] = uvMinU; quadBuffer[offset++] = uvMaxV
+        quadBuffer[offset++] = leftX; quadBuffer[offset++] = topY; quadBuffer[offset++] = uvMinU; quadBuffer[offset++] =
+            uvMaxV
         quadBuffer[offset++] = packedColor
-        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = height; quadBuffer[offset++] = width; quadBuffer[offset++] = height
-        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = MODE_FONT; quadBuffer[offset++] = 0.0f
+        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = height; quadBuffer[offset++] = width; quadBuffer[offset++] =
+            height
+        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] =
+            MODE_FONT; quadBuffer[offset++] = 0.0f
         quadBuffer[offset++] = packedBorderColor
+        quadBuffer[offset++] = clipMinX; quadBuffer[offset++] = clipMinY; quadBuffer[offset++] =
+            clipMaxX; quadBuffer[offset++] = clipMaxY
 
         // Vertex 2: Top-Right (rightX, topY) -> (uvMaxU, uvMaxV)
-        quadBuffer[offset++] = rightX; quadBuffer[offset++] = topY; quadBuffer[offset++] = uvMaxU; quadBuffer[offset++] = uvMaxV
+        quadBuffer[offset++] = rightX; quadBuffer[offset++] = topY; quadBuffer[offset++] =
+            uvMaxU; quadBuffer[offset++] = uvMaxV
         quadBuffer[offset++] = packedColor
-        quadBuffer[offset++] = width; quadBuffer[offset++] = height; quadBuffer[offset++] = width; quadBuffer[offset++] = height
-        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = MODE_FONT; quadBuffer[offset++] = 0.0f
+        quadBuffer[offset++] = width; quadBuffer[offset++] = height; quadBuffer[offset++] =
+            width; quadBuffer[offset++] = height
+        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] =
+            MODE_FONT; quadBuffer[offset++] = 0.0f
         quadBuffer[offset++] = packedBorderColor
+        quadBuffer[offset++] = clipMinX; quadBuffer[offset++] = clipMinY; quadBuffer[offset++] =
+            clipMaxX; quadBuffer[offset++] = clipMaxY
 
         // Vertex 3: Bottom-Right (rightX, bottomY) -> (uvMaxU, uvMinV)
-        quadBuffer[offset++] = rightX; quadBuffer[offset++] = bottomY; quadBuffer[offset++] = uvMaxU; quadBuffer[offset++] = uvMinV
+        quadBuffer[offset++] = rightX; quadBuffer[offset++] = bottomY; quadBuffer[offset++] =
+            uvMaxU; quadBuffer[offset++] = uvMinV
         quadBuffer[offset++] = packedColor
-        quadBuffer[offset++] = width; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = width; quadBuffer[offset++] = height
-        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = MODE_FONT; quadBuffer[offset++] = 0.0f
+        quadBuffer[offset++] = width; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = width; quadBuffer[offset++] =
+            height
+        quadBuffer[offset++] = 0.0f; quadBuffer[offset++] = 0.0f; quadBuffer[offset++] =
+            MODE_FONT; quadBuffer[offset++] = 0.0f
         quadBuffer[offset++] = packedBorderColor
+        quadBuffer[offset++] = clipMinX; quadBuffer[offset++] = clipMinY; quadBuffer[offset++] =
+            clipMaxX; quadBuffer[offset++] = clipMaxY
 
         verticesBuffer.position(vertexIndex)
         verticesBuffer.put(quadBuffer, 0, FLOATS_PER_QUAD)
@@ -371,12 +434,17 @@ class UIBatch(
         align: Int = Align.left,
         wrap: Boolean = false,
         ellipsis: Boolean = false,
-        color: Color = Color.White
+        color: Color = Color.White,
     ) {
         if (text.isEmpty()) return
 
         val textToRender = when {
-            ellipsis && !wrap && targetWidth > 0.0f -> host.render.fontMeasurer.truncateWithEllipsis(font, text.toString(), targetWidth)
+            ellipsis && !wrap && targetWidth > 0.0f -> host.render.fontMeasurer.truncateWithEllipsis(
+                font,
+                text.toString(),
+                targetWidth,
+            )
+
             else -> text
         }
 
@@ -384,8 +452,11 @@ class UIBatch(
 
         val scaleX = font.data.scaleX
         val scaleY = font.data.scaleY
+        val runs = textLayoutHelper.runs
+        val runCount = runs.size
 
-        for (run in textLayoutHelper.runs) {
+        for (r in 0 until runCount) {
+            val run = runs.get(r)
             val glyphs = run.glyphs
             val xAdvances = run.xAdvances
             var currentX = x + run.x
@@ -417,7 +488,7 @@ class UIBatch(
                     uvMaxU = glyph.u2,
                     uvMaxV = glyph.v2,
                     color = runColor,
-                    fontTexture = fontTexture
+                    fontTexture = fontTexture,
                 )
             }
         }
@@ -429,34 +500,43 @@ class UIBatch(
      * Pushes a new clipping rectangle onto the analytical scissor stack without breaking the GPU batch.
      */
     fun pushClip(x: Float, y: Float, width: Float, height: Float) {
-        val parent = currentClip
-        val minX = maxOf(parent[0], x)
-        val minY = maxOf(parent[1], y)
-        val maxX = minOf(parent[2], x + width)
-        val maxY = minOf(parent[3], y + height)
-
-        val newClip = floatArrayOf(minX, minY, maxOf(minX, maxX), maxOf(minY, maxY))
-        if (isDrawing && (newClip[0] != currentClip[0] || newClip[1] != currentClip[1] || newClip[2] != currentClip[2] || newClip[3] != currentClip[3])) {
-            flush()
-            shaders.uberShader.setUniformf("u_clipRect", newClip[0], newClip[1], newClip[2], newClip[3])
+        val offset = clipDepth * 4
+        if (offset + 4 <= clipStackBuffer.size) {
+            clipStackBuffer[offset] = currentClip[0]
+            clipStackBuffer[offset + 1] = currentClip[1]
+            clipStackBuffer[offset + 2] = currentClip[2]
+            clipStackBuffer[offset + 3] = currentClip[3]
+            clipDepth++
         }
-        clipStack.add(newClip)
-        currentClip = newClip
+
+        val minX = maxOf(currentClip[0], x)
+        val minY = maxOf(currentClip[1], y)
+        val maxX = minOf(currentClip[2], x + width)
+        val maxY = minOf(currentClip[3], y + height)
+
+        currentClip[0] = minX
+        currentClip[1] = minY
+        currentClip[2] = maxOf(minX, maxX)
+        currentClip[3] = maxOf(minY, maxY)
     }
 
     /**
-     * Pops the topmost clipping rectangle and restores the parent clip boundary.
+     * Pops the topmost clipping rectangle and restores the parent clip boundary without breaking the GPU batch.
      */
     fun popClip() {
-        if (clipStack.isNotEmpty()) {
-            clipStack.removeAt(clipStack.size - 1)
+        if (clipDepth > 0) {
+            clipDepth--
+            val offset = clipDepth * 4
+            currentClip[0] = clipStackBuffer[offset]
+            currentClip[1] = clipStackBuffer[offset + 1]
+            currentClip[2] = clipStackBuffer[offset + 2]
+            currentClip[3] = clipStackBuffer[offset + 3]
+        } else {
+            currentClip[0] = 0.0f
+            currentClip[1] = 0.0f
+            currentClip[2] = 100000.0f
+            currentClip[3] = 100000.0f
         }
-        val prevClip = if (clipStack.isNotEmpty()) clipStack.last() else defaultClip
-        if (isDrawing && (prevClip[0] != currentClip[0] || prevClip[1] != currentClip[1] || prevClip[2] != currentClip[2] || prevClip[3] != currentClip[3])) {
-            flush()
-            shaders.uberShader.setUniformf("u_clipRect", prevClip[0], prevClip[1], prevClip[2], prevClip[3])
-        }
-        currentClip = prevClip
     }
 
     // --- GPU EXECUTION & FLUSH ---
@@ -486,6 +566,7 @@ class UIBatch(
     fun dispose() {
         mesh.dispose()
         blur.dispose()
+        shaders.dispose()
         isDrawing = false
     }
 }

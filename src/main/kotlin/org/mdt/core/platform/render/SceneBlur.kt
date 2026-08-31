@@ -27,7 +27,7 @@ import org.mdt.core.platform.PlatformHost
  * @see ShaderRegistry
  */
 class SceneBlur(
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp },
 ) {
 
     private val host: PlatformHost
@@ -70,15 +70,17 @@ class SceneBlur(
         Mesh(
             true, 4, 6,
             VertexAttribute(2, "a_position"),
-            VertexAttribute(2, "a_texCoords")
+            VertexAttribute(2, "a_texCoords"),
         ).apply {
-            setVertices(floatArrayOf(
-                // x,     y,     u,    v
-                -1.0f, -1.0f,  0.0f, 0.0f, // Bottom-Left
-                -1.0f,  1.0f,  0.0f, 1.0f, // Top-Left
-                 1.0f,  1.0f,  1.0f, 1.0f, // Top-Right
-                 1.0f, -1.0f,  1.0f, 0.0f  // Bottom-Right
-            ))
+            setVertices(
+                floatArrayOf(
+                    // x,     y,     u,    v
+                    -1.0f, -1.0f, 0.0f, 0.0f, // Bottom-Left
+                    -1.0f, 1.0f, 0.0f, 1.0f, // Top-Left
+                    1.0f, 1.0f, 1.0f, 1.0f, // Top-Right
+                    1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-Right
+                ),
+            )
             setIndices(shortArrayOf(0, 1, 2, 2, 3, 0))
         }
     }
@@ -97,7 +99,8 @@ class SceneBlur(
         val now = System.currentTimeMillis()
 
         // Reuse cached texture if already captured this frame OR if within throttle interval
-        val isCached = blurredTexture != null && (lastCapturedFrameId == currentFrameId || (now - lastCaptureTimestamp < updateIntervalMs))
+        val isCached =
+            blurredTexture != null && (lastCapturedFrameId == currentFrameId || (now - lastCaptureTimestamp < updateIntervalMs))
         if (isCached) return blurredTexture
 
         val screenWidth = host.window.width.toInt().coerceAtLeast(1)
@@ -147,11 +150,15 @@ class SceneBlur(
         // --- PURE OPENGL PROGRESSIVE DUAL-KAWASE PYRAMID ---
         val wasBlend = Gl.isEnabled(Gl.blend)
         val wasDepth = Gl.isEnabled(Gl.depthTest)
+        val wasScissor = Gl.isEnabled(Gl.scissorTest)
         if (wasBlend) {
             Gl.disable(Gl.blend)
         }
         if (wasDepth) {
             Gl.disable(Gl.depthTest)
+        }
+        if (wasScissor) {
+            Gl.disable(Gl.scissorTest)
         }
         Gl.depthMask(false)
 
@@ -219,6 +226,9 @@ class SceneBlur(
         if (wasDepth) {
             Gl.enable(Gl.depthTest)
         }
+        if (wasScissor) {
+            Gl.enable(Gl.scissorTest)
+        }
         Gl.depthMask(true)
 
         lastCapturedFrameId = currentFrameId
@@ -254,6 +264,7 @@ class SceneBlur(
         val wasBlend = Gl.isEnabled(Gl.blend)
         Gl.disable(Gl.blend)
         Gl.depthMask(false)
+        Gl.activeTexture(Gl.texture0)
         Gl.bindTexture(Gl.texture2d, fbo.texture.textureObjectHandle)
         Gl.copyTexSubImage2D(Gl.texture2d, 0, 0, 0, 0, 0, physicalWidth, physicalHeight)
         Gl.bindTexture(Gl.texture2d, 0)
@@ -273,6 +284,7 @@ class SceneBlur(
         screenCaptureFbo?.dispose()
         screenCaptureFbo = null
         disposeScratch()
+        shaders.dispose()
         try {
             quadMesh.dispose()
         } catch (meshError: Throwable) {

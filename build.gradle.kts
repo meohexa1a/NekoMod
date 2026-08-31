@@ -48,14 +48,12 @@ dependencies {
 
     compileOnly("org.jetbrains:annotations:26.0.1")
 
-    implementation("org.codehaus.janino:janino:3.1.12")
     implementation("com.squareup.okio:okio:3.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
-    implementation("org.jetbrains.compose.runtime:runtime-desktop:1.7.1")
-    implementation("org.jetbrains.compose.animation:animation-core-desktop:1.7.1")
-    implementation("org.dom4j:dom4j:2.1.4")
+    implementation("org.jetbrains.compose.runtime:runtime:1.7.1")
+    implementation("org.jetbrains.compose.animation:animation-core:1.7.1")
 
     testImplementation(kotlin("test"))
     testImplementation("Anuken:Mindustry:$mindustryVersion:dependencies")
@@ -97,15 +95,24 @@ tasks.register("jarAndroid") {
         if (!d8.exists()) throw GradleException("d8 not found at ${d8.absolutePath}")
 
         val libs = file("build/libs")
-        val cp = (configurations.compileClasspath.get().files
+        val cpFiles = (configurations.compileClasspath.get().files
                 + configurations.runtimeClasspath.get().files
                 + platformRoot.resolve("android.jar"))
-            .joinToString(" ") { "--classpath ${it.absolutePath}" }
-        val proc = ProcessBuilder(
-            d8.absolutePath, *cp.split(" ").toTypedArray(),
-            "--min-api", "26", "--output", "${rootProject.name}-android.jar",
-            "${rootProject.name}-desktop.jar"
-        )
+            .filter { it.exists() }
+
+        val cmd = mutableListOf<String>()
+        cmd.add(d8.absolutePath)
+        for (f in cpFiles) {
+            cmd.add("--classpath")
+            cmd.add(f.absolutePath)
+        }
+        cmd.add("--min-api")
+        cmd.add("26")
+        cmd.add("--output")
+        cmd.add("${rootProject.name}-android.jar")
+        cmd.add("${rootProject.name}-desktop.jar")
+
+        val proc = ProcessBuilder(cmd)
             .directory(libs).inheritIO().start()
         if (proc.waitFor() != 0) throw GradleException("d8 failed")
     }
@@ -132,7 +139,13 @@ tasks.register<JavaExec>("runGame") {
     description = "Install mod to Mindustry mods folder and launch game"
     dependsOn(shadowJar)
     doFirst {
-        val modsDir = file(System.getenv("APPDATA") + "/Mindustry/mods").also { it.mkdirs() }
+        val os = System.getProperty("os.name").lowercase()
+        val appData = System.getenv("APPDATA")
+        val modsDir = when {
+            os.contains("windows") && appData != null -> file("$appData/Mindustry/mods")
+            os.contains("mac") -> file(System.getProperty("user.home") + "/Library/Application Support/Mindustry/mods")
+            else -> file(System.getProperty("user.home") + "/.local/share/Mindustry/mods")
+        }.also { it.mkdirs() }
         copy {
             from(shadowJar.get().archiveFile)
             into(modsDir)

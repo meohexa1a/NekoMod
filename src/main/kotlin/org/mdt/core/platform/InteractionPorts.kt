@@ -3,7 +3,6 @@
 package org.mdt.core.platform
 
 import arc.Core
-import arc.backend.sdl.jni.SDL
 import arc.input.InputMultiplexer
 import arc.input.InputProcessor
 import arc.input.KeyBind
@@ -11,6 +10,7 @@ import arc.input.KeyCode
 import arc.struct.Seq
 import arc.util.Log
 import java.lang.reflect.Field
+import java.lang.reflect.Method
 
 /**
  * ## InputPort
@@ -62,8 +62,6 @@ interface InputPort {
     }
 }
 
-
-
 /**
  * ## MindustryInputPort
  *
@@ -91,11 +89,11 @@ class MindustryInputPort : InputPort {
 
     override fun addInputProcessor(processor: InputProcessor) {
         val processors = Core.input?.inputProcessors
-        if (processors != null && !processors.contains(localMultiplexer)) {
+        if (processors != null && !processors.contains(localMultiplexer, true)) {
             processors.insert(0, localMultiplexer)
         }
 
-        if (!localMultiplexer.processors.contains(processor)) {
+        if (!localMultiplexer.processors.contains(processor, true)) {
             localMultiplexer.addProcessor(0, processor)
         }
     }
@@ -110,7 +108,11 @@ class MindustryInputPort : InputPort {
             val inputProcessors = Core.input?.inputProcessors
 
             when {
-                inputProcessors != null && !inputProcessors.contains(inputMultiplexer) -> inputProcessors.insert(0, inputMultiplexer)
+                inputProcessors != null && !inputProcessors.contains(
+                    inputMultiplexer,
+                    true,
+                ) -> inputProcessors.insert(0, inputMultiplexer)
+
                 inputProcessors == null -> Log.warn("[NekoMod] Core.input is uninitialized when creating InputMultiplexer")
             }
 
@@ -118,7 +120,6 @@ class MindustryInputPort : InputPort {
         }
     }
 }
-
 
 /**
  * ## ImePort
@@ -141,7 +142,7 @@ interface ImePort {
         initialText: String,
         cursorPosition: Int,
         onCompositionChanged: (composition: String) -> Unit,
-        onCompositionCleared: () -> Unit
+        onCompositionCleared: () -> Unit,
     )
 
     /** Synchronizes screen position, size, text, and cursor bounds for the active native IME session. */
@@ -151,37 +152,99 @@ interface ImePort {
         width: Float,
         height: Float,
         text: String,
-        cursorPosition: Int
+        cursorPosition: Int,
     )
 
-    /** Stops the native OS text input session and clears active listeners. */
     fun stopSession()
 
-    /**
-     * Stub [ImePort] implementation for headless servers or unit testing environments.
-     */
-    object NoOp : ImePort {
-        override fun startSession(
-            globalX: Float,
-            globalY: Float,
-            width: Float,
-            height: Float,
-            initialText: String,
-            cursorPosition: Int,
-            onCompositionChanged: (composition: String) -> Unit,
-            onCompositionCleared: () -> Unit
-        ) = Unit
+    companion object {
+        val NoOp: ImePort = object : ImePort {
+            override fun startSession(
+                globalX: Float,
+                globalY: Float,
+                width: Float,
+                height: Float,
+                initialText: String,
+                cursorPosition: Int,
+                onCompositionChanged: (String) -> Unit,
+                onCompositionCleared: () -> Unit,
+            ) {
+            }
 
-        override fun syncSession(
-            globalX: Float,
-            globalY: Float,
-            width: Float,
-            height: Float,
-            text: String,
-            cursorPosition: Int
-        ) = Unit
+            override fun syncSession(
+                globalX: Float,
+                globalY: Float,
+                width: Float,
+                height: Float,
+                text: String,
+                cursorPosition: Int,
+            ) {
+            }
 
-        override fun stopSession() = Unit
+            override fun stopSession() {}
+        }
+    }
+}
+
+// --- SAFE REFLECTION HELPER FOR SDL PLATFORM ---
+
+private object SdlNativeHelper {
+    val isAvailable: Boolean by lazy {
+        try {
+            Class.forName("arc.backend.sdl.jni.SDL")
+            true
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    private val startTextInputMethod: Method? by lazy {
+        try {
+            Class.forName("arc.backend.sdl.jni.SDL").getMethod("SDL_StartTextInput")
+        } catch (_: Throwable) {
+            null
+        }
+    }
+    private val stopTextInputMethod: Method? by lazy {
+        try {
+            Class.forName("arc.backend.sdl.jni.SDL").getMethod("SDL_StopTextInput")
+        } catch (_: Throwable) {
+            null
+        }
+    }
+    private val setTextInputRectMethod: Method? by lazy {
+        try {
+            Class.forName("arc.backend.sdl.jni.SDL").getMethod(
+                "SDL_SetTextInputRect",
+                Integer.TYPE,
+                Integer.TYPE,
+                Integer.TYPE,
+                Integer.TYPE,
+            )
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    fun startTextInput() {
+        try {
+            startTextInputMethod?.invoke(null)
+        } catch (_: Throwable) {
+        }
+    }
+
+    fun stopTextInput() {
+        try {
+            stopTextInputMethod?.invoke(null)
+        } catch (_: Throwable) {
+        }
+    }
+
+    fun setTextInputRect(x: Int, y: Int, w: Int, h: Int) {
+        try {
+            setTextInputRectMethod?.invoke(null, x, y, w, h)
+        } catch (_: Throwable) {
+        }
     }
 }
 
@@ -198,7 +261,7 @@ interface ImePort {
  * @see PlatformHost
  */
 class SdlReflectionImePort(
-    private val hostProvider: () -> PlatformHost
+    private val hostProvider: () -> PlatformHost,
 ) : ImePort {
 
     private var activeCompositionCallback: ((String) -> Unit)? = null
@@ -216,15 +279,17 @@ class SdlReflectionImePort(
         initialText: String,
         cursorPosition: Int,
         onCompositionChanged: (composition: String) -> Unit,
-        onCompositionCleared: () -> Unit
+        onCompositionCleared: () -> Unit,
     ) {
+        if (!SdlNativeHelper.isAvailable) return
+
         ensureHook()
         activeCompositionCallback = onCompositionChanged
         activeClearCallback = onCompositionCleared
 
         try {
             if (!isTextInputActive) {
-                SDL.SDL_StartTextInput()
+                SdlNativeHelper.startTextInput()
                 isTextInputActive = true
             }
             updateTextInputRect(globalX, globalY, width, height)
@@ -239,7 +304,7 @@ class SdlReflectionImePort(
         width: Float,
         height: Float,
         text: String,
-        cursorPosition: Int
+        cursorPosition: Int,
     ) {
         if (!isTextInputActive) return
 
@@ -250,7 +315,7 @@ class SdlReflectionImePort(
         if (!isTextInputActive) return
 
         try {
-            SDL.SDL_StopTextInput()
+            SdlNativeHelper.stopTextInput()
             isTextInputActive = false
         } catch (sdlError: Throwable) {
             Log.warn("[NekoMod] SDL_StopTextInput invocation failed", sdlError)
@@ -266,8 +331,8 @@ class SdlReflectionImePort(
 
         if (isTextInputActive) {
             try {
-                SDL.SDL_StopTextInput()
-                SDL.SDL_StartTextInput()
+                SdlNativeHelper.stopTextInput()
+                SdlNativeHelper.startTextInput()
             } catch (sdlError: Throwable) {
                 Log.warn("[NekoMod] Restarting text input failed during clearComposition", sdlError)
             }
@@ -286,7 +351,7 @@ class SdlReflectionImePort(
                 else -> 1080
             }
             val sdlY = screenHeight - 1 - (globalY + height).toInt()
-            SDL.SDL_SetTextInputRect(globalX.toInt(), sdlY, width.toInt(), height.toInt())
+            SdlNativeHelper.setTextInputRect(globalX.toInt(), sdlY, width.toInt(), height.toInt())
         } catch (rectError: Throwable) {
             Log.warn("[NekoMod] SDL_SetTextInputRect invocation failed", rectError)
         }
