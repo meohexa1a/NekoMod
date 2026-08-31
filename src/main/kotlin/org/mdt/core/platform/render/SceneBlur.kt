@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Dual-Kawase Scene Background Blur Pipeline & Coordinator.
+// - Operating Mechanism: 5-pass pyramid downsample/upsample; frame deduplication & interval throttling (~33ms / 30 FPS).
+// - Invariants: Guarded by frameId, bind via Gl.activeTexture(Gl.texture0 + unit), automatic FBO resizing.
+// - Dependencies: [UIBatch], [ShaderRegistry], [PlatformHost].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.platform.render
 
@@ -7,9 +12,8 @@ import arc.graphics.Mesh
 import arc.graphics.Texture
 import arc.graphics.VertexAttribute
 import arc.graphics.gl.FrameBuffer
-import arc.util.Disposable
 import arc.util.Log
-import org.mdt.core.ui.EngineRuntime
+import org.mdt.core.platform.PlatformHost
 
 /**
  * ## SceneBlur
@@ -18,6 +22,8 @@ import org.mdt.core.ui.EngineRuntime
  * Coordinates frame deduplication and interval throttling (~33ms / 30 FPS) to eliminate GPU fillrate bottlenecks.
  * Directly manages OpenGL FBOs and quad rasterization without unnecessary intermediate abstraction layers.
  *
+ * @param hostProvider Non-null provider lambda returning [PlatformHost] for window, system, and shader resolution.
+ *
  * @property isEnabled Master toggle for background blur rendering.
  * @property updateIntervalMs Refresh throttle in milliseconds (~33ms = 30 FPS update rate).
  * @property blurRadius Blur spread radius multiplier for upsampling passes.
@@ -25,7 +31,15 @@ import org.mdt.core.ui.EngineRuntime
  * @see UIBatch
  * @see ShaderRegistry
  */
-object SceneBlur : Disposable {
+class SceneBlur(
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+) {
+
+    private val host: PlatformHost
+        get() = hostProvider()
+
+    private val shaders: ShaderRegistry
+        get() = host.render.shaders
 
     // --- STATE & CONFIGURATION ---
 
@@ -85,55 +99,46 @@ object SceneBlur : Disposable {
     fun captureAndBlur(): Texture? {
         if (!isEnabled) return null
 
-        val currentFrameId = EngineRuntime.host.frameId
+        val currentFrameId = host.system.frameId
         val now = System.currentTimeMillis()
 
         // Reuse cached texture if already captured this frame OR if within throttle interval
         val isCached = blurredTexture != null && (lastCapturedFrameId == currentFrameId || (now - lastCaptureTimestamp < updateIntervalMs))
         if (isCached) return blurredTexture
 
-        val screenWidth = EngineRuntime.host.screenWidth.toInt().coerceAtLeast(1)
-        val screenHeight = EngineRuntime.host.screenHeight.toInt().coerceAtLeast(1)
+        val screenWidth = host.window.width.toInt().coerceAtLeast(1)
+        val screenHeight = host.window.height.toInt().coerceAtLeast(1)
 
         val captureTexture = captureScreen(screenWidth, screenHeight) ?: return null
-
         val blurStartNanos = System.nanoTime()
 
-        // Level 1: 1/2 scale (960x540 for 1080p)
-        val level1Width = maxOf(32, screenWidth / 2)
-        val level1Height = maxOf(32, screenHeight / 2)
+        // Calculate 3 pyramid scale levels
+        val level1Width = (screenWidth / 2).coerceAtLeast(1)
+        val level1Height = (screenHeight / 2).coerceAtLeast(1)
 
-        // Level 2: 1/4 scale (480x270 for 1080p)
-        val level2Width = maxOf(16, level1Width / 2)
-        val level2Height = maxOf(16, level1Height / 2)
+        val level2Width = (level1Width / 2).coerceAtLeast(1)
+        val level2Height = (level1Height / 2).coerceAtLeast(1)
 
-        // Level 3: 1/8 scale (240x135 for 1080p)
-        val level3Width = maxOf(8, level2Width / 2)
-        val level3Height = maxOf(8, level2Height / 2)
+        val level3Width = (level2Width / 2).coerceAtLeast(1)
+        val level3Height = (level2Height / 2).coerceAtLeast(1)
 
-        val existingA = pingPongA
-        val existingB = pingPongB
-        val existingC = pingPongC
-        if (existingA != null && (existingA.width != level1Width || existingA.height != level1Height) ||
-            existingB != null && (existingB.width != level2Width || existingB.height != level2Height) ||
-            existingC != null && (existingC.width != level3Width || existingC.height != level3Height)) {
-            disposeScratch()
-        }
+        val needsRecreate = pingPongA == null ||
+            pingPongA?.width != level1Width ||
+            pingPongA?.height != level1Height ||
+            pingPongB?.width != level2Width ||
+            pingPongB?.height != level2Height ||
+            pingPongC?.width != level3Width ||
+            pingPongC?.height != level3Height
 
-        if (pingPongA == null) {
+        if (needsRecreate) {
             try {
-                pingPongA = FrameBuffer(level1Width, level1Height).apply {
-                    texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
-                    texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
-                }
-                pingPongB = FrameBuffer(level2Width, level2Height).apply {
-                    texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
-                    texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
-                }
-                pingPongC = FrameBuffer(level3Width, level3Height).apply {
-                    texture.setFilter(Texture.TextureFilter.linear, Texture.TextureFilter.linear)
-                    texture.setWrap(Texture.TextureWrap.clampToEdge, Texture.TextureWrap.clampToEdge)
-                }
+                pingPongA?.dispose()
+                pingPongB?.dispose()
+                pingPongC?.dispose()
+
+                pingPongA = FrameBuffer(level1Width, level1Height, false)
+                pingPongB = FrameBuffer(level2Width, level2Height, false)
+                pingPongC = FrameBuffer(level3Width, level3Height, false)
             } catch (fboError: Throwable) {
                 Log.err("[NekoMod] Failed to allocate Dual-Kawase pyramid framebuffers", fboError)
                 return null
@@ -144,8 +149,8 @@ object SceneBlur : Disposable {
         val fboB = pingPongB ?: return null
         val fboC = pingPongC ?: return null
 
-        ShaderRegistry.ensure()
-        val blurShader = ShaderRegistry.blurShader
+        shaders.ensure()
+        val blurShader = shaders.blurShader
         if (blurShader == null) {
             Log.warn("[NekoMod] Dual-Kawase blur shader is unavailable.")
             return null
@@ -154,8 +159,12 @@ object SceneBlur : Disposable {
         // --- PURE OPENGL PROGRESSIVE DUAL-KAWASE PYRAMID ---
         val wasBlend = Gl.isEnabled(Gl.blend)
         val wasDepth = Gl.isEnabled(Gl.depthTest)
-        if (wasBlend) Gl.disable(Gl.blend)
-        if (wasDepth) Gl.disable(Gl.depthTest)
+        if (wasBlend) {
+            Gl.disable(Gl.blend)
+        }
+        if (wasDepth) {
+            Gl.disable(Gl.depthTest)
+        }
         Gl.depthMask(false)
 
         blurShader.bind()
@@ -216,8 +225,12 @@ object SceneBlur : Disposable {
 
         // Restore viewport & OpenGL pipeline states
         Gl.viewport(0, 0, screenWidth, screenHeight)
-        if (wasBlend) Gl.enable(Gl.blend)
-        if (wasDepth) Gl.enable(Gl.depthTest)
+        if (wasBlend) {
+            Gl.enable(Gl.blend)
+        }
+        if (wasDepth) {
+            Gl.enable(Gl.depthTest)
+        }
         Gl.depthMask(true)
 
         lastCapturedFrameId = currentFrameId
@@ -268,7 +281,7 @@ object SceneBlur : Disposable {
 
     // --- DISPOSAL ---
 
-    override fun dispose() {
+    fun dispose() {
         screenCaptureFbo?.dispose()
         screenCaptureFbo = null
         disposeScratch()

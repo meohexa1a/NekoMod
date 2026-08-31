@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Immutable Modifier Chain Engine & Extension Factories.
+// - Operating Mechanism: Zero-GC flattened array chains ([ModifierChain]); delegates to focused element classes.
+// - Invariants: Immutable data classes; idempotent `applyTo(node)` mutations.
+// - Dependencies: [LayoutModifiers], [DrawModifiers], [PointerModifiers], [UINode].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 @file:Suppress("unused", "FunctionName")
 

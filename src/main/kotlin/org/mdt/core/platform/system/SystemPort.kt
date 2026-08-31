@@ -1,6 +1,6 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
-package org.mdt.core.platform.port
+package org.mdt.core.platform.system
 
 import okio.Path
 import okio.Path.Companion.toPath
@@ -14,7 +14,7 @@ import okio.Path.Companion.toPath
  * @property frameId Monotonically increasing frame counter for frame-indexing and caching.
  * @property deltaTime Time elapsed between the previous frame and current frame in seconds.
  *
- * @see org.mdt.core.platform.impl.MindustrySystemPort
+ * @see MindustrySystemPort
  * @see org.mdt.core.platform.PlatformHost
  */
 interface SystemPort {

@@ -1,17 +1,24 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Mindustry Game Engine & Arc Platform Host Implementation.
+// - Operating Mechanism: Instantiates Mindustry-specific port implementations ([MindustryWindowPort], [MindustryInputPort], [MindustryAssetPort], [MindustrySystemPort], [SdlReflectionImePort]).
+// - Invariants: Singleton instance wired during mod bootstrapping.
+// - Dependencies: [PlatformHost], [MindustryAssetPort], [MindustryInputPort], [MindustrySystemPort], [MindustryWindowPort], [SdlReflectionImePort].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.platform
 
+import org.mdt.core.platform.assets.AssetPort
+import org.mdt.core.platform.assets.MindustryAssetPort
 import org.mdt.core.platform.ime.ImePort
 import org.mdt.core.platform.ime.SdlReflectionImePort
-import org.mdt.core.platform.impl.MindustryAssetPort
-import org.mdt.core.platform.impl.MindustryInputPort
-import org.mdt.core.platform.impl.MindustrySystemPort
-import org.mdt.core.platform.impl.MindustryWindowPort
-import org.mdt.core.platform.port.AssetPort
-import org.mdt.core.platform.port.InputPort
-import org.mdt.core.platform.port.SystemPort
-import org.mdt.core.platform.port.WindowPort
+import org.mdt.core.platform.input.InputPort
+import org.mdt.core.platform.input.MindustryInputPort
+import org.mdt.core.platform.render.MindustryRenderPort
+import org.mdt.core.platform.render.RenderPort
+import org.mdt.core.platform.system.MindustrySystemPort
+import org.mdt.core.platform.system.SystemPort
+import org.mdt.core.platform.window.MindustryWindowPort
+import org.mdt.core.platform.window.WindowPort
 
 /**
  * ## MindustryPlatformHost
@@ -23,6 +30,7 @@ import org.mdt.core.platform.port.WindowPort
  * @property assets Mindustry asset atlas and font port ([MindustryAssetPort]).
  * @property system Mindustry time, settings, and main thread port ([MindustrySystemPort]).
  * @property ime SDL native IME reflection port ([SdlReflectionImePort]).
+ * @property render Arc and OpenGL 2D batch render port ([MindustryRenderPort]).
  *
  * @see PlatformHost
  * @see MindustryWindowPort
@@ -30,11 +38,16 @@ import org.mdt.core.platform.port.WindowPort
  * @see MindustryAssetPort
  * @see MindustrySystemPort
  * @see SdlReflectionImePort
+ * @see MindustryRenderPort
  */
-open class MindustryPlatformHost(
+class MindustryPlatformHost(
     override val window: WindowPort = MindustryWindowPort(),
     override val input: InputPort = MindustryInputPort(),
     override val assets: AssetPort = MindustryAssetPort(),
     override val system: SystemPort = MindustrySystemPort(),
-    override val ime: ImePort = SdlReflectionImePort()
-) : PlatformHost
+    ime: ImePort? = null,
+    render: RenderPort? = null
+) : PlatformHost {
+    override val ime: ImePort = ime ?: SdlReflectionImePort { this }
+    override val render: RenderPort = render ?: MindustryRenderPort { this }
+}

@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Visual Styling Element Modifiers & Fluent Builders.
+// - Operating Mechanism: Applies background colors, textures, corner radii, borders, frosted glass, drop shadows, opacity, and clipping onto [LayoutNode].
+// - Invariants: Float colors, radii, opacities; single-draw-call compatibility in [UIBatch].
+// - Dependencies: [UIModifier], [LayoutNode], [UIBatch], [SceneBlur].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 @file:Suppress("unused")
 
@@ -7,7 +12,7 @@ package org.mdt.core.ui.compose
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.ui.node.LayoutNode
 import org.mdt.core.ui.node.UINode
-import org.mdt.core.ui.unit.Color
+import org.mdt.core.platform.render.Color
 
 // --- TYPED DRAW MODIFIER ELEMENTS ---
 

@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Master Port Facade for Engine & Native Platform Interop.
+// - Operating Mechanism: Unifies [WindowPort], [InputPort], [AssetPort], [SystemPort], and [ImePort] into a cohesive interface.
+// - Invariants: UI and rendering code must communicate with platform/OS only through PlatformHost.
+// - Dependencies: [WindowPort], [InputPort], [AssetPort], [SystemPort], [ImePort], [MindustryPlatformHost].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.platform
 
@@ -8,16 +13,21 @@ import arc.graphics.g2d.Font
 import arc.graphics.g2d.TextureRegion
 import arc.input.InputProcessor
 import okio.Path
+import org.mdt.core.platform.assets.AssetPort
 import org.mdt.core.platform.ime.ImePort
-import org.mdt.core.platform.port.AssetPort
-import org.mdt.core.platform.port.InputPort
-import org.mdt.core.platform.port.SystemPort
-import org.mdt.core.platform.port.WindowPort
+import org.mdt.core.platform.input.InputPort
+import org.mdt.core.platform.render.FontRenderer
+import org.mdt.core.platform.render.RenderPort
+import org.mdt.core.platform.render.SceneBlur
+import org.mdt.core.platform.render.ShaderRegistry
+import org.mdt.core.platform.render.UIBatch
+import org.mdt.core.platform.system.SystemPort
+import org.mdt.core.platform.window.WindowPort
 
 /**
  * ## PlatformHost
  *
- * Master composite facade coordinating platform sub-ports ([window], [input], [assets], [system], and [ime]).
+ * Master composite facade coordinating platform sub-ports ([window], [input], [assets], [system], [ime], and [render]).
  * Keeps UI and rendering layers 100% agnostic of specific game engines or native OS backends.
  *
  * @property window Sub-port managing window sizing, resize listeners, and system cursor icons.
@@ -25,6 +35,7 @@ import org.mdt.core.platform.port.WindowPort
  * @property assets Sub-port resolving textures, fonts, byte buffers, and shader texts.
  * @property system Sub-port managing monotonic frame ticks, clipboard, data paths, and main-thread dispatches.
  * @property ime Sub-port managing native on-screen/SDL Input Method Editor composition sessions.
+ * @property render Sub-port managing 2D GPU batch rendering, shader compilation, background blur, and font rendering.
  *
  * @see MindustryPlatformHost
  * @see WindowPort
@@ -32,6 +43,7 @@ import org.mdt.core.platform.port.WindowPort
  * @see AssetPort
  * @see SystemPort
  * @see ImePort
+ * @see RenderPort
  */
 interface PlatformHost {
 
@@ -42,6 +54,7 @@ interface PlatformHost {
     val assets: AssetPort
     val system: SystemPort
     val ime: ImePort
+    val render: RenderPort
 
     // --- CONVENIENCE FACADE DELEGATIONS ---
 
@@ -102,6 +115,11 @@ interface PlatformHost {
 
     fun stopImeSession() = ime.stopSession()
 
+    val batch: UIBatch get() = render.batch
+    val blur: SceneBlur get() = render.blur
+    val fontRenderer: FontRenderer get() = render.fontRenderer
+    val shaders: ShaderRegistry get() = render.shaders
+
     /** Stub [PlatformHost] implementation combining all [NoOp] sub-ports for testing. */
     object NoOp : PlatformHost {
         override val window: WindowPort get() = WindowPort.NoOp
@@ -109,6 +127,7 @@ interface PlatformHost {
         override val assets: AssetPort get() = AssetPort.NoOp
         override val system: SystemPort get() = SystemPort.NoOp
         override val ime: ImePort get() = ImePort.NoOp
+        override val render: RenderPort get() = RenderPort.NoOp
     }
 }
 

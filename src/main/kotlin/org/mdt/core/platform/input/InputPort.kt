@@ -1,6 +1,6 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
-package org.mdt.core.platform.port
+package org.mdt.core.platform.input
 
 import arc.input.InputProcessor
 
@@ -16,7 +16,7 @@ import arc.input.InputProcessor
  * @property isShiftPressed Whether the Shift key is currently held down.
  * @property isAltPressed Whether the Alt key is currently held down.
  *
- * @see org.mdt.core.platform.impl.MindustryInputPort
+ * @see MindustryInputPort
  * @see org.mdt.core.platform.PlatformHost
  */
 interface InputPort {

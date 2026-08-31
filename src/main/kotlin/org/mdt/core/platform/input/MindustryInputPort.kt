@@ -1,12 +1,11 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
-package org.mdt.core.platform.impl
+package org.mdt.core.platform.input
 
 import arc.Core
 import arc.input.InputMultiplexer
 import arc.input.InputProcessor
 import arc.util.Log
-import org.mdt.core.platform.port.InputPort
 
 /**
  * ## MindustryInputPort

@@ -1,11 +1,15 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: BMFont Glyph Rasterization & Layout Pipeline.
+// - Operating Mechanism: Batches individual glyph runs into [UIBatch]; zero-allocation measurement via reused [GlyphLayout].
+// - Invariants: Draw BMFonts at integer scale (1.0f); baseline math uses OpenGL bottom-left coordinates.
+// - Dependencies: [UIBatch], [TextNode], [InputNode], [Color].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.platform.render
 
 import arc.graphics.g2d.Font
 import arc.graphics.g2d.GlyphLayout
 import arc.util.Align
-import org.mdt.core.ui.unit.Color
 
 /**
  * ## FontRenderer
@@ -17,7 +21,7 @@ import org.mdt.core.ui.unit.Color
  * @see org.mdt.core.ui.node.TextNode
  * @see org.mdt.ui.components.text.Text
  */
-object FontRenderer {
+class FontRenderer {
 
     private val layoutHelper = GlyphLayout()
     private val arcColorHelper = arc.graphics.Color()
@@ -95,9 +99,10 @@ object FontRenderer {
     // --- RENDERING ---
 
     /**
-     * Draws [text] directly into [UIBatch] with optional [ellipsis] truncation or [wrap].
+     * Draws [text] directly into [batch] with optional [ellipsis] truncation or [wrap].
      */
     fun draw(
+        batch: UIBatch,
         font: Font,
         text: CharSequence,
         x: Float,
@@ -142,7 +147,7 @@ object FontRenderer {
                 }
                 val fontTexture = fontRegion.texture
 
-                UIBatch.drawGlyph(
+                batch.drawGlyph(
                     x = drawX,
                     y = drawY,
                     width = glyphWidth,

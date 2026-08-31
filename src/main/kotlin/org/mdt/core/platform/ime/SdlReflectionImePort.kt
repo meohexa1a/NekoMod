@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: SDL Native IME Composition Reflection Proxy & Hook.
+// - Operating Mechanism: Hooks into `SdlInput.stringEditEvents` via reflection; routes native composition string to active [InputNode].
+// - Invariants: Reflection fields cached once; graceful fallbacks if SDL input backend differs across platforms.
+// - Dependencies: [ImePort], [PlatformHost], [InputNode], [TextEditState].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.platform.ime
 
@@ -7,6 +12,7 @@ import arc.backend.sdl.jni.SDL
 import arc.struct.Seq
 import arc.util.Log
 import java.lang.reflect.Field
+import org.mdt.core.platform.PlatformHost
 
 /**
  * ## SdlReflectionImePort
@@ -15,10 +21,14 @@ import java.lang.reflect.Field
  * Bypasses Arc Scene2D (`arc.scene.ui.TextField`) and avoids hijacking `Core.scene.keyboardFocus`.
  * Routes IME composition candidates directly to the active text field while passing through events to Mindustry when idle.
  *
+ * @param hostProvider Non-null provider lambda returning the ambient [PlatformHost] facade.
+ *
  * @see ImePort
  * @see PlatformHost
  */
-class SdlReflectionImePort : ImePort {
+class SdlReflectionImePort(
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+) : ImePort {
 
     private var activeCompositionCallback: ((String) -> Unit)? = null
     private var activeClearCallback: (() -> Unit)? = null
@@ -60,23 +70,36 @@ class SdlReflectionImePort : ImePort {
         text: String,
         cursorPosition: Int
     ) {
-        if (isTextInputActive) {
-            updateTextInputRect(globalX, globalY, width, height)
-        }
+        if (!isTextInputActive) return
+
+        updateTextInputRect(globalX, globalY, width, height)
     }
 
     override fun stopSession() {
-        val clearCb = activeClearCallback
-        activeCompositionCallback = null
-        activeClearCallback = null
+        if (!isTextInputActive) return
 
         try {
-            if (isTextInputActive) {
-                SDL.SDL_StopTextInput()
-                isTextInputActive = false
-            }
+            SDL.SDL_StopTextInput()
+            isTextInputActive = false
         } catch (sdlError: Throwable) {
             Log.warn("[NekoMod] SDL_StopTextInput invocation failed", sdlError)
+        }
+
+        activeCompositionCallback = null
+        activeClearCallback = null
+    }
+
+    fun clearComposition() {
+        val clearCb = activeClearCallback
+        activeCompositionCallback?.invoke("")
+
+        if (isTextInputActive) {
+            try {
+                SDL.SDL_StopTextInput()
+                SDL.SDL_StartTextInput()
+            } catch (sdlError: Throwable) {
+                Log.warn("[NekoMod] Restarting text input failed during clearComposition", sdlError)
+            }
         }
 
         clearCb?.invoke()
@@ -86,8 +109,9 @@ class SdlReflectionImePort : ImePort {
 
     private fun updateTextInputRect(globalX: Float, globalY: Float, width: Float, height: Float) {
         try {
+            val portHeight = hostProvider().window.height
             val screenHeight = when {
-                Core.graphics != null && Core.graphics.height > 0 -> Core.graphics.height
+                portHeight > 0.0f -> portHeight.toInt()
                 else -> 1080
             }
             val sdlY = screenHeight - 1 - (globalY + height).toInt()

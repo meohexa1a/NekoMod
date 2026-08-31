@@ -1,6 +1,6 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
-package org.mdt.core.ui.unit
+package org.mdt.core.platform.render
 
 import arc.util.Tmp
 
@@ -9,6 +9,7 @@ import arc.util.Tmp
  *
  * Packed 64-bit unsigned integer color stored in CPU registers without heap allocations (Zero-GC).
  * Provides color math, linear interpolation (`lerp`), alpha blending, hex parsing, and OpenGL vertex packing.
+ * Deeply integrates with Arc Graphics ([arc.graphics.Color], [Tmp.c1]) for maximum performance.
  *
  * @property value Packed 64-bit ARGB unsigned integer value.
  * @property alpha Alpha channel component in `0.0f..1.0f` range.
@@ -17,6 +18,7 @@ import arc.util.Tmp
  * @property blue Blue channel component in `0.0f..1.0f` range.
  *
  * @see org.mdt.core.platform.render.UIBatch
+ * @see arc.graphics.Color
  */
 @JvmInline
 value class Color(val value: ULong) {
@@ -137,7 +139,7 @@ value class Color(val value: ULong) {
     // --- OPENGL & ARC INTEROP ---
 
     /**
-     * Converts to Arc color object using Anuke's pooled [arc.util.Tmp.c1] (Zero-GC).
+     * Converts to Arc color object using Anuke's pooled [Tmp.c1] (Zero-GC).
      */
     fun toArcColor(target: arc.graphics.Color = Tmp.c1): arc.graphics.Color =
         target.set(red, green, blue, alpha)
@@ -187,7 +189,9 @@ value class Color(val value: ULong) {
          */
         fun parse(hex: String): Color {
             var trimmedHex = hex.trim()
-            if (trimmedHex.startsWith("#")) trimmedHex = trimmedHex.substring(1)
+            if (trimmedHex.startsWith("#")) {
+                trimmedHex = trimmedHex.substring(1)
+            }
 
             return try {
                 when (trimmedHex.length) {

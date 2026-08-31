@@ -1,13 +1,12 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
-package org.mdt.core.platform.impl
+package org.mdt.core.platform.window
 
 import arc.Core
 import arc.Events
 import arc.Graphics.Cursor
 import java.util.concurrent.CopyOnWriteArrayList
 import mindustry.game.EventType.ResizeEvent
-import org.mdt.core.platform.port.WindowPort
 
 /**
  * ## MindustryWindowPort

@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Layout Element Modifiers & Fluent Builders.
+// - Operating Mechanism: Applies padding, margins, explicit dimensions, alignment, fill/expand flags, and weight proportions onto [UINode].
+// - Invariants: Float dimensions; bounds >= 0f checked before node mutation; idempotent mutators.
+// - Dependencies: [UIModifier], [UINode], [SizeFlags], [LayoutPreset].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 @file:Suppress("unused")
 
@@ -64,8 +69,12 @@ data class SizeModifier(
     val height: Float = -1.0f
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        if (width >= 0.0f) node.width = width
-        if (height >= 0.0f) node.height = height
+        if (width >= 0.0f) {
+            node.width = width
+        }
+        if (height >= 0.0f) {
+            node.height = height
+        }
     }
 }
 
@@ -82,8 +91,12 @@ data class MinSizeModifier(
     val minHeight: Float = -1.0f
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        if (minWidth >= 0.0f) node.minWidth = minWidth
-        if (minHeight >= 0.0f) node.minHeight = minHeight
+        if (minWidth >= 0.0f) {
+            node.minWidth = minWidth
+        }
+        if (minHeight >= 0.0f) {
+            node.minHeight = minHeight
+        }
     }
 }
 
@@ -100,8 +113,12 @@ data class MaxSizeModifier(
     val maxHeight: Float = -1.0f
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        if (maxWidth >= 0.0f) node.maxWidth = maxWidth
-        if (maxHeight >= 0.0f) node.maxHeight = maxHeight
+        if (maxWidth >= 0.0f) {
+            node.maxWidth = maxWidth
+        }
+        if (maxHeight >= 0.0f) {
+            node.maxHeight = maxHeight
+        }
     }
 }
 
@@ -118,8 +135,12 @@ data class FillModifier(
     val vertical: Boolean = true
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        if (horizontal) node.sizeFlagsHorizontal = node.sizeFlagsHorizontal or SizeFlags.FILL
-        if (vertical) node.sizeFlagsVertical = node.sizeFlagsVertical or SizeFlags.FILL
+        if (horizontal) {
+            node.sizeFlagsHorizontal = node.sizeFlagsHorizontal or SizeFlags.FILL
+        }
+        if (vertical) {
+            node.sizeFlagsVertical = node.sizeFlagsVertical or SizeFlags.FILL
+        }
     }
 }
 
@@ -138,8 +159,12 @@ data class ExpandModifier(
     val ratio: Float = 1.0f
 ) : UIModifier.Element {
     override fun applyTo(node: UINode) {
-        if (horizontal) node.sizeFlagsHorizontal = node.sizeFlagsHorizontal or SizeFlags.EXPAND
-        if (vertical) node.sizeFlagsVertical = node.sizeFlagsVertical or SizeFlags.EXPAND
+        if (horizontal) {
+            node.sizeFlagsHorizontal = node.sizeFlagsHorizontal or SizeFlags.EXPAND
+        }
+        if (vertical) {
+            node.sizeFlagsVertical = node.sizeFlagsVertical or SizeFlags.EXPAND
+        }
         node.stretchRatio = ratio
     }
 }

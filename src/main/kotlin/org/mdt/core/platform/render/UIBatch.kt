@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Master 1-Draw-Call GPU UI Batch Renderer.
+// - Operating Mechanism: 14-float vertex streaming into pre-allocated mesh; per-pixel analytical shader clipping.
+// - Invariants: Float everywhere, OpenGL bottom-left origin (y=0 at bottom), bind via Gl.activeTexture(Gl.texture0 + unit).
+// - Dependencies: [ShaderRegistry], [SceneBlur], [FontRenderer], [LayoutNode], [TextNode].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 package org.mdt.core.platform.render
 
@@ -9,10 +14,8 @@ import arc.graphics.VertexAttribute
 import arc.graphics.g2d.Draw
 import arc.graphics.g2d.TextureRegion
 import arc.math.Mat
-import arc.util.Disposable
 import java.nio.FloatBuffer
-import org.mdt.core.ui.EngineRuntime
-import org.mdt.core.ui.unit.Color
+import org.mdt.core.platform.PlatformHost
 
 /**
  * ## UIBatch
@@ -20,6 +23,8 @@ import org.mdt.core.ui.unit.Color
  * Master 1-Draw-Call GPU UI Batch Renderer.
  * Batches text glyphs, rounded SDF boxes, borders, textures, and frosted glass into a single draw call.
  * Streams 14-float vertex data into a pre-allocated mesh buffer and executes per-pixel analytical scissor clipping in shaders.
+ *
+ * @param hostProvider Non-null provider lambda returning [PlatformHost] for asset texture and shader resolution.
  *
  * @property isDrawing Whether the batch is currently recording draw commands between [begin] and [end].
  * @property totalQuads Total number of quads queued in the current frame batch.
@@ -31,25 +36,62 @@ import org.mdt.core.ui.unit.Color
  * @see org.mdt.core.ui.node.LayoutNode
  * @see org.mdt.core.ui.node.TextNode
  */
-object UIBatch : Disposable {
+class UIBatch(
+    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+) {
 
-    const val MODE_FONT = 0.0f
-    const val MODE_SDF_BOX = 1.0f
-    const val MODE_TEXTURE = 2.0f
-    const val MODE_GLASS = 3.0f
+    val host: PlatformHost
+        get() = hostProvider()
 
-    private const val MAX_QUADS = 16384
-    private const val FLOATS_PER_VERTEX = 14
-    private const val FLOATS_PER_QUAD = FLOATS_PER_VERTEX * 4
-    private const val MAX_VERTICES = MAX_QUADS * 4
-    private const val MAX_INDICES = MAX_QUADS * 6
+    val shaders: ShaderRegistry
+        get() = host.render.shaders
+
+    val blur: SceneBlur
+        get() = host.render.blur
+
+    companion object {
+        const val MODE_FONT = 0.0f
+        const val MODE_SDF_BOX = 1.0f
+        const val MODE_TEXTURE = 2.0f
+        const val MODE_GLASS = 3.0f
+
+        private const val MAX_QUADS = 16384
+        private const val FLOATS_PER_VERTEX = 14
+        private const val FLOATS_PER_QUAD = FLOATS_PER_VERTEX * 4
+        private const val MAX_VERTICES = MAX_QUADS * 4
+        private const val MAX_INDICES = MAX_QUADS * 6
+    }
 
     private val quadBuffer = FloatArray(FLOATS_PER_QUAD)
-    private val verticesBuffer: FloatBuffer
+    private val verticesBuffer: FloatBuffer by lazy { mesh.verticesBuffer }
     private var vertexIndex = 0
     private var queuedQuadCount = 0
 
-    private val mesh: Mesh
+    private val mesh: Mesh by lazy {
+        val attributes = arrayOf(
+            VertexAttribute(4, "a_position"),                       // xy = screen pos, zw = uv coords
+            VertexAttribute(4, Gl.unsignedByte, true, "a_color"),   // rgba = packed ABGR color (unpacked by GL hardware)
+            VertexAttribute(4, "a_boxData"),                        // xy = local pos, zw = box dimensions
+            VertexAttribute(4, "a_style"),                          // x = radius, y = borderWidth, z = mode, w = texUnit
+            VertexAttribute(4, Gl.unsignedByte, true, "a_borderColor") // rgba = packed ABGR border color
+        )
+
+        val indices = ShortArray(MAX_INDICES)
+        var vertexOffset = 0
+        for (indexOffset in 0 until MAX_INDICES step 6) {
+            indices[indexOffset] = vertexOffset.toShort()
+            indices[indexOffset + 1] = (vertexOffset + 1).toShort()
+            indices[indexOffset + 2] = (vertexOffset + 2).toShort()
+            indices[indexOffset + 3] = (vertexOffset + 2).toShort()
+            indices[indexOffset + 4] = (vertexOffset + 3).toShort()
+            indices[indexOffset + 5] = vertexOffset.toShort()
+            vertexOffset += 4
+        }
+
+        Mesh(false, MAX_VERTICES, MAX_INDICES, *attributes).apply {
+            setIndices(indices)
+        }
+    }
     private var isDrawing = false
 
     private val previousProjection = Mat()
@@ -74,33 +116,6 @@ object UIBatch : Disposable {
 
     private var batchStartNanos: Long = 0L
 
-    init {
-        val attributes = arrayOf(
-            VertexAttribute(4, "a_position"),                       // xy = screen pos, zw = uv coords
-            VertexAttribute(4, Gl.unsignedByte, true, "a_color"),   // rgba = packed ABGR color (unpacked by GL hardware)
-            VertexAttribute(4, "a_boxData"),                        // xy = local pos, zw = box dimensions
-            VertexAttribute(4, "a_style"),                          // x = radius, y = borderWidth, z = mode, w = texUnit
-            VertexAttribute(4, Gl.unsignedByte, true, "a_borderColor") // rgba = packed ABGR border color
-        )
-
-        val indices = ShortArray(MAX_INDICES)
-        var vertexOffset = 0
-        for (indexOffset in 0 until MAX_INDICES step 6) {
-            indices[indexOffset] = vertexOffset.toShort()
-            indices[indexOffset + 1] = (vertexOffset + 1).toShort()
-            indices[indexOffset + 2] = (vertexOffset + 2).toShort()
-            indices[indexOffset + 3] = (vertexOffset + 2).toShort()
-            indices[indexOffset + 4] = (vertexOffset + 3).toShort()
-            indices[indexOffset + 5] = vertexOffset.toShort()
-            vertexOffset += 4
-        }
-
-        mesh = Mesh(false, MAX_VERTICES, MAX_INDICES, *attributes).apply {
-            setIndices(indices)
-        }
-        verticesBuffer = mesh.verticesBuffer
-    }
-
     // --- FRAME LIFECYCLE ---
 
     /**
@@ -118,16 +133,16 @@ object UIBatch : Disposable {
         Draw.flush()
 
         // 2. Capture and Blur game background AFTER Arc batch has flushed
-        val blurTexture = SceneBlur.captureAndBlur()
+        val blurTexture = blur.captureAndBlur()
 
-        ShaderRegistry.ensure()
-        val shader = ShaderRegistry.uberShader ?: return
+        shaders.ensure()
+        val shader = shaders.uberShader ?: return
 
         previousProjection.set(Draw.proj())
         Draw.proj(0.0f, 0.0f, screenWidth, screenHeight)
 
         // 3. Texture Unit 0: Master Atlas (Contains fonts, icons, sprites, white pixel)
-        val atlasTexture = EngineRuntime.host.resolveWhiteRegion().texture
+        val atlasTexture = host.resolveWhiteRegion().texture
         activeAtlasTexture = atlasTexture
         if (atlasTexture != null) {
             Gl.activeTexture(Gl.texture0)
@@ -200,7 +215,7 @@ object UIBatch : Disposable {
     ) {
         if (width <= 0.001f || height <= 0.001f) return
 
-        val whiteRegion = EngineRuntime.host.resolveWhiteRegion()
+        val whiteRegion = host.resolveWhiteRegion()
         val texture = region?.texture ?: whiteRegion.texture
         if (texture != null && (activeAtlasTexture == null || activeAtlasTexture != texture)) {
             flush()
@@ -288,7 +303,7 @@ object UIBatch : Disposable {
     ) {
         if (width <= 0.001f || height <= 0.001f) return
 
-        val texture = fontTexture ?: EngineRuntime.host.resolveWhiteRegion().texture
+        val texture = fontTexture ?: host.resolveWhiteRegion().texture
         if (texture != null && (activeAtlasTexture == null || activeAtlasTexture != texture)) {
             flush()
             activeAtlasTexture = texture
@@ -359,7 +374,7 @@ object UIBatch : Disposable {
         val newClip = floatArrayOf(minX, minY, maxOf(minX, maxX), maxOf(minY, maxY))
         if (isDrawing && (newClip[0] != currentClip[0] || newClip[1] != currentClip[1] || newClip[2] != currentClip[2] || newClip[3] != currentClip[3])) {
             flush()
-            ShaderRegistry.uberShader?.setUniformf("u_clipRect", newClip[0], newClip[1], newClip[2], newClip[3])
+            shaders.uberShader?.setUniformf("u_clipRect", newClip[0], newClip[1], newClip[2], newClip[3])
         }
         clipStack.add(newClip)
         currentClip = newClip
@@ -375,7 +390,7 @@ object UIBatch : Disposable {
         val prevClip = if (clipStack.isNotEmpty()) clipStack.last() else defaultClip
         if (isDrawing && (prevClip[0] != currentClip[0] || prevClip[1] != currentClip[1] || prevClip[2] != currentClip[2] || prevClip[3] != currentClip[3])) {
             flush()
-            ShaderRegistry.uberShader?.setUniformf("u_clipRect", prevClip[0], prevClip[1], prevClip[2], prevClip[3])
+            shaders.uberShader?.setUniformf("u_clipRect", prevClip[0], prevClip[1], prevClip[2], prevClip[3])
         }
         currentClip = prevClip
     }
@@ -388,7 +403,7 @@ object UIBatch : Disposable {
     fun flush() {
         if (queuedQuadCount == 0) return
 
-        val shader = ShaderRegistry.uberShader ?: return
+        val shader = shaders.uberShader ?: return
 
         mesh.verticesBuffer
         verticesBuffer.position(0)
@@ -404,10 +419,10 @@ object UIBatch : Disposable {
 
     // --- DISPOSAL ---
 
-    override fun dispose() {
+    fun dispose() {
         mesh.dispose()
-        SceneBlur.dispose()
-        ShaderRegistry.dispose()
+        blur.dispose()
+        shaders.dispose()
         isDrawing = false
     }
 }

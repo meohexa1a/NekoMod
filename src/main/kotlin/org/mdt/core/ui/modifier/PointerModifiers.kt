@@ -1,4 +1,9 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT ARCHITECTURE & INVARIANTS]
+// - Domain Role: Pointer & Input Interaction Element Modifiers & Fluent Builders.
+// - Operating Mechanism: Attaches click, double-click, hover, continuous drag, scroll wheel, key down, and focus listeners to [UINode].
+// - Invariants: 3-pass event dispatch pipeline (`INITIAL`, `MAIN`, `FINAL`); event consumption stops propagation.
+// - Dependencies: [UIModifier], [UINode], [PointerEventPass], [PointerEventType], [EngineInputProcessor].
+// - Directive: Synchronously update @property, @param, and @see KDocs when modifying this file.
 
 @file:Suppress("unused")
 
@@ -90,10 +95,12 @@ data class HoverableModifier(val onHover: (Boolean) -> Unit) : UIModifier.Elemen
     override fun applyTo(node: UINode) {
         node.addPointerInputFilter(object : PointerInputFilter {
             override fun onPointerEvent(event: PointerEvent, pass: PointerEventPass, node: UINode) {
-                if (pass == PointerEventPass.FINAL && event.type == PointerEventType.Enter) {
-                    onHover(true)
-                } else if (pass == PointerEventPass.FINAL && event.type == PointerEventType.Exit) {
-                    onHover(false)
+                if (pass != PointerEventPass.FINAL) return
+
+                when (event.type) {
+                    PointerEventType.Enter -> onHover(true)
+                    PointerEventType.Exit -> onHover(false)
+                    else -> {}
                 }
             }
         })

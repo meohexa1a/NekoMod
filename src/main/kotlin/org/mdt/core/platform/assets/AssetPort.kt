@@ -1,6 +1,6 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
-package org.mdt.core.platform.port
+package org.mdt.core.platform.assets
 
 import arc.graphics.g2d.Font
 import arc.graphics.g2d.TextureRegion
@@ -11,7 +11,7 @@ import arc.graphics.g2d.TextureRegion
  * Defines the abstract contract for resolving sprite atlas regions, typography fonts, raw asset bytes, and shader sources.
  * Includes a built-in [NoOp] stub for headless execution or unit testing.
  *
- * @see org.mdt.core.platform.impl.MindustryAssetPort
+ * @see MindustryAssetPort
  * @see org.mdt.core.platform.PlatformHost
  */
 interface AssetPort {

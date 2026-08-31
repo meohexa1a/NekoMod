@@ -1,6 +1,6 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
-package org.mdt.core.platform.port
+package org.mdt.core.platform.window
 
 import arc.Graphics.Cursor
 
@@ -13,7 +13,7 @@ import arc.Graphics.Cursor
  * @property width Current display surface width in pixels.
  * @property height Current display surface height in pixels.
  *
- * @see org.mdt.core.platform.impl.MindustryWindowPort
+ * @see MindustryWindowPort
  * @see org.mdt.core.platform.PlatformHost
  */
 interface WindowPort {

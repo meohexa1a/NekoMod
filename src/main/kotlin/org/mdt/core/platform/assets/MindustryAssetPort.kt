@@ -1,13 +1,12 @@
-﻿// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
+// [AGENT INVARIANT] Synchronously update @property, @param, and @see KDocs when modifying this file.
 
-package org.mdt.core.platform.impl
+package org.mdt.core.platform.assets
 
 import arc.Core
 import arc.graphics.g2d.Font
 import arc.graphics.g2d.TextureRegion
-import mindustry.Vars
+import arc.util.Log
 import mindustry.ui.Fonts
-import org.mdt.core.platform.port.AssetPort
 
 /**
  * ## MindustryAssetPort
@@ -48,13 +47,9 @@ class MindustryAssetPort : AssetPort {
     }
 
     override fun resolveAssetBytes(path: String): ByteArray? {
-        val treeFile = Vars.tree?.get(path)
-        if (treeFile != null && treeFile.exists()) return treeFile.readBytes()
-
-        val internalFile = Core.files?.internal(path)
-        if (internalFile != null && internalFile.exists()) return internalFile.readBytes()
-
-        val stream = MindustryAssetPort::class.java.classLoader.getResourceAsStream(path)
+        val normalizedPath = path.removePrefix("/")
+        val stream = MindustryAssetPort::class.java.classLoader.getResourceAsStream(normalizedPath)
+            ?: Thread.currentThread().contextClassLoader?.getResourceAsStream(normalizedPath)
         return stream?.use { it.readBytes() }
     }
 
@@ -63,7 +58,11 @@ class MindustryAssetPort : AssetPort {
     }
 
     override fun readShaderSource(path: String): String {
-        val raw = resolveAssetString(path) ?: throw IllegalStateException("Shader resource not found: $path")
+        val raw = resolveAssetString(path)
+        if (raw == null) {
+            Log.err("[NekoMod] Shader resource not found: @", path)
+            return ""
+        }
 
         // Strip UTF-8 Byte Order Mark (BOM \uFEFF) which causes GLSL compiler syntax failures
         return raw.replace("\uFEFF", "").trim()

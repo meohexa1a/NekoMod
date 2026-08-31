@@ -58,6 +58,7 @@ dependencies {
     implementation("org.dom4j:dom4j:2.1.4")
 
     testImplementation(kotlin("test"))
+    testImplementation("Anuken:Mindustry:$mindustryVersion:dependencies")
 }
 
 tasks.withType<Test> {
