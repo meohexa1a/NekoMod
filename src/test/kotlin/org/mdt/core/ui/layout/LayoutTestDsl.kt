@@ -2,6 +2,8 @@ package org.mdt.core.ui.layout
 
 import org.mdt.core.ui.node.LayoutNode
 import org.mdt.core.ui.node.UINode
+import org.mdt.core.ui.unit.Alignment
+import org.mdt.core.ui.unit.Arrangement
 import kotlin.test.assertEquals
 
 /**

@@ -2,6 +2,9 @@ package org.mdt.core.ui.layout
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import org.mdt.core.ui.unit.AnchorData
+import org.mdt.core.ui.unit.GrowDirection
+import org.mdt.core.ui.unit.LayoutPreset
 
 /**
  * ## GodotAnchorTest [Pillar 1: Complete Anchor & Offset Matrix Unit Tests]
