@@ -33,7 +33,7 @@ import org.mdt.core.ui.node.UINode
  */
 class EngineInputProcessor(
     val canvas: CanvasNode,
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost
 ) : InputProcessor {
 
     private val host: PlatformHost get() = hostProvider()
@@ -67,7 +67,7 @@ class EngineInputProcessor(
      */
     fun update() {
         val node = pendingSingleClickNode ?: return
-        val now = host.nowMillis()
+        val now = host.system.nowMillis()
         if (now - pendingSingleClickTime >= doubleClickTimeout) {
             pendingSingleClickNode = null
             node.onClick?.invoke()
@@ -114,7 +114,7 @@ class EngineInputProcessor(
         val previous = focusedNode
         if (previous is InputNode) {
             previous.editState.clearComposition()
-            host.stopImeSession()
+            host.ime.stopSession()
         }
 
         previous?.let { it.isFocused = false }
@@ -123,7 +123,7 @@ class EngineInputProcessor(
 
         if (node is InputNode) {
             val globalPos = node.localToGlobal(0.0f, 0.0f)
-            host.startImeSession(
+            host.ime.startSession(
                 globalX = globalPos.x,
                 globalY = globalPos.y,
                 width = node.bounds.width,
@@ -148,7 +148,7 @@ class EngineInputProcessor(
     fun syncIme(node: InputNode) {
         if (focusedNode === node) {
             val globalPos = node.localToGlobal(0.0f, 0.0f)
-            host.syncImeSession(
+            host.ime.syncSession(
                 globalX = globalPos.x,
                 globalY = globalPos.y,
                 width = node.bounds.width,
@@ -193,7 +193,7 @@ class EngineInputProcessor(
     override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: KeyCode): Boolean {
         val clickX = screenX.toFloat()
         val clickY = toLocalY(screenY)
-        val now = host.nowMillis()
+        val now = host.system.nowMillis()
 
         isPointerPressed = true
         val change = PointerInputChange(
@@ -236,7 +236,7 @@ class EngineInputProcessor(
     override fun touchUp(screenX: Int, screenY: Int, pointer: Int, button: KeyCode): Boolean {
         val clickX = screenX.toFloat()
         val clickY = toLocalY(screenY)
-        val now = host.nowMillis()
+        val now = host.system.nowMillis()
 
         val change = PointerInputChange(
             id = pointer.toLong(),
@@ -307,7 +307,7 @@ class EngineInputProcessor(
     override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
         val dragX = screenX.toFloat()
         val dragY = toLocalY(screenY)
-        val now = host.nowMillis()
+        val now = host.system.nowMillis()
 
         val change = PointerInputChange(
             id = pointer.toLong(),
@@ -334,7 +334,7 @@ class EngineInputProcessor(
     override fun mouseMoved(screenX: Int, screenY: Int): Boolean {
         val moveX = screenX.toFloat()
         val moveY = toLocalY(screenY)
-        val now = host.nowMillis()
+        val now = host.system.nowMillis()
 
         val change = PointerInputChange(
             id = 0L,
@@ -368,10 +368,10 @@ class EngineInputProcessor(
 
             // Update System Mouse Cursor with clean when
             when {
-                target == null -> host.restoreCursor()
-                target.cursor != null -> host.setCursor(target.cursor)
-                target.onClick != null || target.pointerFilters.isNotEmpty() -> host.setCursorHand()
-                else -> host.restoreCursor()
+                target == null -> host.window.restoreCursor()
+                target.cursor != null -> host.window.setCursor(target.cursor)
+                target.onClick != null || target.pointerFilters.isNotEmpty() -> host.window.setCursorHand()
+                else -> host.window.restoreCursor()
             }
         }
 
@@ -381,9 +381,9 @@ class EngineInputProcessor(
     // --- SCROLL EVENTS ---
 
     override fun scrolled(amountX: Float, amountY: Float): Boolean {
-        val scrollX = host.mouseX
-        val scrollY = host.mouseY
-        val now = host.nowMillis()
+        val scrollX = host.input.mouseX
+        val scrollY = host.input.mouseY
+        val now = host.system.nowMillis()
 
         val change = PointerInputChange(
             id = 0L,

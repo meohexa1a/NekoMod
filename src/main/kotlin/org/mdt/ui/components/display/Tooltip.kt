@@ -12,7 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
-import org.mdt.core.platform.render.Color
+import org.mdt.core.platform.unit.Color
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.modifier.UIModifier
 import org.mdt.core.ui.modifier.align

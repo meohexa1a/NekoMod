@@ -3,9 +3,11 @@ package org.mdt.core.platform.render
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import org.mdt.core.platform.AssetPort
+import org.mdt.core.platform.MindustryRenderPort
 import org.mdt.core.platform.PlatformHost
-import org.mdt.core.platform.assets.AssetPort
-import org.mdt.core.platform.window.WindowPort
+import org.mdt.core.platform.RenderPort
+import org.mdt.core.platform.WindowPort
 import org.mdt.core.ui.EngineRuntime
 import org.mdt.core.ui.node.LayoutNode
 import org.mdt.core.ui.node.UINode
@@ -65,12 +67,12 @@ class RenderPortInjectionTest {
     }
 
     @Test
-    fun `PlatformHost exposes non-null RenderPort and convenient facade delegates`() {
+    fun `PlatformHost exposes non-null RenderPort`() {
         assertNotNull(EngineRuntime.host.render)
-        assertNotNull(EngineRuntime.host.shaders)
-        assertNotNull(EngineRuntime.host.blur)
-        assertNotNull(EngineRuntime.host.batch)
-        assertNotNull(EngineRuntime.host.fontRenderer)
+        assertNotNull(EngineRuntime.host.render.shaders)
+        assertNotNull(EngineRuntime.host.render.blur)
+        assertNotNull(EngineRuntime.host.render.batch)
+        assertNotNull(EngineRuntime.host.render.fontRenderer)
         assertNotNull(PlatformHost.NoOp.render)
     }
 
@@ -94,14 +96,14 @@ class RenderPortInjectionTest {
         parentNode.children.add(childNode)
 
         // Draw traversal when visible
-        parentNode.draw(EngineRuntime.host.batch)
+        parentNode.draw(EngineRuntime.host.render.batch)
 
         assertEquals(1, parentDrawCount)
         assertEquals(1, childDrawCount)
 
         // Child hidden: only parent draws
         childNode.visible = false
-        parentNode.draw(EngineRuntime.host.batch)
+        parentNode.draw(EngineRuntime.host.render.batch)
 
         assertEquals(2, parentDrawCount)
         assertEquals(1, childDrawCount)

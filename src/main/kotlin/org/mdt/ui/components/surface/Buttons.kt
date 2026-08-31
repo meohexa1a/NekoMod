@@ -21,7 +21,7 @@ import org.mdt.core.ui.modifier.pad
 import org.mdt.core.ui.modifier.radius
 import org.mdt.core.ui.modifier.size
 import org.mdt.core.ui.layout.Alignment
-import org.mdt.core.platform.render.Color
+import org.mdt.core.platform.unit.Color
 import org.mdt.ui.components.display.Image
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.text.Text

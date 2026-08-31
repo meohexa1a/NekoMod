@@ -7,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.mdt.core.ui.EngineRuntime
 import org.mdt.core.platform.LocalPlatformHost
 import org.mdt.core.ui.modifier.UIModifier
 import org.mdt.core.ui.modifier.align
@@ -16,7 +15,7 @@ import org.mdt.core.ui.modifier.fillMaxWidth
 import org.mdt.core.ui.modifier.width
 import org.mdt.core.ui.layout.Alignment
 import org.mdt.core.ui.layout.Arrangement
-import org.mdt.core.platform.render.Color
+import org.mdt.core.platform.unit.Color
 import org.mdt.ui.components.input.TextField
 import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Column
@@ -87,7 +86,7 @@ fun NekoApp() {
                         },
                         onClick = {
                             blurActive = !blurActive
-                            host.blur.isEnabled = blurActive
+                            host.render.blur.isEnabled = blurActive
                         },
                         variant = when {
                             blurActive -> ButtonVariant.FILLED

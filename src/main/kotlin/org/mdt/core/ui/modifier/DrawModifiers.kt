@@ -12,7 +12,7 @@ package org.mdt.core.ui.modifier
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.ui.node.LayoutNode
 import org.mdt.core.ui.node.UINode
-import org.mdt.core.platform.render.Color
+import org.mdt.core.platform.unit.Color
 
 // --- TYPED DRAW MODIFIER ELEMENTS ---
 

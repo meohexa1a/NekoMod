@@ -15,7 +15,7 @@ import org.mdt.core.ui.layout.SizeFlags
 import org.mdt.core.platform.PlatformHost
 import org.mdt.core.platform.render.UIBatch
 import org.mdt.core.platform.render.FontRenderer
-import org.mdt.core.platform.render.Color
+import org.mdt.core.platform.unit.Color
 
 /**
  * ## InputNode
@@ -40,10 +40,10 @@ import org.mdt.core.platform.render.Color
  */
 open class InputNode(
     text: String = "",
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost
 ) : LayoutNode() {
 
-    val fontRenderer: FontRenderer get() = hostProvider().fontRenderer
+    val fontRenderer: FontRenderer get() = hostProvider().render.fontRenderer
 
     val editState = TextEditState(
         hostProvider = hostProvider
@@ -72,7 +72,7 @@ open class InputNode(
             }
         }
 
-    val activeFont: Font? get() = font ?: host.resolveDefaultFont()
+    val activeFont: Font? get() = font ?: host.assets.resolveDefaultFont()
 
     var onValueChange: ((String) -> Unit)? = null
 
@@ -130,7 +130,7 @@ open class InputNode(
                 2 -> editState.selectWordAt(charIndex)
                 3 -> editState.selectAll()
                 else -> {
-                    val isShift = host.isShiftPressed
+                    val isShift = host.input.isShiftPressed
                     dragSelectionAnchor = if (isShift && editState.selectionStart != -1) editState.selectionStart else charIndex
                     isDraggingSelection = true
                     editState.moveCursor(charIndex, extendSelection = isShift)
@@ -210,7 +210,7 @@ open class InputNode(
         super.drawSelf(batch)
 
         val currentFont = activeFont ?: return
-        val delta = host.deltaTime
+        val delta = host.system.deltaTime
         editState.isFocused = isFocused
         editState.updateBlink(delta)
 

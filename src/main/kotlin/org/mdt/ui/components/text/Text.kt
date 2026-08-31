@@ -9,7 +9,7 @@ import androidx.compose.runtime.ComposeNode
 import arc.graphics.g2d.Font
 import arc.util.Align
 import org.mdt.core.platform.LocalPlatformHost
-import org.mdt.core.platform.render.Color
+import org.mdt.core.platform.unit.Color
 import org.mdt.core.ui.compose.NodeApplier
 import org.mdt.core.ui.modifier.UIModifier
 import org.mdt.core.ui.modifier.fillMaxWidth

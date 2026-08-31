@@ -3,7 +3,7 @@
 package org.mdt.ui.components.surface
 
 import androidx.compose.runtime.Composable
-import org.mdt.core.platform.render.Color
+import org.mdt.core.platform.unit.Color
 import org.mdt.core.ui.modifier.UIModifier
 import org.mdt.core.ui.modifier.background
 import org.mdt.core.ui.modifier.border

@@ -36,7 +36,6 @@ class ComposePipeline {
     val recomposer = Recomposer(scope.coroutineContext)
 
     init {
-        ensureSnapshotObserver()
         scope.launch(start = CoroutineStart.UNDISPATCHED) { recomposer.runRecomposeAndApplyChanges() }
         Log.info("[NekoMod] ComposePipeline initialized with fresh BroadcastFrameClock.")
     }
@@ -51,13 +50,4 @@ class ComposePipeline {
         scope.cancel()
     }
 
-    companion object {
-        private var observerRegistered = false
-
-        private fun ensureSnapshotObserver() {
-            if (observerRegistered) return
-            observerRegistered = true
-            Snapshot.registerGlobalWriteObserver { Snapshot.sendApplyNotifications() }
-        }
-    }
 }

@@ -45,8 +45,8 @@ object EngineRuntime {
         canvas.inputProcessor = inputProcessor
     }
 
-    private var pipeline: ComposePipeline? = null
-    private var composition: UIComposition? = null
+    private val pipeline by lazy(LazyThreadSafetyMode.NONE) { ComposePipeline() }
+    private val composition by lazy(LazyThreadSafetyMode.NONE) { UIComposition(canvas, pipeline.recomposer) }
     private var initialized = false
 
     private val frameEndListener: () -> Unit = { draw() }
@@ -60,15 +60,13 @@ object EngineRuntime {
         initialized = true
         host = platformHost
 
-        if (pipeline == null) {
-            pipeline = ComposePipeline()
-        }
+        
 
-        host.addInputProcessor(inputProcessor)
-        canvas.resize(host.screenWidth, host.screenHeight)
+        host.input.addInputProcessor(inputProcessor)
+        canvas.resize(host.window.width, host.window.height)
 
-        host.onResize(resizeListener)
-        host.onFrameEnd(frameEndListener)
+        host.window.onResize(resizeListener)
+        host.system.onFrameEnd(frameEndListener)
 
         Log.info("[NekoMod] EngineRuntime initialized successfully.")
     }
@@ -77,22 +75,20 @@ object EngineRuntime {
 
     fun setContent(content: @Composable () -> Unit) {
         init()
-        composition?.dispose()
-        val currentPipeline = pipeline ?: ComposePipeline().also { pipeline = it }
-        composition = UIComposition(canvas, currentPipeline.recomposer, host, content)
+        composition.setContent(content)
     }
 
     // --- FRAME RENDERING & DISPATCH ---
 
     fun draw() {
-        val screenWidth = host.screenWidth
-        val screenHeight = host.screenHeight
+        val screenWidth = host.window.width
+        val screenHeight = host.window.height
         if (screenWidth <= 0.0f || screenHeight <= 0.0f) return
 
         try {
             inputProcessor.update()
             canvas.resize(screenWidth, screenHeight)
-            pipeline?.frame()
+            pipeline.frame()
 
             host.render.beginFrame(canvas.screenWidth, canvas.screenHeight)
             canvas.draw(host.render.batch)
@@ -105,15 +101,13 @@ object EngineRuntime {
     // --- DISPOSAL ---
 
     fun dispose() {
-        composition?.dispose()
-        composition = null
+        composition.dispose()
 
-        pipeline?.dispose()
-        pipeline = null
+        pipeline.dispose()
 
-        host.removeInputProcessor(inputProcessor)
-        host.removeResize(resizeListener)
-        host.removeFrameEnd(frameEndListener)
+        host.input.removeInputProcessor(inputProcessor)
+        host.window.removeResize(resizeListener)
+        host.system.removeFrameEnd(frameEndListener)
         host.render.dispose()
         initialized = false
     }

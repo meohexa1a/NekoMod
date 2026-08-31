@@ -7,7 +7,7 @@ package org.mdt.ui.components.display
 import androidx.compose.runtime.Composable
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.platform.LocalPlatformHost
-import org.mdt.core.platform.render.Color
+import org.mdt.core.platform.unit.Color
 import org.mdt.core.ui.modifier.UIModifier
 import org.mdt.core.ui.modifier.background
 import org.mdt.core.ui.modifier.texture
@@ -48,6 +48,6 @@ fun Image(
     tint: Color = Color.White
 ) {
     val host = LocalPlatformHost.current
-    val region = host.resolveAtlasRegion(name) ?: host.resolveFallbackRegion()
+    val region = host.assets.resolveAtlasRegion(name) ?: host.assets.resolveFallbackRegion()
     Image(region = region, modifier = modifier, tint = tint)
 }

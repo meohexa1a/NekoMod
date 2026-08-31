@@ -8,13 +8,12 @@
 package org.mdt.core.ui.node
 
 import arc.graphics.g2d.TextureRegion
-import org.mdt.core.ui.EngineRuntime
 import org.mdt.core.ui.input.PointerEvent
 import org.mdt.core.ui.input.ScrollEvent
 import org.mdt.core.ui.layout.BoxMeasurePolicy
 import org.mdt.core.ui.layout.MeasurePolicy
 import org.mdt.core.platform.render.UIBatch
-import org.mdt.core.platform.render.Color
+import org.mdt.core.platform.unit.Color
 
 /**
  * ## LayoutNode
@@ -119,8 +118,8 @@ open class LayoutNode : UINode() {
     private fun attachScrollPointerHandlers() {
         onScroll = { event: ScrollEvent ->
             var consumed = false
-            val isShift = host.isShiftPressed
-            lastActivityTime = host.nowMillis()
+            val isShift = host.input.isShiftPressed
+            lastActivityTime = host.system.nowMillis()
 
             val isHorizontalOnly = isShift || (!enableVerticalScroll && enableHorizontalScroll)
             when {
@@ -153,12 +152,12 @@ open class LayoutNode : UINode() {
             lastDragX = event.x
             lastDragY = event.y
             isDraggingPointer = true
-            lastActivityTime = host.nowMillis()
+            lastActivityTime = host.system.nowMillis()
         }
 
         onPointerDrag = { event: PointerEvent ->
             var consumed = false
-            lastActivityTime = host.nowMillis()
+            lastActivityTime = host.system.nowMillis()
 
             if (enableVerticalScroll && maxScrollY > 0.0f) {
                 val deltaY = event.y - lastDragY
@@ -181,7 +180,7 @@ open class LayoutNode : UINode() {
 
         onPointerUp = {
             isDraggingPointer = false
-            lastActivityTime = host.nowMillis()
+            lastActivityTime = host.system.nowMillis()
         }
     }
 
@@ -315,7 +314,7 @@ open class LayoutNode : UINode() {
     }
 
     private fun drawScrollbars(batch: UIBatch) {
-        val currentTime = host.nowMillis()
+        val currentTime = host.system.nowMillis()
         val timeSinceActivity = currentTime - lastActivityTime
 
         val scrollbarAlpha: Float = when {

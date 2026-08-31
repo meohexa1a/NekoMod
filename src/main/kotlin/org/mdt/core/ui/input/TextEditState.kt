@@ -27,7 +27,7 @@ import org.mdt.core.platform.PlatformHost
  * @see org.mdt.ui.components.input.TextField
  */
 class TextEditState(
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp },
+    private val hostProvider: () -> PlatformHost ,
     var onTextChange: ((String) -> Unit)? = null
 ) {
     private val host: PlatformHost get() = hostProvider()
@@ -295,20 +295,20 @@ class TextEditState(
     fun copy() {
         val selectedText = getSelectedText()
         if (selectedText.isNotEmpty()) {
-            host.setClipboard(selectedText)
+            host.system.setClipboard(selectedText)
         }
     }
 
     fun cut() {
         val selectedText = getSelectedText()
         if (selectedText.isNotEmpty()) {
-            host.setClipboard(selectedText)
+            host.system.setClipboard(selectedText)
             deleteSelection()
         }
     }
 
     fun paste() {
-        val clipboardText = host.getClipboard()
+        val clipboardText = host.system.getClipboard()
         if (clipboardText.isNotEmpty()) {
             insert(clipboardText)
         }
@@ -333,8 +333,8 @@ class TextEditState(
     fun onKeyDown(key: KeyCode): Boolean {
         if (!isFocused) return false
 
-        val isCtrl = host.isCtrlPressed
-        val isShift = host.isShiftPressed
+        val isCtrl = host.input.isCtrlPressed
+        val isShift = host.input.isShiftPressed
 
         return when (key) {
             KeyCode.backspace -> backspace()

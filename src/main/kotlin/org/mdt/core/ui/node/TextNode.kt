@@ -12,7 +12,7 @@ import arc.util.Align
 import org.mdt.core.platform.render.FontRenderer
 import org.mdt.core.platform.render.UIBatch
 import org.mdt.core.platform.PlatformHost
-import org.mdt.core.platform.render.Color
+import org.mdt.core.platform.unit.Color
 
 /**
  * ## TextNode
@@ -35,10 +35,10 @@ import org.mdt.core.platform.render.Color
  */
 open class TextNode(
     text: String = "",
-    private val hostProvider: () -> PlatformHost = { PlatformHost.NoOp }
+    private val hostProvider: () -> PlatformHost
 ) : LayoutNode() {
 
-    val fontRenderer: FontRenderer get() = hostProvider().fontRenderer
+    val fontRenderer: FontRenderer get() = hostProvider().render.fontRenderer
 
     init {
         hitTestBehavior = HitTestBehavior.TRANSLUCENT
@@ -60,7 +60,7 @@ open class TextNode(
             }
         }
 
-    val activeFont: Font? get() = font ?: host.resolveDefaultFont()
+    val activeFont: Font? get() = font ?: host.assets.resolveDefaultFont()
 
     var textColor: Color = Color.White
     var align: Int = Align.left
