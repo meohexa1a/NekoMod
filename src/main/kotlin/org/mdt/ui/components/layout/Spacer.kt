@@ -14,7 +14,7 @@ import org.mdt.core.ui.modifier.weight
  *
  * Empty layout node reserving spatial gaps in Row or Column containers.
  *
- * See: docs/components-guide/components_guide_en.md
+ * @param modifier Chainable [UIModifier].
  */
 @Composable
 fun Spacer(modifier: UIModifier = UIModifier) {
@@ -26,14 +26,15 @@ fun Spacer(modifier: UIModifier = UIModifier) {
  *
  * Fixed-size spacer reserving equal horizontal and vertical bounds.
  *
- * See: docs/components-guide/components_guide_en.md
+ * @param size Fixed spatial width and height in pixels.
+ * @param modifier Chainable [UIModifier].
  */
 @Composable
 fun Spacer(
     size: Float,
     modifier: UIModifier = UIModifier
 ) {
-    Box(modifier = UIModifier.size(size).then(modifier))
+    Box(modifier = modifier.size(size))
 }
 
 /**
@@ -41,12 +42,13 @@ fun Spacer(
  *
  * Flexible weighted spacer expanding to consume available flex space in Row or Column containers.
  *
- * See: docs/components-guide/components_guide_en.md
+ * @param weight Relative weight fraction for proportional space distribution.
+ * @param modifier Chainable [UIModifier].
  */
 @Composable
 fun FlexSpacer(
     weight: Float = 1.0f,
     modifier: UIModifier = UIModifier
 ) {
-    Box(modifier = UIModifier.weight(weight).then(modifier))
+    Box(modifier = modifier.weight(weight))
 }

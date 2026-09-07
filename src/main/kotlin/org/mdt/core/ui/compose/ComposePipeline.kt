@@ -38,18 +38,7 @@ class ComposePipeline(
 ) {
     val clock = BroadcastFrameClock()
 
-    private val dispatcher = object : CoroutineDispatcher() {
-        override fun dispatch(context: CoroutineContext, block: Runnable) {
-            val host = hostProvider()
-            if (host === PlatformHost.NoOp) {
-                block.run()
-            } else {
-                host.system.postToMainThread { block.run() }
-            }
-        }
-    }
-
-    private val scope = CoroutineScope(dispatcher + SupervisorJob() + clock)
+    private val scope = CoroutineScope(SupervisorJob() + clock)
     val recomposer = Recomposer(scope.coroutineContext)
 
     init {

@@ -21,9 +21,10 @@ import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.layout.Column
 import org.mdt.ui.components.layout.Row
 import org.mdt.ui.components.surface.Button
-import org.mdt.ui.components.surface.ButtonVariant
 import org.mdt.ui.components.surface.Card
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.theme.ButtonDefaults
+import org.mdt.ui.theme.ThemeTokens
 
 /**
  * ## NekoApp [Root UI Application Entry]
@@ -58,13 +59,12 @@ fun NekoApp() {
                 modifier = UIModifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "[#85c1dc]NekoMod[] [#e5c890]v2.0[]",
-                    color = Color.White
+                    text = "[#85c1dc]NekoMod[] [#e5c890]v2.0[]"
                 )
 
                 Text(
                     text = "He thong UI [#a6d189]1-Draw-Call[] sieu muot tren nen tang [#ca9ee6]Uber Shader Batcher[] & Dual-Kawase Frosted Glass.",
-                    color = Color(0.85f, 0.85f, 0.90f, 1.0f),
+                    color = ThemeTokens.textSecondary,
                     wrap = true
                 )
 
@@ -88,16 +88,17 @@ fun NekoApp() {
                             blurActive = !blurActive
                             host.render.blur.isEnabled = blurActive
                         },
-                        variant = when {
-                            blurActive -> ButtonVariant.FILLED
-                            else -> ButtonVariant.TINTED
+                        colors = when {
+                            blurActive -> ButtonDefaults.filled()
+                            else -> ButtonDefaults.tinted()
                         }
                     )
 
                     Button(
                         text = "So lan bam: $clickCount",
                         onClick = { clickCount++ },
-                        variant = ButtonVariant.GLASS
+                        colors = ButtonDefaults.glass(),
+                        isGlass = blurActive
                     )
                 }
             }

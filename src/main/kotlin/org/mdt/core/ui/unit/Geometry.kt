@@ -128,6 +128,8 @@ class Insets(
     var right: Float = 0.0f,
     var bottom: Float = 0.0f,
 ) {
+    constructor(all: Float) : this(all, all, all, all)
+
     /** Total horizontal inset width (`left + right`). */
     val horizontal: Float get() = left + right
 

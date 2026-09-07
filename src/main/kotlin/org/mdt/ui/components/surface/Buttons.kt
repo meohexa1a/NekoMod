@@ -10,179 +10,145 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import arc.graphics.g2d.TextureRegion
-import org.mdt.core.ui.layout.BoxScope
+import org.mdt.core.ui.layout.RowScope
+import org.mdt.ui.components.layout.Row
 import org.mdt.core.ui.modifier.UIModifier
-import org.mdt.core.ui.unit.Alignment
-import org.mdt.core.ui.unit.Color
-import org.mdt.core.ui.modifier.background
-import org.mdt.core.ui.modifier.border
-import org.mdt.core.ui.modifier.clickable
-import org.mdt.core.ui.modifier.glass
-import org.mdt.core.ui.modifier.hoverable
-import org.mdt.core.ui.modifier.pad
-import org.mdt.core.ui.modifier.radius
 import org.mdt.core.ui.modifier.size
+import org.mdt.core.ui.unit.Alignment
+import org.mdt.core.ui.unit.Arrangement
+import org.mdt.core.ui.unit.Color
 import org.mdt.core.ui.unit.Insets
 import org.mdt.ui.components.display.Image
-import org.mdt.ui.components.layout.Box
 import org.mdt.ui.components.text.Text
+import org.mdt.ui.theme.ButtonColors
 import org.mdt.ui.theme.ButtonDefaults
-
-// --- BUTTON VARIANTS ---
-
-/**
- * ## ButtonVariant
- *
- * Visual styling variants for interactive buttons.
- *
- * See: docs/components-guide/components_guide_en.md
- */
-enum class ButtonVariant {
-    FILLED,
-    TINTED,
-    GLASS,
-    OUTLINED
-}
-
-// --- BUTTON COMPOSABLE ---
 
 /**
  * ## Button
  *
- * Clickable interactive container supporting filled, tinted, glassmorphic, and outlined styles.
+ * Primary interactive button built on [Surface] with a slot-based [RowScope] layout.
+ * Supports custom [ButtonColors] data palettes, stateful hover/press color shifts,
+ * and ambient foreground [org.mdt.ui.theme.LocalContentColor].
  *
- * See: docs/components-guide/components_guide_en.md
+ * @param onClick Action invoked when the button is clicked.
+ * @param modifier Chainable [UIModifier].
+ * @param enabled Whether this button responds to user interaction.
+ * @param colors Interactive container and content color palette ([ButtonColors]).
+ * @param radius Corner radius in pixels.
+ * @param borderWidth Outline border stroke thickness in pixels.
+ * @param isGlass Whether frosted background glassmorphism is enabled.
+ * @param contentPadding Inward padding insets for button content.
+ * @param content Slot receiving [RowScope] for placing text, icons, and badges.
+ *
+ * @see Surface
+ * @see ButtonColors
+ * @see ButtonDefaults
  */
 @Composable
 fun Button(
     onClick: () -> Unit,
     modifier: UIModifier = UIModifier,
-    variant: ButtonVariant = ButtonVariant.FILLED,
     enabled: Boolean = true,
+    colors: ButtonColors = ButtonDefaults.filled(),
+    radius: Float = ButtonDefaults.radius,
+    borderWidth: Float = ButtonDefaults.borderWidth,
+    isGlass: Boolean = false,
     contentPadding: Insets = ButtonDefaults.contentPadding,
-    content: @Composable BoxScope.() -> Unit
+    content: @Composable RowScope.() -> Unit
 ) {
     var isHovered by remember { mutableStateOf(false) }
     var isPressed by remember { mutableStateOf(false) }
 
-    val accentBlue = Color.valueOf("0a84ff")
-    val glassBg = Color(0.25f, 0.25f, 0.35f, 0.35f)
-
-    val currentBg = when (variant) {
-        ButtonVariant.FILLED -> when {
-            isPressed -> accentBlue.mul(0.8f)
-            isHovered -> accentBlue.mul(1.15f)
-            else -> accentBlue
-        }
-        ButtonVariant.TINTED -> when {
-            isPressed -> accentBlue.withAlpha(0.35f)
-            isHovered -> accentBlue.withAlpha(0.25f)
-            else -> accentBlue.withAlpha(0.15f)
-        }
-        ButtonVariant.GLASS -> when {
-            isPressed -> glassBg.withAlpha(0.65f)
-            isHovered -> glassBg.withAlpha(0.50f)
-            else -> glassBg
-        }
-        ButtonVariant.OUTLINED -> when {
-            isPressed -> Color(1.0f, 1.0f, 1.0f, 0.15f)
-            isHovered -> Color(1.0f, 1.0f, 1.0f, 0.08f)
-            else -> Color.Clear
-        }
+    Surface(
+        modifier = modifier,
+        color = colors.currentContainer(isHovered, isPressed),
+        contentColor = colors.contentColor,
+        radius = radius,
+        borderWidth = borderWidth,
+        borderColor = colors.currentBorder(isHovered),
+        isGlass = isGlass,
+        contentPadding = contentPadding,
+        onClick = { if (enabled) onClick() },
+        onPressStateChanged = { if (enabled) isPressed = it },
+        onHoverStateChanged = { if (enabled) isHovered = it }
+    ) {
+        Row(
+            arrangement = Arrangement.Center,
+            alignment = Alignment.Center,
+            content = content
+        )
     }
-
-    val currentBorder = when (variant) {
-        ButtonVariant.GLASS -> when {
-            isHovered -> Color(1.0f, 1.0f, 1.0f, 0.45f)
-            else -> Color(1.0f, 1.0f, 1.0f, 0.25f)
-        }
-        ButtonVariant.OUTLINED -> when {
-            isHovered -> accentBlue
-            else -> Color(1.0f, 1.0f, 1.0f, 0.3f)
-        }
-        else -> Color.Clear
-    }
-
-    Box(
-        modifier = UIModifier
-            .radius(ButtonDefaults.radius)
-            .background(currentBg)
-            .border(ButtonDefaults.borderWidth, currentBorder)
-            .glass(variant == ButtonVariant.GLASS)
-            .pad(
-                left = contentPadding.left,
-                top = contentPadding.top,
-                right = contentPadding.right,
-                bottom = contentPadding.bottom
-            )
-            .hoverable { if (enabled) isHovered = it }
-            .clickable(
-                onClick = { if (enabled) onClick() },
-                onPressStateChanged = { if (enabled) isPressed = it }
-            )
-            .then(modifier),
-        content = content
-    )
 }
 
 // --- CONVENIENCE OVERLOADS ---
 
 /**
- * ## Button (Convenience Text Overload)
+ * ## Button (Convenience Text Label Overload)
  *
- * Clickable button with centered text label.
+ * Interactive button rendering a single text label with automatic ambient contrast color.
  *
- * See: docs/components-guide/components_guide_en.md
+ * @param text Button label string.
+ * @param onClick Action invoked on click.
+ * @param modifier Chainable [UIModifier].
+ * @param colors Interactive color palette ([ButtonColors]).
+ * @param enabled Whether interaction is enabled.
+ * @param isGlass Whether background frosted glass is enabled.
  */
 @Composable
 fun Button(
     text: String,
     onClick: () -> Unit,
     modifier: UIModifier = UIModifier,
-    variant: ButtonVariant = ButtonVariant.FILLED,
-    enabled: Boolean = true
+    colors: ButtonColors = ButtonDefaults.filled(),
+    enabled: Boolean = true,
+    isGlass: Boolean = false
 ) {
     Button(
         onClick = onClick,
         modifier = modifier,
-        variant = variant,
-        enabled = enabled
+        colors = colors,
+        enabled = enabled,
+        isGlass = isGlass
     ) {
-        Text(
-            text = text,
-            color = Color.White,
-            modifier = UIModifier.align(Alignment.Center)
-        )
+        Text(text = text)
     }
 }
 
 /**
  * ## IconButton
  *
- * Compact action button with centered icon.
+ * Compact icon-centric action button with centered graphic region.
  *
- * See: docs/components-guide/components_guide_en.md
+ * @param region Texture region icon to display.
+ * @param onClick Action invoked on click.
+ * @param modifier Chainable [UIModifier].
+ * @param colors Interactive color palette ([ButtonColors]).
+ * @param enabled Whether interaction is enabled.
+ * @param tint Tint color override (defaults to [org.mdt.ui.theme.LocalContentColor]).
+ * @param isGlass Whether background frosted glass is enabled.
  */
 @Composable
 fun IconButton(
     region: TextureRegion,
     onClick: () -> Unit,
     modifier: UIModifier = UIModifier,
-    variant: ButtonVariant = ButtonVariant.GLASS,
+    colors: ButtonColors = ButtonDefaults.glass(),
     enabled: Boolean = true,
-    tint: Color = Color.White
+    tint: Color = Color.Unspecified,
+    isGlass: Boolean = true
 ) {
     Button(
         onClick = onClick,
-        modifier = UIModifier.size(36.0f).then(modifier),
-        variant = variant,
+        modifier = modifier.size(36.0f),
+        colors = colors,
         enabled = enabled,
+        isGlass = isGlass,
         contentPadding = Insets.Zero
     ) {
         Image(
             region = region,
             tint = tint,
-            modifier = UIModifier.size(18.0f).align(Alignment.Center)
+            modifier = UIModifier.size(18.0f)
         )
     }
 }

@@ -18,11 +18,22 @@ import org.mdt.core.ui.unit.Alignment
 import org.mdt.core.ui.unit.Color
 import org.mdt.core.ui.unit.LayoutPreset
 import org.mdt.ui.components.layout.Box
+import org.mdt.ui.theme.ThemeTokens
 
 /**
  * ## ModalDialog
  *
- * Full-screen modal overlay with a semi-transparent frosted backdrop scrim and click-outside dismiss handling.
+ * Full-screen modal overlay with a semi-transparent frosted backdrop scrim,
+ * click-outside dismiss handling, and an elevated dialog [Surface].
+ *
+ * @param visible Whether the dialog is visible and mounted.
+ * @param onDismiss Callback invoked when clicking on the backdrop scrim.
+ * @param modifier Chainable [UIModifier] applied to the dialog card.
+ * @param scrimColor Scrim fill color behind the dialog.
+ * @param content Slot receiving [BoxScope] for dialog contents.
+ *
+ * @see Surface
+ * @see Card
  */
 @Composable
 fun ModalDialog(
@@ -43,12 +54,16 @@ fun ModalDialog(
             .opaque()
             .onClick { onDismiss() }
     ) {
-        // Centered modal dialog card (intercepts clicks to prevent dismissing)
-        Card(
-            modifier = UIModifier
+        // Centered modal dialog surface (intercepts clicks to prevent dismissing)
+        Surface(
+            modifier = modifier
                 .align(Alignment.Center)
-                .consumePointer()
-                .then(modifier),
+                .consumePointer(),
+            color = ThemeTokens.surfaceModal,
+            radius = 16.0f,
+            borderWidth = 1.0f,
+            borderColor = ThemeTokens.border,
+            isGlass = true,
             content = content
         )
     }

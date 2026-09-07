@@ -2,8 +2,18 @@
 
 package org.mdt.ui.theme
 
+import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.compositionLocalOf
 import org.mdt.core.ui.unit.Color
 import org.mdt.core.ui.unit.Insets
+
+/**
+ * ## LocalContentColor
+ *
+ * Ambient composition local providing the contextual foreground content color (text, icons)
+ * dictated by parent containers like [org.mdt.ui.components.surface.Surface].
+ */
+val LocalContentColor: ProvidableCompositionLocal<Color> = compositionLocalOf { ThemeTokens.textPrimary }
 
 /**
  * ## ThemeTokens
@@ -53,34 +63,114 @@ object ThemeTokens {
  * Default visual styling configuration for [org.mdt.ui.components.surface.Card].
  *
  * @property color Default card surface background color.
+ * @property contentColor Default card foreground text/content color.
  * @property borderColor Default card outline border color.
+ * @property contentPadding Default card inner content padding insets.
  * @property radius Default corner radius in pixels.
  * @property borderWidth Default outline border stroke thickness in pixels.
  */
 object CardDefaults {
     val color: Color get() = ThemeTokens.surface
+    val contentColor: Color get() = ThemeTokens.textPrimary
     val borderColor: Color get() = ThemeTokens.border
+    val contentPadding: Insets get() = Insets(all = 16.0f)
     const val radius: Float = 16.0f
     const val borderWidth: Float = 1.0f
 }
 
 /**
+ * ## ButtonColors
+ *
+ * Immutable data class storing button container, content text/icons, and border colors across interaction states.
+ *
+ * @property containerColor Resting background fill color.
+ * @property contentColor Foreground text/icon color.
+ * @property hoverContainerColor Background fill color when hovered.
+ * @property pressedContainerColor Background fill color when pressed.
+ * @property borderColor Outline border stroke color.
+ * @property hoverBorderColor Outline border stroke color when hovered.
+ */
+data class ButtonColors(
+    val containerColor: Color,
+    val contentColor: Color,
+    val hoverContainerColor: Color,
+    val pressedContainerColor: Color,
+    val borderColor: Color = Color.Clear,
+    val hoverBorderColor: Color = borderColor
+) {
+    fun currentContainer(isHovered: Boolean, isPressed: Boolean): Color = when {
+        isPressed -> pressedContainerColor
+        isHovered -> hoverContainerColor
+        else -> containerColor
+    }
+
+    fun currentBorder(isHovered: Boolean): Color = when {
+        isHovered -> hoverBorderColor
+        else -> borderColor
+    }
+}
+
+/**
  * ## ButtonDefaults
  *
- * Default visual styling and layout insets for [org.mdt.ui.components.surface.Button].
+ * Factory methods and design token defaults for [org.mdt.ui.components.surface.Button].
  *
- * @property backgroundColor Default button background fill color.
- * @property borderColor Default button outline border stroke color.
  * @property contentPadding Default inner padding insets.
  * @property radius Default corner radius in pixels.
  * @property borderWidth Default outline border stroke thickness in pixels.
  */
 object ButtonDefaults {
-    val backgroundColor: Color get() = ThemeTokens.surfaceVariant
-    val borderColor: Color get() = ThemeTokens.border
     val contentPadding: Insets get() = Insets(left = 16.0f, top = 8.0f, right = 16.0f, bottom = 8.0f)
     const val radius: Float = 8.0f
     const val borderWidth: Float = 1.0f
+
+    /** Creates a prominent filled button color palette. */
+    fun filled(
+        containerColor: Color = ThemeTokens.primary,
+        contentColor: Color = ThemeTokens.textPrimary
+    ): ButtonColors = ButtonColors(
+        containerColor = containerColor,
+        contentColor = contentColor,
+        hoverContainerColor = containerColor.mul(1.15f),
+        pressedContainerColor = containerColor.mul(0.85f)
+    )
+
+    /** Creates a subtle tinted button color palette. */
+    fun tinted(
+        containerColor: Color = ThemeTokens.primary.withAlpha(0.15f),
+        contentColor: Color = ThemeTokens.primary
+    ): ButtonColors = ButtonColors(
+        containerColor = containerColor,
+        contentColor = contentColor,
+        hoverContainerColor = ThemeTokens.primary.withAlpha(0.25f),
+        pressedContainerColor = ThemeTokens.primary.withAlpha(0.35f)
+    )
+
+    /** Creates a frosted glassmorphic button color palette. */
+    fun glass(
+        containerColor: Color = Color(0.25f, 0.25f, 0.35f, 0.35f),
+        contentColor: Color = ThemeTokens.textPrimary
+    ): ButtonColors = ButtonColors(
+        containerColor = containerColor,
+        contentColor = contentColor,
+        hoverContainerColor = containerColor.withAlpha(0.50f),
+        pressedContainerColor = containerColor.withAlpha(0.65f),
+        borderColor = Color(1.0f, 1.0f, 1.0f, 0.25f),
+        hoverBorderColor = Color(1.0f, 1.0f, 1.0f, 0.45f)
+    )
+
+    /** Creates an outlined button color palette. */
+    fun outlined(
+        contentColor: Color = ThemeTokens.textPrimary,
+        borderColor: Color = ThemeTokens.border
+    ): ButtonColors = ButtonColors(
+        containerColor = Color.Clear,
+        contentColor = contentColor,
+        hoverContainerColor = Color(1.0f, 1.0f, 1.0f, 0.08f),
+        pressedContainerColor = Color(1.0f, 1.0f, 1.0f, 0.15f),
+        borderColor = borderColor,
+        hoverBorderColor = ThemeTokens.primary
+    )
 }
 
 /**

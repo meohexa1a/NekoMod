@@ -40,13 +40,13 @@ EngineRuntime.setContent {
                 Button(
                     text = "Đếm: $count",
                     onClick = { count++ },
-                    variant = ButtonVariant.FILLED,
+                    colors = ButtonDefaults.filled(),
                     modifier = Modifier.weight(1.0f)
                 )
                 Button(
                     text = "Reset",
                     onClick = { count = 0 },
-                    variant = ButtonVariant.OUTLINED,
+                    colors = ButtonDefaults.outlined(),
                     modifier = Modifier.weight(1.0f)
                 )
             }
@@ -73,11 +73,11 @@ NekoMod tuân thủ nghiêm ngặt quy chuẩn phạm vi modifier của Jetpack/
 
 ### A. `RowScope` (Container Ngang)
 * `Modifier.weight(weight: Float)`: Phân bổ không gian thừa theo trục ngang theo tỷ lệ, hoàn toàn không làm biến dạng trục dọc.
-* `Modifier.align(alignment: VerticalAlign)`: Căn chỉnh trục dọc nội bộ (`VerticalAlign.Top`, `VerticalAlign.Center`, `VerticalAlign.Bottom`, `VerticalAlign.Fill`).
+* `Modifier.align(alignment: VerticalAlign)`: Căn chỉnh trục dọc nội bộ (`VerticalAlign.TOP`, `VerticalAlign.CENTER`, `VerticalAlign.BOTTOM`, `VerticalAlign.FILL`).
 
 ### B. `ColumnScope` (Container Dọc)
 * `Modifier.weight(weight: Float)`: Phân bổ không gian thừa theo trục dọc theo tỷ lệ, hoàn toàn không làm biến dạng trục ngang.
-* `Modifier.align(alignment: HorizontalAlign)`: Căn chỉnh trục ngang nội bộ (`HorizontalAlign.Left`, `HorizontalAlign.Center`, `HorizontalAlign.Right`, `HorizontalAlign.Fill`).
+* `Modifier.align(alignment: HorizontalAlign)`: Căn chỉnh trục ngang nội bộ (`HorizontalAlign.START`, `HorizontalAlign.CENTER`, `HorizontalAlign.END`, `HorizontalAlign.FILL`).
 
 ### C. `BoxScope` (Tọa độ 2D & Lớp phủ)
 * `Modifier.align(alignment: Alignment)`: Căn chỉnh vị trí 2 chiều trong Box (`Alignment.Center`, `Alignment.TopStart`, `Alignment.BottomEnd`, v.v.).
@@ -110,15 +110,16 @@ NekoMod tuân thủ nghiêm ngặt quy chuẩn phạm vi modifier của Jetpack/
 
 ---
 
-## 4. Thư viện Component Dựng sẵn
+## 4. Thư viện Component Dựng sẵn (Compose Material 3 Standards)
 
 | Component | Phạm vi / Trách nhiệm | Tham số Nổi bật |
 | :--- | :--- | :--- |
-| `Card()` | Khung chứa kính mờ bo góc SDF | `modifier`, `color`, `radius`, `borderWidth`, `borderColor`, `isGlass`, `content: BoxScope` |
-| `Button()` | Nút bấm tương tác với trạng thái Hover/Press | `onClick`, `modifier`, `variant`, `enabled`, `contentPadding`, `content: BoxScope` |
-| `IconButton()` | Nút bấm nhỏ gọn chuyên chứa icon | `region`, `onClick`, `modifier`, `variant`, `tint`, `enabled` |
-| `TextField()` | Ô nhập liệu văn bản hỗ trợ IME & trạng thái kiểm soát | `value`, `onValueChange`, `placeholder`, `enabled`, `isMultiline`, `font` |
-| `Text()` | Nhãn chữ BMFont chuẩn xác ở natural scale | `text`, `modifier`, `color`, `font`, `align`, `wrap`, `ellipsis` |
-| `Image()` | Hiển thị vùng texture đồ họa | `region`, `modifier`, `tint`, `aspectRatio` |
-| `ModalDialog()` | Lớp phủ modal toàn màn hình với scrim mờ | `visible`, `onDismiss`, `modifier`, `scrimColor`, `content: BoxScope` |
+| `Surface()` | Khung thị giác nền tảng, bo góc SDF, kính mờ và đẩy `LocalContentColor` | `modifier`, `color`, `contentColor`, `radius`, `borderWidth`, `borderColor`, `isGlass`, `contentPadding`, `onClick`, `content: BoxScope` |
+| `Card()` | Khung chứa nhóm thông tin xây dựng trên `Surface` | `modifier`, `color`, `radius`, `borderWidth`, `borderColor`, `isGlass`, `contentPadding`, `content: BoxScope` |
+| `Button()` | Nút bấm tương tác trên `Surface` với slot `RowScope` | `onClick`, `modifier`, `colors: ButtonColors`, `enabled`, `contentPadding`, `content: RowScope` |
+| `IconButton()` | Nút bấm nhỏ gọn chuyên chứa icon | `region`, `onClick`, `modifier`, `colors`, `tint`, `enabled` |
+| `TextField()` | Ô nhập liệu văn bản hỗ trợ IME xây dựng trên `Surface` | `value`, `onValueChange`, `placeholder`, `enabled`, `isMultiline`, `font` |
+| `Text()` | Nhãn chữ BMFont chuẩn xác, tự động thích ứng với `LocalContentColor` | `text`, `modifier`, `color`, `font`, `align`, `wrap`, `ellipsis` |
+| `Image()` | Hiển thị vùng texture đồ họa với màu tint tự động | `region`, `modifier`, `tint`, `aspectRatio` |
+| `ModalDialog()` | Lớp phủ modal toàn màn hình với scrim mờ và `Surface` trung tâm | `visible`, `onDismiss`, `modifier`, `scrimColor`, `content: BoxScope` |
 | `TooltipBox()` | Khung gợi ý xuất hiện khi hover với delay | `tooltip: BoxScope`, `modifier`, `delayMs`, `content: BoxScope` |

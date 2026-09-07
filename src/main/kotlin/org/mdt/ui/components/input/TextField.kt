@@ -11,15 +11,12 @@ import org.mdt.core.platform.LocalPlatformHost
 import org.mdt.core.ui.compose.NodeApplier
 import org.mdt.core.ui.modifier.UIModifier
 import org.mdt.core.ui.modifier.align
-import org.mdt.core.ui.modifier.background
-import org.mdt.core.ui.modifier.border
 import org.mdt.core.ui.modifier.fillMaxWidth
-import org.mdt.core.ui.modifier.pad
-import org.mdt.core.ui.modifier.radius
 import org.mdt.core.ui.node.InputNode
 import org.mdt.core.ui.unit.Alignment
 import org.mdt.core.ui.unit.Color
-import org.mdt.ui.components.layout.Box
+import org.mdt.core.ui.unit.Insets
+import org.mdt.ui.components.surface.Surface
 import org.mdt.ui.theme.InputStyle
 import org.mdt.ui.theme.LocalInputStyle
 import org.mdt.ui.theme.TextFieldDefaults
@@ -101,8 +98,8 @@ fun BasicInput(
 /**
  * ## TextField
  *
- * Styled interactive text input field composed with container background,
- * border, padding, horizontal scrolling, and IME-safe placeholder handling.
+ * Styled interactive text input field composed on [Surface] with container background,
+ * border, padding insets, horizontal scrolling, and IME-safe placeholder handling.
  *
  * @param value Current string value.
  * @param onValueChange Callback invoked when the user types or modifies text.
@@ -118,6 +115,7 @@ fun BasicInput(
  * @param font Optional font override.
  *
  * @see BasicInput
+ * @see Surface
  * @see InputStyle
  */
 @Composable
@@ -135,13 +133,13 @@ fun TextField(
     radius: Float = TextFieldDefaults.radius,
     font: Font? = null
 ) {
-    Box(
-        modifier = UIModifier
-            .background(backgroundColor)
-            .radius(radius)
-            .border(borderWidth, borderColor)
-            .pad(left = 12.0f, right = 12.0f, top = 8.0f, bottom = 8.0f)
-            .then(modifier)
+    Surface(
+        modifier = modifier,
+        color = backgroundColor,
+        radius = radius,
+        borderWidth = borderWidth,
+        borderColor = borderColor,
+        contentPadding = Insets(left = 12.0f, top = 8.0f, right = 12.0f, bottom = 8.0f)
     ) {
         BasicInput(
             value = value,
@@ -155,5 +153,3 @@ fun TextField(
         )
     }
 }
-
-

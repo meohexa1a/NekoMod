@@ -8,29 +8,39 @@ import androidx.compose.runtime.Composable
 import arc.graphics.g2d.TextureRegion
 import org.mdt.core.platform.LocalPlatformHost
 import org.mdt.core.ui.modifier.UIModifier
-import org.mdt.core.ui.unit.Color
 import org.mdt.core.ui.modifier.background
 import org.mdt.core.ui.modifier.texture
+import org.mdt.core.ui.unit.Color
 import org.mdt.ui.components.layout.Box
+import org.mdt.ui.theme.LocalContentColor
 
 /**
  * ## Image
  *
  * Declarative image composable rendering TextureRegions from the game atlas.
+ * Automatically tints according to [LocalContentColor] if [tint] is [Color.Unspecified].
  *
- * See: docs/components-guide/components_guide_en.md
+ * @param region Texture region to draw.
+ * @param modifier Chainable [UIModifier].
+ * @param tint Color tint applied to the texture region.
+ *
+ * @see LocalContentColor
  */
 @Composable
 fun Image(
     region: TextureRegion,
     modifier: UIModifier = UIModifier,
-    tint: Color = Color.White
+    tint: Color = Color.Unspecified
 ) {
+    val resolvedTint = when {
+        tint.isSpecified -> tint
+        else -> LocalContentColor.current
+    }
+
     Box(
-        modifier = UIModifier
+        modifier = modifier
             .texture(region)
-            .background(tint)
-            .then(modifier)
+            .background(resolvedTint)
     )
 }
 
@@ -39,13 +49,15 @@ fun Image(
  *
  * Declarative image composable resolving TextureRegions dynamically by name from [LocalPlatformHost].
  *
- * See: docs/components-guide/components_guide_en.md
+ * @param name Atlas texture region name identifier.
+ * @param modifier Chainable [UIModifier].
+ * @param tint Color tint applied to the texture region.
  */
 @Composable
 fun Image(
     name: String,
     modifier: UIModifier = UIModifier,
-    tint: Color = Color.White
+    tint: Color = Color.Unspecified
 ) {
     val host = LocalPlatformHost.current
     val region = host.assets.resolveAtlasRegion(name) ?: host.assets.resolveFallbackRegion()
