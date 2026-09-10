@@ -6,7 +6,7 @@ plugins {
     id("com.gradleup.shadow") version "9.2.2"
 }
 
-group = "org.mdt"
+group = "org.hubdustry"
 
 repositories {
     mavenCentral()
@@ -81,8 +81,9 @@ tasks.register("jarAndroid") {
     description = "Convert desktop JAR to Android-compatible DEX"
     dependsOn("shadowJar")
     doLast {
-        val androidHome = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
-        ?: throw GradleException("Set ANDROID_HOME or ANDROID_SDK_ROOT")
+        val androidHome = System.getenv("ANDROID_HOME")
+            ?: System.getenv("ANDROID_SDK_ROOT")
+            ?: throw GradleException("Set ANDROID_HOME or ANDROID_SDK_ROOT")
         val platformRoot = File(androidHome, "platforms").listFiles()
             ?.sorted()?.reversed()
             ?.firstOrNull { File(it, "android.jar").exists() }
@@ -91,7 +92,8 @@ tasks.register("jarAndroid") {
             ?.sorted()?.reversed()?.firstOrNull()
             ?: throw GradleException("No build-tools found")
         val d8 = if (System.getProperty("os.name").lowercase().contains("windows"))
-            File(buildToolsDir, "d8.bat") else File(buildToolsDir, "d8")
+            File(buildToolsDir, "d8.bat")
+            else File(buildToolsDir, "d8")
         if (!d8.exists()) throw GradleException("d8 not found at ${d8.absolutePath}")
 
         val libs = file("build/libs")
