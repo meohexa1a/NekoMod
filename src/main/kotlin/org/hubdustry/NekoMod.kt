@@ -4,6 +4,7 @@ import arc.Core
 import arc.Events
 import mindustry.game.EventType.ClientLoadEvent
 import mindustry.mod.Mod
+import org.hubdustry.sample.SampleComposeDialog
 
 class NekoMod : Mod() {
 
@@ -12,6 +13,6 @@ class NekoMod : Mod() {
     }
 
     fun loadMod() {
-
+        SampleComposeDialog().show()
     }
 }
