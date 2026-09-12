@@ -246,4 +246,82 @@ class FlexLayoutTest {
         assertEquals(140f, row.minWidth, 0.001f)
         assertEquals(90f, row.minHeight, 0.001f)
     }
+
+    @Test
+    fun testGhostNodeWithAnchorInRow() {
+        val row = LayoutNode().apply {
+            policy = RowPolicy(gap = 0f)
+        }
+        val buttonA = LayoutNode().apply {
+            minWidth = 50f
+            sizeFlagHorizontal = SizeFlag.SHRINK
+        }
+        val ghostBadge = LayoutNode().apply {
+            minWidth = 20f
+            minHeight = 20f
+            anchor.setPreset(AnchorPreset.TOP_RIGHT)
+        }
+        val buttonB = LayoutNode().apply {
+            minWidth = 50f
+            sizeFlagHorizontal = SizeFlag.SHRINK
+        }
+
+        row.addChild(buttonA)
+        row.addChild(ghostBadge)
+        row.addChild(buttonB)
+
+        row.layout(300f, 100f)
+
+        // Ghost badge không làm dời vị trí của buttonB
+        assertEquals(0f, buttonA.x, 0.001f)
+        assertEquals(50f, buttonB.x, 0.001f)
+
+        // Neo chính xác vào góc trên-phải của Row: x = 300 - 20 = 280, y = 0
+        assertEquals(280f, ghostBadge.x, 0.001f)
+        assertEquals(0f, ghostBadge.y, 0.001f)
+        assertEquals(20f, ghostBadge.width, 0.001f)
+        assertEquals(20f, ghostBadge.height, 0.001f)
+
+        // Min size không bị inflate bởi ghostBadge
+        assertEquals(100f, row.minWidth, 0.001f)
+    }
+
+    @Test
+    fun testGhostNodeInColumn() {
+        val column = LayoutNode().apply {
+            policy = ColumnPolicy(gap = 0f)
+        }
+        val buttonA = LayoutNode().apply {
+            minHeight = 50f
+            sizeFlagVertical = SizeFlag.SHRINK
+        }
+        val ghostBadge = LayoutNode().apply {
+            minWidth = 20f
+            minHeight = 20f
+            anchor.setPreset(AnchorPreset.BOTTOM_RIGHT)
+        }
+        val buttonB = LayoutNode().apply {
+            minHeight = 50f
+            sizeFlagVertical = SizeFlag.SHRINK
+        }
+
+        column.addChild(buttonA)
+        column.addChild(ghostBadge)
+        column.addChild(buttonB)
+
+        column.layout(100f, 300f)
+
+        // Ghost badge không làm dời vị trí của buttonB
+        assertEquals(0f, buttonA.y, 0.001f)
+        assertEquals(50f, buttonB.y, 0.001f)
+
+        // Neo chính xác vào góc dưới-phải của Column: x = 100 - 20 = 80, y = 300 - 20 = 280
+        assertEquals(80f, ghostBadge.x, 0.001f)
+        assertEquals(280f, ghostBadge.y, 0.001f)
+        assertEquals(20f, ghostBadge.width, 0.001f)
+        assertEquals(20f, ghostBadge.height, 0.001f)
+
+        // Min size không bị inflate bởi ghostBadge
+        assertEquals(100f, column.minHeight, 0.001f)
+    }
 }

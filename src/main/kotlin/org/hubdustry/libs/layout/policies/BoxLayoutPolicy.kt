@@ -1,6 +1,5 @@
 package org.hubdustry.libs.layout.policies
 
-import org.hubdustry.libs.layout.AnchorMath
 import org.hubdustry.libs.layout.LayoutNode
 import org.hubdustry.libs.layout.LayoutPolicy
 import org.hubdustry.libs.layout.SizeFlag
@@ -8,6 +7,7 @@ import org.hubdustry.libs.layout.computeOffset
 
 /**
  * Bố cục tự do dạng Box. Hỗ trợ định vị theo Anchor/Preset hoặc căn chỉnh theo Alignment/SizeFlags.
+ * Tinh gọn và thuần toán học (Pure Math).
  */
 object BoxLayoutPolicy : LayoutPolicy {
     override fun computeMinSize(node: LayoutNode) {
@@ -20,12 +20,10 @@ object BoxLayoutPolicy : LayoutPolicy {
             if (!child.visible) continue
             child.policy.computeMinSize(child)
             if (!child.anchor.isEnabled) {
-                if (child.minWidth > maxChildMinWidth) {
-                    maxChildMinWidth = child.minWidth
-                }
-                if (child.minHeight > maxChildMinHeight) {
-                    maxChildMinHeight = child.minHeight
-                }
+                val childRequiredW = child.minWidth + child.marginLeft + child.marginRight
+                val childRequiredH = child.minHeight + child.marginTop + child.marginBottom
+                if (childRequiredW > maxChildMinWidth) maxChildMinWidth = childRequiredW
+                if (childRequiredH > maxChildMinHeight) maxChildMinHeight = childRequiredH
             }
         }
 
@@ -46,29 +44,26 @@ object BoxLayoutPolicy : LayoutPolicy {
             if (!child.visible) continue
 
             if (child.anchor.isEnabled) {
-                AnchorMath.resolve(child, innerX, innerY, innerWidth, innerHeight)
+                child.resolveAnchors(innerX, innerY, innerWidth, innerHeight)
             } else {
+                val availableW = maxOf(0f, innerWidth - child.marginLeft - child.marginRight)
+                val availableH = maxOf(0f, innerHeight - child.marginTop - child.marginBottom)
+
                 val childW = when (child.sizeFlagHorizontal) {
-                    SizeFlag.FILL, SizeFlag.EXPAND -> innerWidth
+                    SizeFlag.FILL, SizeFlag.EXPAND -> availableW
                     SizeFlag.SHRINK -> child.minWidth
-                }.coerceIn(child.minWidth, child.maxWidth)
+                }.coerceAtMost(child.maxWidth)
 
                 val childH = when (child.sizeFlagVertical) {
-                    SizeFlag.FILL, SizeFlag.EXPAND -> innerHeight
+                    SizeFlag.FILL, SizeFlag.EXPAND -> availableH
                     SizeFlag.SHRINK -> child.minHeight
-                }.coerceIn(child.minHeight, child.maxHeight)
+                }.coerceAtMost(child.maxHeight)
 
-                child.x = innerX + child.alignHorizontal.computeOffset(innerWidth, childW)
-                child.y = innerY + child.alignVertical.computeOffset(innerHeight, childH)
-                child.width = childW
-                child.height = childH
+                val childX = innerX + child.marginLeft + child.alignHorizontal.computeOffset(availableW, childW)
+                val childY = innerY + child.marginTop + child.alignVertical.computeOffset(availableH, childH)
+
+                child.arrange(childX, childY, childW, childH)
             }
-
-            val childInnerX = child.paddingLeft
-            val childInnerY = child.paddingTop
-            val childInnerW = maxOf(0f, child.width - child.paddingLeft - child.paddingRight)
-            val childInnerH = maxOf(0f, child.height - child.paddingTop - child.paddingBottom)
-            child.policy.arrangeChildren(child, childInnerX, childInnerY, childInnerW, childInnerH)
         }
     }
 }

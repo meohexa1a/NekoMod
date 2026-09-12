@@ -8,7 +8,15 @@ enum class Orientation {
     HORIZONTAL,
 
     /** Trục chính thẳng đứng (Column/VBox), trục phụ nằm ngang. */
-    VERTICAL
+    VERTICAL;
+
+    fun cross(): Orientation = when (this) {
+        HORIZONTAL -> VERTICAL
+        VERTICAL -> HORIZONTAL
+    }
+
+    fun main(x: Float, y: Float): Float = if (this == HORIZONTAL) x else y
+    fun cross(x: Float, y: Float): Float = if (this == HORIZONTAL) y else x
 }
 
 /**
