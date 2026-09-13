@@ -57,7 +57,8 @@ class VelocityTracker1D(sampleWindowMillis: Long = 100L) {
                 break
             }
             validCount++
-            // Chuẩn hóa thời gian tương đối so với newestTime để tránh tràn số
+            // Chuẩn hóa trục thời gian tương đối so với newestTime (gốc 0 tại điểm chạm mới nhất để tránh tràn số):
+            // age = newestTime - times[sampleIndex] >= 0, do đó -age = times[sampleIndex] - newestTime <= 0
             sumTime += -age.toDouble()
             sumPos += positions[sampleIndex].toDouble()
         }

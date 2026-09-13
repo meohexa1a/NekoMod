@@ -41,14 +41,12 @@ class LayoutNodeApplier(
 
     override fun remove(index: Int, count: Int) {
         try {
-            if (onNodeRemovedCallback != null) {
+            onNodeRemovedCallback?.let { callback ->
                 val children = current.children
                 val safeIndex = index.coerceIn(0, children.size)
                 val safeCount = count.coerceIn(0, children.size - safeIndex)
                 for (i in safeIndex until (safeIndex + safeCount)) {
-                    children[i].forEachInSubtree { node ->
-                        onNodeRemovedCallback.invoke(node)
-                    }
+                    children[i].forEachInSubtree(callback)
                 }
             }
             current.removeChildren(index, count)
@@ -67,13 +65,10 @@ class LayoutNodeApplier(
 
     public override fun onClear() {
         try {
-            if (onNodeRemovedCallback != null) {
-                val children = root.children
-                val count = children.size
+            onNodeRemovedCallback?.let { callback ->
+                val count = root.children.size
                 for (i in 0 until count) {
-                    children[i].forEachInSubtree { node ->
-                        onNodeRemovedCallback.invoke(node)
-                    }
+                    root.children[i].forEachInSubtree(callback)
                 }
             }
             root.clearChildren()

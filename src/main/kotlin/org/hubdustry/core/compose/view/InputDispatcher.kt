@@ -1,5 +1,8 @@
 package org.hubdustry.core.compose.view
 
+import androidx.compose.ui.util.fastAny
+import androidx.compose.ui.util.fastForEach
+import androidx.compose.ui.util.fastForEachIndexed
 import org.hubdustry.core.compose.input.ConsumedData
 import org.hubdustry.core.compose.input.IntSize
 import org.hubdustry.core.compose.input.Offset
@@ -38,6 +41,21 @@ internal class PointerHitRecord(
  * 2. Phân phối sự kiện 3-pass (Initial -> Main -> Final) theo chuẩn Jetpack Compose AOSP.
  * 3. Theo dõi vòng đời con trỏ (Touch/Mouse/Hover Tracking) và giải phóng sạch sẽ.
  * 4. Tái sử dụng scratchpads và object pools để triệt tiêu cấp phát heap trong hot-path (Zero-GC).
+ *
+ * Sơ đồ phân phối sự kiện 3-pass (chuỗi Root → Leaf, 3 node ví dụ):
+ *
+ *  PointerEvent
+ *      │
+ *      ▼ Initial Pass (Tunneling: Root → Leaf)
+ *  [Root] ──► [NodeA] ──► [NodeB leaf]
+ *
+ *      ▼ Main Pass (Bubbling: Leaf → Root)
+ *  [Root] ◄── [NodeA] ◄── [NodeB leaf]
+ *
+ *      ▼ Final Pass (Bubbling: Leaf → Root)
+ *  [Root] ◄── [NodeA] ◄── [NodeB leaf]
+ *
+ *  ConsumedData.isConsumed được chia sẻ qua toàn bộ 3 pass.
  */
 class InputDispatcher(private val rootLayoutNode: LayoutNode) {
 
@@ -49,7 +67,6 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
 
     // Scratchpad tái sử dụng trong dispatch3Pass để triệt tiêu cấp phát collection trong hot-path
     private val eventsScratch = ArrayList<PointerEvent>()
-    private val boundsScratch = ArrayList<IntSize>()
     private val previousHoverChain = ArrayList<LayoutNodeHit>()
     private val exitedHoverScratch = ArrayList<LayoutNodeHit>()
     private val hoverPool = ArrayList<LayoutNodeHit>()
@@ -122,10 +139,8 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
 
         if (hitScratch.isEmpty()) return false
 
-        val hitCount = hitScratch.size
-        val chain = ArrayList<LayoutNodeHit>(hitCount)
-        for (i in 0 until hitCount) {
-            val h = hitScratch[i]
+        val chain = ArrayList<LayoutNodeHit>(hitScratch.size)
+        hitScratch.fastForEach { h ->
             chain.add(LayoutNodeHit(h.node, h.absX, h.absY))
         }
         trackedPointers[pointer] = PointerHitRecord(chain, composeX, composeY, uptime, button, pointerType)
@@ -227,15 +242,8 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
 
         if (hitScratch.isEmpty()) return false
 
-        val hitCount = hitScratch.size
-        val chain = ArrayList<LayoutNodeHit>(hitCount)
-        for (i in 0 until hitCount) {
-            val h = hitScratch[i]
-            chain.add(LayoutNodeHit(h.node, h.absX, h.absY))
-        }
-
         return dispatch3Pass(
-            chain = chain,
+            chain = hitScratch,
             composeX = composeX,
             composeY = composeY,
             pointer = 0,
@@ -259,18 +267,8 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
 
         // 1. Tìm các node đã rời khỏi tầm chuột (Exited nodes)
         exitedHoverScratch.clear()
-        val prevCount = previousHoverChain.size
-        for (i in 0 until prevCount) {
-            val prevHit = previousHoverChain[i]
-            var stillHit = false
-            val currentCount = hitScratch.size
-            for (j in 0 until currentCount) {
-                if (hitScratch[j].node === prevHit.node) {
-                    stillHit = true
-                    break
-                }
-            }
-            if (!stillHit) {
+        previousHoverChain.fastForEach { prevHit ->
+            if (!hitScratch.fastAny { it.node === prevHit.node }) {
                 exitedHoverScratch.add(prevHit)
             }
         }
@@ -347,9 +345,7 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
 
     private fun updatePreviousHoverChain(currentHits: List<LayoutNodeHit>) {
         previousHoverChain.clear()
-        val count = currentHits.size
-        for (i in 0 until count) {
-            val src = currentHits[i]
+        currentHits.fastForEachIndexed { i, src ->
             val hit = if (i < hoverPool.size) {
                 val existing = hoverPool[i]
                 existing.node = src.node
@@ -379,7 +375,7 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         val w = node.width
         val h = node.height
 
-        val isInBounds = targetX in absX..(absX + w) && targetY in absY..(absY + h)
+        val isInBounds = targetX >= absX && targetX <= (absX + w) && targetY >= absY && targetY <= (absY + h)
         if (node.clip && !isInBounds) {
             return false
         }
@@ -447,15 +443,15 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
                 button = button,
                 scrollDelta = scrollDelta
             )
-            val event = PointerEvent(listOf(change), eventType)
+            val event = PointerEvent(java.util.Collections.singletonList(change), eventType)
             val bounds = IntSize(
                 kotlin.math.ceil(hit.node.width).toInt(),
                 kotlin.math.ceil(hit.node.height).toInt()
             )
 
-            // Initial Pass: outer to inner (0 until fCount)
-            for (f in 0 until fCount) {
-                filters[f].dispatchPointerEvent(event, PointerEventPass.Initial, bounds)
+            // Initial Pass: outer to inner
+            filters.fastForEach { filter ->
+                filter.dispatchPointerEvent(event, PointerEventPass.Initial, bounds)
             }
             // Main Pass: inner to outer (fCount - 1 downTo 0)
             for (f in fCount - 1 downTo 0) {
@@ -469,7 +465,6 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         }
 
         eventsScratch.clear()
-        boundsScratch.clear()
 
         for (i in 0 until count) {
             val hit = chain[i]
@@ -488,44 +483,49 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
                 button = button,
                 scrollDelta = scrollDelta
             )
-            eventsScratch.add(PointerEvent(listOf(change), eventType))
-            boundsScratch.add(
-                IntSize(
-                    kotlin.math.ceil(hit.node.width).toInt(),
-                    kotlin.math.ceil(hit.node.height).toInt()
-                )
-            )
+            eventsScratch.add(PointerEvent(java.util.Collections.singletonList(change), eventType))
         }
 
         // 1. Initial Pass: Root -> Leaf (Tunneling)
-        for (i in 0 until count) {
-            val filters = chain[i].node.pointerInputFilters
-            val fCount = filters.size
-            for (f in 0 until fCount) {
-                filters[f].dispatchPointerEvent(eventsScratch[i], PointerEventPass.Initial, boundsScratch[i])
+        chain.fastForEachIndexed { i, hit ->
+            val bounds = IntSize(
+                kotlin.math.ceil(hit.node.width).toInt(),
+                kotlin.math.ceil(hit.node.height).toInt()
+            )
+            hit.node.pointerInputFilters.fastForEach { filter ->
+                filter.dispatchPointerEvent(eventsScratch[i], PointerEventPass.Initial, bounds)
             }
         }
 
         // 2. Main Pass: Leaf -> Root (Bubbling)
         for (i in count - 1 downTo 0) {
-            val filters = chain[i].node.pointerInputFilters
+            val hit = chain[i]
+            val bounds = IntSize(
+                kotlin.math.ceil(hit.node.width).toInt(),
+                kotlin.math.ceil(hit.node.height).toInt()
+            )
+            val filters = hit.node.pointerInputFilters
             val fCount = filters.size
             for (f in fCount - 1 downTo 0) {
-                filters[f].dispatchPointerEvent(eventsScratch[i], PointerEventPass.Main, boundsScratch[i])
+                filters[f].dispatchPointerEvent(eventsScratch[i], PointerEventPass.Main, bounds)
             }
         }
 
         // 3. Final Pass: Leaf -> Root (Post-processing)
         for (i in count - 1 downTo 0) {
-            val filters = chain[i].node.pointerInputFilters
+            val hit = chain[i]
+            val bounds = IntSize(
+                kotlin.math.ceil(hit.node.width).toInt(),
+                kotlin.math.ceil(hit.node.height).toInt()
+            )
+            val filters = hit.node.pointerInputFilters
             val fCount = filters.size
             for (f in fCount - 1 downTo 0) {
-                filters[f].dispatchPointerEvent(eventsScratch[i], PointerEventPass.Final, boundsScratch[i])
+                filters[f].dispatchPointerEvent(eventsScratch[i], PointerEventPass.Final, bounds)
             }
         }
 
         eventsScratch.clear()
-        boundsScratch.clear()
         return consumed.isConsumed
     }
 
@@ -555,9 +555,7 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
     fun cancelAllActivePointers(uptime: Long = System.currentTimeMillis()) {
         if (trackedPointers.isEmpty()) return
         val pointers = ArrayList(trackedPointers.keys)
-        for (i in 0 until pointers.size) {
-            cancelPointer(pointers[i], uptime)
-        }
+        pointers.fastForEach { cancelPointer(it, uptime) }
     }
 
     /**
@@ -567,36 +565,25 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         if (trackedPointers.isNotEmpty()) {
             val pointersToCancel = ArrayList<Int>()
             for (entry in trackedPointers.entries) {
-                val chain = entry.value.chain
-                val count = chain.size
-                for (i in 0 until count) {
-                    if (chain[i].node === node) {
-                        pointersToCancel.add(entry.key)
-                        break
-                    }
+                if (entry.value.chain.fastAny { it.node === node }) {
+                    pointersToCancel.add(entry.key)
                 }
             }
-            val count = pointersToCancel.size
-            for (i in 0 until count) {
-                cancelPointer(pointersToCancel[i])
-            }
+            pointersToCancel.fastForEach { cancelPointer(it) }
         }
 
-        for (i in previousHoverChain.indices.reversed()) {
-            if (previousHoverChain[i].node === node) {
-                previousHoverChain.removeAt(i)
-            }
-        }
+        previousHoverChain.removeAll { it.node === node }
     }
 
     fun dispose() {
         cancelAllActivePointers()
         trackedPointers.clear()
+
         hitScratch.clear()
         hitPool.clear()
         hitPoolIndex = 0
+
         eventsScratch.clear()
-        boundsScratch.clear()
         previousHoverChain.clear()
         exitedHoverScratch.clear()
         hoverPool.clear()

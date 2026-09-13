@@ -1,5 +1,6 @@
 package org.hubdustry.core.layout.policies
 
+import androidx.compose.ui.util.fastForEach
 import org.hubdustry.core.layout.LayoutNode
 import org.hubdustry.core.layout.LayoutPolicy
 import org.hubdustry.core.layout.SizeFlag
@@ -14,10 +15,8 @@ object BoxLayoutPolicy : LayoutPolicy {
         var maxChildMinWidth = 0f
         var maxChildMinHeight = 0f
 
-        val count = node.children.size
-        for (i in 0 until count) {
-            val child = node.children[i]
-            if (!child.visible) continue
+        node.children.fastForEach { child ->
+            if (!child.visible) return@fastForEach
             child.policy.computeMinSize(child)
             if (!child.anchor.isEnabled) {
                 val childRequiredW = child.minWidth + child.marginLeft + child.marginRight
@@ -49,10 +48,8 @@ object BoxLayoutPolicy : LayoutPolicy {
         innerWidth: Float,
         innerHeight: Float
     ) {
-        val count = node.children.size
-        for (i in 0 until count) {
-            val child = node.children[i]
-            if (!child.visible) continue
+        node.children.fastForEach { child ->
+            if (!child.visible) return@fastForEach
 
             if (child.anchor.isEnabled) {
                 child.resolveAnchors(innerX, innerY, innerWidth, innerHeight)

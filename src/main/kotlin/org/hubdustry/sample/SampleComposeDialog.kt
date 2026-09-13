@@ -34,7 +34,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
             // Root Column lấp đầy ComposeView một cách tự nhiên với bo góc SDF 12px
             Column(
                 modifier = Modifier
-                    .background(Color.darkGray, RoundedCornerShape(12f))
+                    .background(Color.darkGray, RoundedCorners(12f))
                     .padding(12f),
                 gap = 10f
             ) {
@@ -44,7 +44,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 36f)
-                        .background(Color.black, RoundedCornerShape(8f))
+                        .background(Color.black, RoundedCorners(8f))
                         .padding(8f)
                 ) {
                     Text(
@@ -57,7 +57,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                         modifier = Modifier
                             .anchor(AnchorPreset.TOP_RIGHT)
                             .size(46f, 20f)
-                            .background(Color.scarlet, RoundedCornerShape(4f))
+                            .background(Color.scarlet, RoundedCorners(4f))
                             .padding(2f)
                     ) {
                         Text(text = "LIVE", textColor = Color.white)
@@ -74,8 +74,8 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .background(dynamicColor, RoundedCornerShape(8f))
-                            .border(1.5f, Color.white, RoundedCornerShape(8f))
+                            .background(dynamicColor, RoundedCorners(8f))
+                            .border(1.5f, Color.white, RoundedCorners(8f))
                             .padding(10f)
                     ) {
                         Text(
@@ -90,7 +90,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                         modifier = Modifier
                             .fillMaxHeight()
                             .padding(horizontal = 4f),
-                        shape = RoundedCornerShape(8f),
+                        corners = RoundedCorners(8f),
                         backgroundColor = Color.forest,
                         pressedColor = Color.green
                     ) {
@@ -102,8 +102,10 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                         modifier = Modifier
                             .fillMaxHeight()
                             .widthIn(min = 72f)
-                            .padding(horizontal = 4f),
-                        shape = RoundedCornerShape(8f),
+                            .padding(horizontal = 4f)
+                            .align(Alignment.CENTER),
+
+                        corners = RoundedCorners(8f),
                         backgroundColor = Color.scarlet,
                         pressedColor = Color.crimson
                     ) {
@@ -121,7 +123,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .background(Color.slate, RoundedCornerShape(6f))
+                            .background(Color.slate, RoundedCorners(6f))
                             .padding(6f)
                     ) {
                         Text(text = "Flex: 1x", textColor = Color.white)
@@ -129,7 +131,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                     Box(
                         modifier = Modifier
                             .weight(2f)
-                            .background(Color.navy, RoundedCornerShape(6f))
+                            .background(Color.navy, RoundedCorners(6f))
                             .padding(6f)
                     ) {
                         Text(text = "Flex: 2x (Double Width)", textColor = Color.white)

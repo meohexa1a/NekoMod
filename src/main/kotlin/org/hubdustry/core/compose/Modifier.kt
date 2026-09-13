@@ -14,21 +14,6 @@ interface Modifier {
     fun <R> foldIn(initial: R, operation: (R, Element) -> R): R
 
     /**
-     * Tích lũy giá trị bằng cách duyệt qua tất cả các [Element] từ trong ra ngoài (phải sang trái).
-     */
-    fun <R> foldOut(initial: R, operation: (Element, R) -> R): R
-
-    /**
-     * Kiểm tra xem có bất kỳ [Element] nào thỏa mãn [predicate] hay không.
-     */
-    fun any(predicate: (Element) -> Boolean): Boolean
-
-    /**
-     * Kiểm tra xem tất cả các [Element] có thỏa mãn [predicate] hay không.
-     */
-    fun all(predicate: (Element) -> Boolean): Boolean
-
-    /**
      * Ghép nối modifier hiện tại với [other].
      */
     infix fun then(other: Modifier): Modifier =
@@ -41,12 +26,6 @@ interface Modifier {
         override fun <R> foldIn(initial: R, operation: (R, Element) -> R): R =
             operation(initial, this)
 
-        override fun <R> foldOut(initial: R, operation: (Element, R) -> R): R =
-            operation(this, initial)
-
-        override fun any(predicate: (Element) -> Boolean): Boolean = predicate(this)
-        override fun all(predicate: (Element) -> Boolean): Boolean = predicate(this)
-
         /**
          * Áp dụng cấu hình của phần tử này lên [LayoutNode] ảo.
          */
@@ -55,9 +34,6 @@ interface Modifier {
 
     companion object : Modifier {
         override fun <R> foldIn(initial: R, operation: (R, Element) -> R): R = initial
-        override fun <R> foldOut(initial: R, operation: (Element, R) -> R): R = initial
-        override fun any(predicate: (Element) -> Boolean): Boolean = false
-        override fun all(predicate: (Element) -> Boolean): Boolean = true
         override infix fun then(other: Modifier): Modifier = other
         override fun toString(): String = "Modifier"
     }
@@ -72,15 +48,6 @@ class CombinedModifier(
 ) : Modifier {
     override fun <R> foldIn(initial: R, operation: (R, Modifier.Element) -> R): R =
         inner.foldIn(outer.foldIn(initial, operation), operation)
-
-    override fun <R> foldOut(initial: R, operation: (Modifier.Element, R) -> R): R =
-        outer.foldOut(inner.foldOut(initial, operation), operation)
-
-    override fun any(predicate: (Modifier.Element) -> Boolean): Boolean =
-        outer.any(predicate) || inner.any(predicate)
-
-    override fun all(predicate: (Modifier.Element) -> Boolean): Boolean =
-        outer.all(predicate) && inner.all(predicate)
 
     override fun equals(other: Any?): Boolean =
         other is CombinedModifier && outer == other.outer && inner == other.inner

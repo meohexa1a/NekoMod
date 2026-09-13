@@ -323,4 +323,117 @@ class ScrollTest {
         assertEquals(120f, scrollBox.scrollX)
         assertEquals(250f, scrollBox.scrollY)
     }
+
+    @Test
+    fun testScrollStateGatewaySanitization() {
+        val state = ScrollState(initial = -10f)
+        assertEquals(0f, state.value, "Initial âm phải được chuẩn hóa về 0f")
+
+        val stateNaN = ScrollState(initial = Float.NaN)
+        assertEquals(0f, stateNaN.value, "Initial NaN phải được chuẩn hóa về 0f")
+
+        state.maxValue = 200f
+        val consumed = state.dispatchRawDelta(Float.NaN)
+        assertEquals(0f, consumed, "Delta NaN phải bị từ chối")
+        assertEquals(0f, state.value)
+
+        state.snapTo(Float.NaN)
+        assertEquals(0f, state.value, "snapTo NaN không được thay đổi state")
+
+        state.snapTo(-50f)
+        assertEquals(0f, state.value, "snapTo âm phải bị kẹp về 0f")
+
+        state.snapTo(500f)
+        assertEquals(200f, state.value, "snapTo vượt max phải bị kẹp về maxValue")
+    }
+
+    @Test
+    fun testAnimateScrollToAndBy() = runTest {
+        val state = ScrollState(0f)
+        state.maxValue = 300f
+
+        // Animate tới 150f
+        state.animateScrollTo(150f, durationMillis = 50)
+        assertEquals(150f, state.value)
+
+        // Animate tương đối thêm 50f
+        state.animateScrollBy(50f, durationMillis = 50)
+        assertEquals(200f, state.value)
+
+        // Animate vượt quá maxValue
+        state.animateScrollBy(200f, durationMillis = 50)
+        assertEquals(300f, state.value)
+
+        // Animate về âm
+        state.animateScrollTo(-100f, durationMillis = 50)
+        assertEquals(0f, state.value)
+    }
+
+    @Test
+    fun testTouchDragFlingWithKineticInertia() {
+        val view = ComposeView()
+        val state = ScrollState()
+
+        view.setContent {
+            Column(
+                modifier = Modifier
+                    .size(200f, 200f)
+                    .verticalScroll(state, fling = true)
+            ) {
+                Box(modifier = Modifier.size(200f, 1000f))
+            }
+        }
+        CompositionManager.frame()
+        view.setSize(200f, 200f)
+        view.layout()
+
+        // Giả lập vuốt nhanh (flick): di chuyển 150px trong 80ms (vận tốc ~ 1875 px/s)
+        val t0 = 10000L
+        view.sendPointerInput(PointerEventType.Press, 100f, 200f, uptimeMillis = t0)
+        view.sendPointerInput(PointerEventType.Move, 100f, 160f, uptimeMillis = t0 + 25L)
+        view.sendPointerInput(PointerEventType.Move, 100f, 110f, uptimeMillis = t0 + 50L)
+        view.sendPointerInput(PointerEventType.Move, 100f, 50f, uptimeMillis = t0 + 80L)
+
+        val draggedValue = state.value
+        assertTrue(draggedValue >= 140f, "Kéo trượt phải tăng scroll state ít nhất 140px")
+
+        // Nhấc tay nhả ngón -> kích hoạt Fling
+        view.sendPointerInput(PointerEventType.Release, 100f, 50f, uptimeMillis = t0 + 80L)
+
+        // Fling coroutine bắt đầu đẩy scroll state vượt xa vị trí kéo ban đầu
+        assertTrue(state.value > draggedValue, "Quán tính fling phải tiếp tục cuộn vượt quá vị trí kéo thả")
+    }
+
+    @Test
+    fun testTouchToStopCancelsActiveFling() {
+        val view = ComposeView()
+        val state = ScrollState()
+
+        view.setContent {
+            Column(
+                modifier = Modifier
+                    .size(200f, 200f)
+                    .verticalScroll(state, fling = true)
+            ) {
+                Box(modifier = Modifier.size(200f, 1000f))
+            }
+        }
+        CompositionManager.frame()
+        view.setSize(200f, 200f)
+        view.layout()
+
+        val t0 = 10000L
+        view.sendPointerInput(PointerEventType.Press, 100f, 200f, uptimeMillis = t0)
+        view.sendPointerInput(PointerEventType.Move, 100f, 150f, uptimeMillis = t0 + 30L)
+        view.sendPointerInput(PointerEventType.Move, 100f, 100f, uptimeMillis = t0 + 60L)
+        view.sendPointerInput(PointerEventType.Release, 100f, 100f, uptimeMillis = t0 + 60L)
+
+        val flungValue = state.value
+
+        // Chạm tay xuống ngay lập tức (Touch-to-Stop)
+        view.sendPointerInput(PointerEventType.Press, 100f, 100f, uptimeMillis = t0 + 70L)
+        val stoppedValue = state.value
+
+        assertEquals(flungValue, stoppedValue, "Chạm ngón tay phải dừng lập tức quán tính cuộn")
+    }
 }

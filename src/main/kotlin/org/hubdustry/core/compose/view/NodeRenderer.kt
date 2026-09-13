@@ -1,5 +1,6 @@
 package org.hubdustry.core.compose.view
 
+import androidx.compose.ui.util.fastForEach
 import arc.graphics.Color
 import mindustry.ui.Fonts
 import org.hubdustry.core.graphics.UIBatch
@@ -67,14 +68,12 @@ object NodeRenderer {
         renderBackgroundAndBorder(node, arcX, arcY, nodeW, nodeH, effectiveAlpha)
         renderText(node, arcX, arcY, nodeW, nodeH, effectiveAlpha)
 
-        // Duyệt con bằng vòng lặp chỉ mục thuần túy (Zero-GC), bù trừ độ cuộn (scrollX, scrollY)
+        // Duyệt con bằng fastForEach (Zero-GC inline), bù trừ độ cuộn (scrollX, scrollY)
         val childParentLocalX = nodeLocalX - node.scrollX
         val childParentLocalY = nodeLocalY - node.scrollY
-        val children = node.children
-        val count = children.size
-        for (i in 0 until count) {
+        node.children.fastForEach { child ->
             renderNodeRecursive(
-                node = children[i],
+                node = child,
                 parentLocalX = childParentLocalX,
                 parentLocalY = childParentLocalY,
                 parentEffectiveAlpha = effectiveAlpha,
@@ -108,14 +107,15 @@ object NodeRenderer {
             if (effectiveAlpha < 1f) borderScratch.set(node.borderColor.r, node.borderColor.g, node.borderColor.b, node.borderColor.a * effectiveAlpha) else node.borderColor
         } else Color.clear
 
-        val radius = maxOf(node.cornerRadiusTopStart, node.cornerRadiusTopEnd, node.cornerRadiusBottomEnd, node.cornerRadiusBottomStart)
-
         UIBatch.drawBox(
             x = arcX,
             y = arcY,
             width = nodeW,
             height = nodeH,
-            radius = radius,
+            radiusTopStart = node.cornerRadiusTopStart,
+            radiusTopEnd = node.cornerRadiusTopEnd,
+            radiusBottomEnd = node.cornerRadiusBottomEnd,
+            radiusBottomStart = node.cornerRadiusBottomStart,
             color = fillColor,
             borderWidth = if (node.hasBorder) node.borderWidth else 0f,
             borderColor = borderColor

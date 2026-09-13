@@ -18,21 +18,18 @@ import org.hubdustry.core.compose.input.hoverable
 import org.hubdustry.core.compose.input.pointerInput
 import org.hubdustry.core.compose.modifier.*
 import org.hubdustry.core.compose.view.ComposeView
-import org.hubdustry.core.graphics.CircleShape
-import org.hubdustry.core.graphics.RectangleShape
-import org.hubdustry.core.graphics.RoundedCornerShape
-import org.hubdustry.core.graphics.Shape
+import org.hubdustry.core.graphics.RoundedCorners
 import org.hubdustry.core.layout.Alignment
 import org.hubdustry.core.layout.AnchorPreset
 import org.hubdustry.core.layout.Orientation
 import org.hubdustry.core.layout.SizeFlag
 import org.hubdustry.ui.components.Button
+import org.hubdustry.ui.components.DefaultButtonPressedColor
 
 // --- 1. TYPEALIASES & CORE EXPORTS ---
 
 typealias Modifier = org.hubdustry.core.compose.Modifier
-typealias Shape = org.hubdustry.core.graphics.Shape
-typealias RoundedCornerShape = org.hubdustry.core.graphics.RoundedCornerShape
+typealias RoundedCorners = org.hubdustry.core.graphics.RoundedCorners
 typealias Alignment = org.hubdustry.core.layout.Alignment
 typealias AnchorPreset = org.hubdustry.core.layout.AnchorPreset
 typealias Orientation = org.hubdustry.core.layout.Orientation
@@ -64,7 +61,7 @@ fun Table.compose(content: @Composable () -> Unit): Cell<ComposeView> {
  */
 @Composable
 fun Box(
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit = {}
 ) = org.hubdustry.core.compose.primitive.Box(modifier, content)
 
@@ -73,7 +70,7 @@ fun Box(
  */
 @Composable
 fun Row(
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     gap: Float = 0f,
     content: @Composable RowScope.() -> Unit
 ) = org.hubdustry.core.compose.primitive.Row(modifier, gap, content)
@@ -83,7 +80,7 @@ fun Row(
  */
 @Composable
 fun Column(
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     gap: Float = 0f,
     content: @Composable ColumnScope.() -> Unit
 ) = org.hubdustry.core.compose.primitive.Column(modifier, gap, content)
@@ -94,8 +91,8 @@ fun Column(
 @Composable
 fun Text(
     text: String,
-    modifier: Modifier = Modifier.Companion,
-    textColor: Color = Color.white,
+    modifier: Modifier = Modifier,
+    textColor: Color? = null,
     font: Font? = null
 ) = org.hubdustry.core.compose.primitive.Text(text, modifier, textColor, font)
 
@@ -103,20 +100,20 @@ fun Text(
  * Nút bấm chuẩn của NekoMod UI:
  * - Tự động đổi màu khi bị nhấn (pressed) và khi rê chuột qua (hovered) dựa trên [MutableInteractionSource].
  * - Kết nối trực tiếp cử chỉ click/tap mà không dùng Arc ClickListener.
- * - Hỗ trợ hình dạng bo góc SDF tự nhiên qua [shape].
+ * - Hỗ trợ hình dạng bo góc SDF tự nhiên qua [corners].
  */
 @Composable
 fun Button(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource? = null,
     enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(6f),
+    corners: RoundedCorners = org.hubdustry.ui.components.DefaultButtonCorners,
     backgroundColor: Color = Color.royal,
-    pressedColor: Color = Color.royal.cpy().mul(0.75f),
+    pressedColor: Color = DefaultButtonPressedColor,
     hoverColor: Color? = null,
     content: @Composable BoxScope.() -> Unit
-) = org.hubdustry.ui.components.Button(onClick, modifier, interactionSource, enabled, shape, backgroundColor, pressedColor, hoverColor, content)
+) = org.hubdustry.ui.components.Button(onClick, modifier, interactionSource, enabled, corners, backgroundColor, pressedColor, hoverColor, content)
 
 /**
  * Factory tạo [MutableInteractionSource] quản lý tương tác người dùng.

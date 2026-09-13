@@ -6,8 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import org.hubdustry.core.compose.input.InteractionSource
-import org.hubdustry.core.compose.input.MutableInteractionSource
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Quản lý trạng thái cuộn của một viewport theo chuẩn Jetpack Compose Foundation.
@@ -18,42 +17,102 @@ class ScrollState(initial: Float = 0f) {
     /**
      * Vị trí cuộn hiện tại tính theo pixel (từ 0f đến maxValue).
      */
-    var value: Float by mutableFloatStateOf(initial)
+    var value: Float by mutableFloatStateOf(if (initial.isNaN() || initial < 0f) 0f else initial)
         internal set
+
+    private var _maxValue by mutableFloatStateOf(Float.MAX_VALUE)
 
     /**
      * Giới hạn cuộn tối đa cho phép ([contentSize] - [viewportSize]).
+     * Tự động chuẩn hóa biên và kẹp trần [value] khi [maxValue] thay đổi (Gateway Sanitization).
      */
-    var maxValue: Float by mutableFloatStateOf(Float.MAX_VALUE)
-        internal set
+    var maxValue: Float
+        get() = _maxValue
+        internal set(v) {
+            val safe = if (v.isNaN() || v < 0f) 0f else v
+            _maxValue = safe
+            if (value > safe) {
+                value = safe
+            }
+        }
+
+    private var _viewportSize by mutableFloatStateOf(0f)
 
     /**
      * Kích thước khung nhìn (viewport) theo trục cuộn.
      */
-    var viewportSize: Float by mutableFloatStateOf(0f)
-        internal set
-
-    val interactionSource: InteractionSource = MutableInteractionSource()
+    var viewportSize: Float
+        get() = _viewportSize
+        internal set(v) {
+            _viewportSize = if (v.isNaN() || v < 0f) 0f else v
+        }
 
     /**
      * Cập nhật delta cuộn tương đối (từ con lăn chuột hoặc cử chỉ kéo trượt).
      * Trả về lượng delta thực tế đã được tiêu thụ.
      */
     fun dispatchRawDelta(delta: Float): Float {
-        val target = value + delta
-        val limit = if (maxValue == Float.MAX_VALUE) Float.MAX_VALUE else maxValue
-        val clamped = target.coerceIn(0f, limit)
-        val consumed = clamped - value
-        value = clamped
+        if (delta.isNaN() || delta == 0f) return 0f
+        val target = (value + delta).coerceIn(0f, maxValue)
+        val consumed = target - value
+        value = target
         return consumed
     }
 
     /**
-     * Cuộn tới vị trí xác định.
+     * Nhảy lập tức (snap) tới vị trí xác định mà không có hoạt ảnh chuyển tiếp.
      */
-    suspend fun scrollTo(target: Float) {
-        val limit = if (maxValue == Float.MAX_VALUE) Float.MAX_VALUE else maxValue
-        value = target.coerceIn(0f, limit)
+    fun snapTo(target: Float) {
+        if (target.isNaN()) return
+        value = target.coerceIn(0f, maxValue)
+    }
+
+    /**
+     * Cuộn mượt tới vị trí [target] trong khoảng thời gian [durationMillis] ms.
+     * Sử dụng đường cong làm chậm bậc 3 (Cubic Ease-Out).
+     *
+     * Đây là hàm coroutine đích thực (Suspend Function), tự động cập nhật qua từng frame
+     * và chỉ hoàn thành khi đã đến đích hoặc bị hủy bởi cử chỉ mới.
+     */
+    suspend fun animateScrollTo(
+        target: Float,
+        durationMillis: Int = 200
+    ) {
+        if (target.isNaN()) return
+        val clampedTarget = target.coerceIn(0f, maxValue)
+        val initialValue = value
+        val totalDelta = clampedTarget - initialValue
+        if (kotlin.math.abs(totalDelta) < 0.5f) {
+            snapTo(clampedTarget)
+            return
+        }
+
+        val effectiveDuration = durationMillis.coerceAtLeast(16)
+        val startTime = System.currentTimeMillis()
+
+        while (true) {
+            val elapsed = System.currentTimeMillis() - startTime
+            val progress = (elapsed.toFloat() / effectiveDuration).coerceIn(0f, 1f)
+            // Cubic Ease-Out: f(t) = 1 - (1 - t)^3
+            val inv = 1f - progress
+            val eased = 1f - inv * inv * inv
+            val current = initialValue + totalDelta * eased
+            snapTo(current)
+
+            if (progress >= 1f) break
+            kotlinx.coroutines.delay(16.milliseconds)
+        }
+    }
+
+    /**
+     * Cuộn mượt tương đối một khoảng cách [delta] trong khoảng thời gian [durationMillis] ms.
+     */
+    suspend fun animateScrollBy(
+        delta: Float,
+        durationMillis: Int = 200
+    ) {
+        if (delta.isNaN() || delta == 0f) return
+        animateScrollTo(value + delta, durationMillis)
     }
 }
 

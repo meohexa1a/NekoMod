@@ -2,6 +2,7 @@ package org.hubdustry.core.compose.view
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Composition
+import androidx.compose.ui.util.fastForEach
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.input.KeyCode
@@ -104,8 +105,10 @@ open class ComposeView : Element() {
 
     fun setContent(content: @Composable () -> Unit) {
         this.composableContent = content
+
         ensureCompositionStarted()
         composition?.setContent(content)
+
         rootLayoutNode.policy.computeMinSize(rootLayoutNode)
         invalidateHierarchy()
     }
@@ -156,14 +159,19 @@ open class ComposeView : Element() {
     }
 
     open fun dispose() {
+        // Phase 1: Cancel active interactions before tearing down
         inputDispatcher.cancelAllActivePointers(System.currentTimeMillis())
         disposeNodeRecursive(rootLayoutNode)
+
+        // Phase 2: Dispose the Compose Runtime composition
         try {
             composition?.dispose()
         } catch (t: Throwable) {
             Log.err("[ComposeView] Error disposing composition", t)
         }
         composition = null
+
+        // Phase 3: Reset dispatcher and layout bookkeeping
         inputDispatcher.dispose()
         lastLayoutW = -1f
         lastLayoutH = -1f
@@ -171,17 +179,9 @@ open class ComposeView : Element() {
     }
 
     private fun disposeNodeRecursive(node: LayoutNode) {
-        val filters = node.pointerInputFilters
-        val count = filters.size
-        for (i in 0 until count) {
-            filters[i].reset()
-        }
+        node.pointerInputFilters.fastForEach { it.reset() }
         node.clearPointerInputFilters()
-        val children = node.children
-        val cCount = children.size
-        for (i in 0 until cCount) {
-            disposeNodeRecursive(children[i])
-        }
+        node.children.fastForEach { disposeNodeRecursive(it) }
     }
 
     /**
@@ -240,7 +240,7 @@ open class ComposeView : Element() {
         if (!visible) return null
         val effectiveW = if (width > 0f) width else rootLayoutNode.width
         val effectiveH = if (height > 0f) height else rootLayoutNode.height
-        return if (x in 0f..effectiveW && y >= 0f && y <= effectiveH) this else null
+        return if (x in 0f..effectiveW && y in 0f..effectiveH) this else null
     }
 
     override fun act(delta: Float) {
@@ -253,30 +253,31 @@ open class ComposeView : Element() {
     private fun updateDimensionsAndLayout() {
         val currentW = width
         val currentH = height
-        if (currentW > 0f && currentH > 0f) {
-            if (isLayoutDirty || currentW != lastLayoutW || currentH != lastLayoutH) {
-                layoutIteration++
-                if (layoutIteration > 100) {
-                    Log.err("[ComposeView] Potential infinite layout loop detected ($layoutIteration iterations)! Clamping layout.")
-                    isLayoutDirty = false
-                    layoutIteration = 0
-                    return
-                }
-                // Host Window phân phối ràng buộc kích thước chuẩn xuống Node gốc trong 1 pass duy nhất
-                rootLayoutNode.layout(currentW, currentH, exact = true)
-                lastLayoutW = currentW
-                lastLayoutH = currentH
-                isLayoutDirty = false
-                layoutIteration = 0
-            }
+        if (currentW <= 0f || currentH <= 0f) return
+        if (!isLayoutDirty && currentW == lastLayoutW && currentH == lastLayoutH) return
+
+        layoutIteration++
+        if (layoutIteration > 100) {
+            Log.err("[ComposeView] Potential infinite layout loop detected ($layoutIteration iterations)! Clamping layout.")
+            isLayoutDirty = false
+            layoutIteration = 0
+            return
         }
+
+        // Host Window phân phối ràng buộc kích thước chuẩn xuống Node gốc trong 1 pass duy nhất
+        rootLayoutNode.layout(currentW, currentH, exact = true)
+        lastLayoutW = currentW
+        lastLayoutH = currentH
+        isLayoutDirty = false
+        layoutIteration = 0
     }
 
     override fun draw() {
         if (!visible || width <= 0f || height <= 0f) return
         validate()
 
-        if (isLayoutDirty && width > 0f && height > 0f) {
+        // Safety net: draw() có thể được gọi trực tiếp bởi Stage mà không qua act()
+        if (isLayoutDirty) {
             rootLayoutNode.layout(width, height, exact = true)
             lastLayoutW = width
             lastLayoutH = height
@@ -285,7 +286,7 @@ open class ComposeView : Element() {
 
         val viewH = if (height > 0f) height else rootLayoutNode.height
         try {
-            UIBatch.begin(width, height)
+            UIBatch.begin()
             NodeRenderer.render(rootLayoutNode, this.x, this.y, viewH)
             UIBatch.end()
         } finally {

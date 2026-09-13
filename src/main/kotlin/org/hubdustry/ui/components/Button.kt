@@ -13,24 +13,24 @@ import org.hubdustry.core.compose.input.hoverable
 import org.hubdustry.core.compose.modifier.BoxScope
 import org.hubdustry.core.compose.modifier.background
 import org.hubdustry.core.compose.primitive.Box
-import org.hubdustry.core.graphics.RoundedCornerShape
-import org.hubdustry.core.graphics.Shape
+import org.hubdustry.core.graphics.RoundedCorners
 
-private val DefaultButtonPressedColor: Color by lazy { Color.royal.cpy().mul(0.75f) }
+internal val DefaultButtonCorners = RoundedCorners(6f)
+internal val DefaultButtonPressedColor: Color by lazy { Color.royal.cpy().mul(0.75f) }
 
 /**
  * Nút bấm chuẩn của NekoMod UI:
  * - Tự động đổi màu khi bị nhấn (pressed) và khi rê chuột qua (hovered) dựa trên [MutableInteractionSource].
  * - Kết nối trực tiếp cử chỉ click/tap mà không dùng Arc ClickListener.
- * - Hỗ trợ hình dạng bo góc SDF tự nhiên qua [shape].
+ * - Hỗ trợ hình dạng bo góc SDF tự nhiên qua [corners].
  */
 @Composable
 fun Button(
     onClick: () -> Unit,
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource? = null,
     enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(6f),
+    corners: RoundedCorners = DefaultButtonCorners,
     backgroundColor: Color = Color.royal,
     pressedColor: Color = DefaultButtonPressedColor,
     hoverColor: Color? = null,
@@ -49,7 +49,7 @@ fun Button(
 
     Box(
         modifier = modifier
-            .background(currentColor, shape)
+            .background(currentColor, corners)
             .hoverable(interactionSource = source, enabled = enabled)
             .clickable(interactionSource = source, enabled = enabled, onClick = onClick),
         content = content

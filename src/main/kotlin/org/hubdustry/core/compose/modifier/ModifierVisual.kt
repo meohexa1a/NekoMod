@@ -2,27 +2,17 @@ package org.hubdustry.core.compose.modifier
 
 import arc.graphics.Color
 import org.hubdustry.core.compose.Modifier
-import org.hubdustry.core.graphics.RectangleShape
-import org.hubdustry.core.graphics.RoundedCornerShape
-import org.hubdustry.core.graphics.Shape
+import org.hubdustry.core.graphics.RoundedCorners
 import org.hubdustry.core.layout.LayoutNode
 
 data class BackgroundModifier(
     val color: Color,
-    val shape: Shape? = null
+    val corners: RoundedCorners? = null
 ) : Modifier.Element {
     override fun applyTo(node: LayoutNode) {
         node.backgroundColor = color
-        when (shape) {
-            is RoundedCornerShape -> {
-                node.setCornerRadius(shape.topStart, shape.topEnd, shape.bottomEnd, shape.bottomStart)
-            }
-            RectangleShape -> {
-                node.setCornerRadius(0f)
-            }
-            null -> {
-                // Bảo tồn bo góc đã được thiết lập bởi modifier trước đó
-            }
+        if (corners != null) {
+            node.setCornerRadius(corners.topStart, corners.topEnd, corners.bottomEnd, corners.bottomStart)
         }
     }
 }
@@ -36,11 +26,11 @@ data class AlphaModifier(
 }
 
 /**
- * Đặt màu nền và hình dạng bo góc cho widget.
- * Nếu [shape] là null (mặc định), giữ nguyên bo góc sẵn có của widget.
+ * Đặt màu nền và bán kính bo góc [corners] cho widget.
+ * Nếu [corners] là null (mặc định), giữ nguyên bo góc sẵn có của widget.
  */
-fun Modifier.background(color: Color, shape: Shape? = null): Modifier =
-    this.then(BackgroundModifier(color, shape))
+fun Modifier.background(color: Color, corners: RoundedCorners? = null): Modifier =
+    this.then(BackgroundModifier(color, corners))
 
 /**
  * Đặt độ trong suốt (opacity / alpha) cho widget trong khoảng [0f, 1f].

@@ -1,5 +1,6 @@
 package org.hubdustry.core.layout
 
+import androidx.compose.ui.util.fastForEach
 import arc.graphics.Color
 import org.hubdustry.core.compose.input.SuspendingPointerInputFilter
 import org.hubdustry.core.layout.policies.BoxLayoutPolicy
@@ -263,14 +264,6 @@ open class LayoutNode {
     var contentHeight: Float = 0f
         internal set
 
-    var scrollState: org.hubdustry.core.compose.foundation.ScrollState?
-        get() = verticalScrollState ?: horizontalScrollState
-        set(value) {
-            if (isScrollableVertical) verticalScrollState = value
-            if (isScrollableHorizontal) horizontalScrollState = value
-            if (!isScrollableVertical && !isScrollableHorizontal) verticalScrollState = value
-        }
-
     /**
      * Khôi phục toàn bộ các thuộc tính có thể bị biến đổi bởi Modifier về giá trị mặc định,
      * ngăn chặn rò rỉ trạng thái giữa các lần Recomposition.
@@ -279,49 +272,39 @@ open class LayoutNode {
         defaultSizeFlagH: SizeFlag = SizeFlag.FILL,
         defaultSizeFlagV: SizeFlag = SizeFlag.FILL
     ) {
-        minWidth = 0f
-        minHeight = 0f
-        maxWidth = Float.MAX_VALUE
-        maxHeight = Float.MAX_VALUE
-        paddingLeft = 0f
-        paddingTop = 0f
-        paddingRight = 0f
-        paddingBottom = 0f
-        marginLeft = 0f
-        marginTop = 0f
-        marginRight = 0f
-        marginBottom = 0f
-        sizeFlagHorizontal = defaultSizeFlagH
-        sizeFlagVertical = defaultSizeFlagV
+        // Intrinsic size constraints
+        minWidth = 0f;  minHeight = 0f
+        maxWidth = Float.MAX_VALUE;  maxHeight = Float.MAX_VALUE
+
+        // Insets
+        paddingLeft = 0f;  paddingTop = 0f;  paddingRight = 0f;  paddingBottom = 0f
+        marginLeft = 0f;   marginTop = 0f;   marginRight = 0f;   marginBottom = 0f
+
+        // Layout policy & alignment
+        sizeFlagHorizontal = defaultSizeFlagH;  sizeFlagVertical = defaultSizeFlagV
         stretchRatio = 1f
-        alignHorizontal = Alignment.START
-        alignVertical = Alignment.START
-        offsetX = 0f
-        offsetY = 0f
+        alignHorizontal = Alignment.START;  alignVertical = Alignment.START
+        offsetX = 0f;  offsetY = 0f
+
+        // Visual tokens
         backgroundColor = null
-        textColor = Color.white
-        font = null
-        text = null
-        alpha = 1f
-        cornerRadiusTopStart = 0f
-        cornerRadiusTopEnd = 0f
-        cornerRadiusBottomEnd = 0f
-        cornerRadiusBottomStart = 0f
-        borderWidth = 0f
-        borderColor = Color.clear
-        clip = false
+        textColor = Color.white;  font = null;  text = null;  alpha = 1f
+
+        // Shape & border
+        cornerRadiusTopStart = 0f;  cornerRadiusTopEnd = 0f
+        cornerRadiusBottomEnd = 0f;  cornerRadiusBottomStart = 0f
+        borderWidth = 0f;  borderColor = Color.clear;  clip = false
+
+        // Pointer interaction
         _pointerInputFilters.clear()
         anchor.reset()
-        isScrollableVertical = false
-        isScrollableHorizontal = false
-        scrollX = 0f
-        scrollY = 0f
-        maxScrollX = 0f
-        maxScrollY = 0f
-        contentWidth = 0f
-        contentHeight = 0f
-        verticalScrollState = null
-        horizontalScrollState = null
+
+        // Scroll state
+        isScrollableVertical = false;  isScrollableHorizontal = false
+        maxScrollX = 0f;  maxScrollY = 0f
+        scrollX = 0f;  scrollY = 0f
+        contentWidth = 0f;  contentHeight = 0f
+        verticalScrollState = null;  horizontalScrollState = null
     }
 
     fun isAncestorOf(node: LayoutNode): Boolean {
@@ -333,9 +316,7 @@ open class LayoutNode {
         return false
     }
 
-    fun addChild(child: LayoutNode) {
-        addChild(child, _children.size)
-    }
+    fun addChild(child: LayoutNode) = addChild(child, _children.size)
 
     fun addChild(child: LayoutNode, index: Int) {
         if (child === this) return // Chặn chu trình self-reference
@@ -385,10 +366,7 @@ open class LayoutNode {
     }
 
     fun clearChildren() {
-        val count = _children.size
-        for (i in 0 until count) {
-            _children[i].parent = null
-        }
+        _children.fastForEach { it.parent = null }
         _children.clear()
     }
 
@@ -397,10 +375,7 @@ open class LayoutNode {
      */
     fun forEachInSubtree(action: (LayoutNode) -> Unit) {
         action(this)
-        val count = _children.size
-        for (i in 0 until count) {
-            _children[i].forEachInSubtree(action)
-        }
+        _children.fastForEach { it.forEachInSubtree(action) }
     }
 
     fun setPadding(left: Float, top: Float, right: Float, bottom: Float) {
@@ -410,9 +385,7 @@ open class LayoutNode {
         paddingBottom = bottom
     }
 
-    fun setPadding(all: Float) {
-        setPadding(all, all, all, all)
-    }
+    fun setPadding(all: Float) = setPadding(all, all, all, all)
 
     // --- 1D Axis Projections ---
     fun minSize(orientation: Orientation): Float = when (orientation) {
@@ -484,12 +457,9 @@ open class LayoutNode {
     }
 
     fun setContentSize(orientation: Orientation, main: Float, cross: Float) {
-        if (orientation == Orientation.HORIZONTAL) {
-            contentWidth = main
-            contentHeight = cross
-        } else {
-            contentWidth = cross
-            contentHeight = main
+        when (orientation) {
+            Orientation.HORIZONTAL -> { contentWidth = main;  contentHeight = cross }
+            Orientation.VERTICAL   -> { contentWidth = cross; contentHeight = main  }
         }
     }
 
@@ -515,10 +485,9 @@ open class LayoutNode {
         mainSize: Float,
         crossSize: Float
     ) {
-        if (orientation == Orientation.HORIZONTAL) {
-            arrange(mainPos, crossPos, mainSize, crossSize)
-        } else {
-            arrange(crossPos, mainPos, crossSize, mainSize)
+        when (orientation) {
+            Orientation.HORIZONTAL -> arrange(mainPos, crossPos, mainSize, crossSize)
+            Orientation.VERTICAL   -> arrange(crossPos, mainPos, crossSize, mainSize)
         }
     }
 
@@ -540,21 +509,16 @@ open class LayoutNode {
         maxScrollX = maxOf(0f, contentWidth - innerW)
         maxScrollY = maxOf(0f, contentHeight - innerH)
 
-        verticalScrollState?.let { s ->
-            if (kotlin.math.abs(s.viewportSize - innerH) > 0.001f) {
-                s.viewportSize = innerH
-            }
-            if (kotlin.math.abs(s.maxValue - maxScrollY) > 0.001f) {
-                s.maxValue = maxScrollY
-            }
+        verticalScrollState?.syncIfChanged(viewport = innerH, max = maxScrollY)
+        horizontalScrollState?.syncIfChanged(viewport = innerW, max = maxScrollX)
+    }
+
+    private fun org.hubdustry.core.compose.foundation.ScrollState.syncIfChanged(viewport: Float, max: Float) {
+        if (kotlin.math.abs(viewportSize - viewport) > 0.001f) {
+            viewportSize = viewport
         }
-        horizontalScrollState?.let { s ->
-            if (kotlin.math.abs(s.viewportSize - innerW) > 0.001f) {
-                s.viewportSize = innerW
-            }
-            if (kotlin.math.abs(s.maxValue - maxScrollX) > 0.001f) {
-                s.maxValue = maxScrollX
-            }
+        if (kotlin.math.abs(maxValue - max) > 0.001f) {
+            maxValue = max
         }
     }
 
@@ -562,22 +526,23 @@ open class LayoutNode {
      * Tự giải neo trong không gian của cha và kích hoạt bố cục nội dung con.
      */
     fun resolveAnchors(innerX: Float, innerY: Float, innerWidth: Float, innerHeight: Float) {
-        val targetLeft = anchor.resolveLeft(innerX, innerWidth)
+        // Horizontal axis
+        val targetLeft  = anchor.resolveLeft(innerX, innerWidth)
         val targetRight = anchor.resolveRight(innerX, innerWidth)
-        val targetTop = anchor.resolveTop(innerY, innerHeight)
-        val targetBottom = anchor.resolveBottom(innerY, innerHeight)
-
         val finalW = when {
             anchor.hasExplicitWidth -> maxOf(minWidth, targetRight - targetLeft)
-            width > 0f -> width
-            else -> minWidth
+            width > 0f              -> width
+            else                    -> minWidth
         }.coerceIn(minWidth, maxWidth)
         val finalX = if (anchor.hasExplicitWidth) targetLeft else targetLeft - finalW * anchor.anchorLeft
 
+        // Vertical axis
+        val targetTop    = anchor.resolveTop(innerY, innerHeight)
+        val targetBottom = anchor.resolveBottom(innerY, innerHeight)
         val finalH = when {
             anchor.hasExplicitHeight -> maxOf(minHeight, targetBottom - targetTop)
-            height > 0f -> height
-            else -> minHeight
+            height > 0f              -> height
+            else                     -> minHeight
         }.coerceIn(minHeight, maxHeight)
         val finalY = if (anchor.hasExplicitHeight) targetTop else targetTop - finalH * anchor.anchorTop
 
