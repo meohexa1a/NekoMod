@@ -95,6 +95,9 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    testLogging {
+        events("passed", "skipped", "failed")
+    }
 }
 
 val shadowJar = tasks.named<ShadowJar>("shadowJar") {
