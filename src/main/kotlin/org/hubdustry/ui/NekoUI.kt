@@ -1,0 +1,133 @@
+package org.hubdustry.ui
+
+import androidx.compose.runtime.Composable
+import arc.graphics.Color
+import arc.graphics.g2d.Font
+import arc.scene.ui.layout.Cell
+import arc.scene.ui.layout.Table
+import org.hubdustry.core.compose.Modifier
+import org.hubdustry.core.compose.foundation.ScrollState
+import org.hubdustry.core.compose.foundation.rememberScrollState
+import org.hubdustry.core.compose.input.IntSize
+import org.hubdustry.core.compose.input.InteractionSource
+import org.hubdustry.core.compose.input.MutableInteractionSource
+import org.hubdustry.core.compose.input.Offset
+import org.hubdustry.core.compose.input.PointerInputScope
+import org.hubdustry.core.compose.input.clickable
+import org.hubdustry.core.compose.input.hoverable
+import org.hubdustry.core.compose.input.pointerInput
+import org.hubdustry.core.compose.modifier.*
+import org.hubdustry.core.compose.view.ComposeView
+import org.hubdustry.core.graphics.CircleShape
+import org.hubdustry.core.graphics.RectangleShape
+import org.hubdustry.core.graphics.RoundedCornerShape
+import org.hubdustry.core.graphics.Shape
+import org.hubdustry.core.layout.Alignment
+import org.hubdustry.core.layout.AnchorPreset
+import org.hubdustry.core.layout.Orientation
+import org.hubdustry.core.layout.SizeFlag
+import org.hubdustry.ui.components.Button
+
+// --- 1. TYPEALIASES & CORE EXPORTS ---
+
+typealias Modifier = org.hubdustry.core.compose.Modifier
+typealias Shape = org.hubdustry.core.graphics.Shape
+typealias RoundedCornerShape = org.hubdustry.core.graphics.RoundedCornerShape
+typealias Alignment = org.hubdustry.core.layout.Alignment
+typealias AnchorPreset = org.hubdustry.core.layout.AnchorPreset
+typealias Orientation = org.hubdustry.core.layout.Orientation
+typealias SizeFlag = org.hubdustry.core.layout.SizeFlag
+typealias ScrollState = org.hubdustry.core.compose.foundation.ScrollState
+typealias Offset = org.hubdustry.core.compose.input.Offset
+typealias IntSize = org.hubdustry.core.compose.input.IntSize
+typealias InteractionSource = org.hubdustry.core.compose.input.InteractionSource
+typealias MutableInteractionSource = org.hubdustry.core.compose.input.MutableInteractionSource
+typealias ComposeView = org.hubdustry.core.compose.view.ComposeView
+typealias BoxScope = org.hubdustry.core.compose.modifier.BoxScope
+typealias RowScope = org.hubdustry.core.compose.modifier.RowScope
+typealias ColumnScope = org.hubdustry.core.compose.modifier.ColumnScope
+
+// --- 2. CORE COMPOSABLES & HOST DSL ---
+
+/**
+ * Cú pháp DSL thuận tiện để nhúng trực tiếp [ComposeView] vào bất kỳ [Table] nào của Arc Scene2D.
+ */
+fun Table.compose(content: @Composable () -> Unit): Cell<ComposeView> {
+    val view = ComposeView().apply {
+        setContent(content)
+    }
+    return this.add(view)
+}
+
+/**
+ * Container Box (FrameLayout) tự do theo chuẩn Jetpack Compose.
+ */
+@Composable
+fun Box(
+    modifier: Modifier = Modifier.Companion,
+    content: @Composable BoxScope.() -> Unit = {}
+) = org.hubdustry.core.compose.primitive.Box(modifier, content)
+
+/**
+ * Container Row (HBox) xếp ngang theo chuẩn Jetpack Compose.
+ */
+@Composable
+fun Row(
+    modifier: Modifier = Modifier.Companion,
+    gap: Float = 0f,
+    content: @Composable RowScope.() -> Unit
+) = org.hubdustry.core.compose.primitive.Row(modifier, gap, content)
+
+/**
+ * Container Column (VBox) xếp dọc theo chuẩn Jetpack Compose.
+ */
+@Composable
+fun Column(
+    modifier: Modifier = Modifier.Companion,
+    gap: Float = 0f,
+    content: @Composable ColumnScope.() -> Unit
+) = org.hubdustry.core.compose.primitive.Column(modifier, gap, content)
+
+/**
+ * Composable hiển thị văn bản BMFont.
+ */
+@Composable
+fun Text(
+    text: String,
+    modifier: Modifier = Modifier.Companion,
+    textColor: Color = Color.white,
+    font: Font? = null
+) = org.hubdustry.core.compose.primitive.Text(text, modifier, textColor, font)
+
+/**
+ * Nút bấm chuẩn của NekoMod UI:
+ * - Tự động đổi màu khi bị nhấn (pressed) và khi rê chuột qua (hovered) dựa trên [MutableInteractionSource].
+ * - Kết nối trực tiếp cử chỉ click/tap mà không dùng Arc ClickListener.
+ * - Hỗ trợ hình dạng bo góc SDF tự nhiên qua [shape].
+ */
+@Composable
+fun Button(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier.Companion,
+    interactionSource: MutableInteractionSource? = null,
+    enabled: Boolean = true,
+    shape: Shape = RoundedCornerShape(6f),
+    backgroundColor: Color = Color.royal,
+    pressedColor: Color = Color.royal.cpy().mul(0.75f),
+    hoverColor: Color? = null,
+    content: @Composable BoxScope.() -> Unit
+) = org.hubdustry.ui.components.Button(onClick, modifier, interactionSource, enabled, shape, backgroundColor, pressedColor, hoverColor, content)
+
+/**
+ * Factory tạo [MutableInteractionSource] quản lý tương tác người dùng.
+ */
+fun MutableInteractionSource(): MutableInteractionSource =
+    org.hubdustry.core.compose.input.MutableInteractionSource()
+
+/**
+ * Nhớ trạng thái cuộn [ScrollState] qua Recomposition.
+ */
+@Composable
+fun rememberScrollState(initial: Float = 0f): ScrollState =
+    org.hubdustry.core.compose.foundation.rememberScrollState(initial)
+

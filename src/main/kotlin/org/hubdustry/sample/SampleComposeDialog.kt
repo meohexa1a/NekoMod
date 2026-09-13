@@ -5,30 +5,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import arc.graphics.Color
 import mindustry.ui.dialogs.BaseDialog
-import org.hubdustry.libs.compose.Box
-import org.hubdustry.libs.compose.Button
-import org.hubdustry.libs.compose.Column
-import org.hubdustry.libs.compose.Modifier
-import org.hubdustry.libs.compose.Row
-import org.hubdustry.libs.compose.Text
-import org.hubdustry.libs.compose.compose
-import org.hubdustry.libs.compose.modifier.anchor
-import org.hubdustry.libs.compose.modifier.background
-import org.hubdustry.libs.compose.modifier.fillMaxHeight
-import org.hubdustry.libs.compose.modifier.fillMaxWidth
-import org.hubdustry.libs.compose.modifier.heightIn
-import org.hubdustry.libs.compose.modifier.padding
-import org.hubdustry.libs.compose.modifier.size
-import org.hubdustry.libs.compose.modifier.widthIn
-import org.hubdustry.libs.layout.Alignment
-import org.hubdustry.libs.layout.AnchorPreset
+import org.hubdustry.ui.*
+import org.hubdustry.core.compose.modifier.*
 
 /**
- * Dialog trình diễn các tính năng của NekoMod v3 Compose Engine:
+ * Dialog trình diễn các tính năng của NekoMod v3 Engine:
  * 1. Nhúng DSL tự nhiên qua Table.compose(...) không cần boilerplate.
  * 2. Phản ứng Recomposition theo Reactive State.
  * 3. Bố cục Flexbox (Row, Column) với Gap, Padding và Stretch Ratio qua Modifier.
  * 4. Định vị neo Godot-style (AnchorPreset overlay / ghost badge).
+ * 5. Dựng hình SDF Shader cho Box: Bo góc độc lập 4 đỉnh và viền nổi (Inner Border).
  */
 class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
 
@@ -45,40 +31,40 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                 else -> Color.gold
             }
 
-            // Root Column lấp đầy ComposeView một cách tự nhiên
+            // Root Column lấp đầy ComposeView một cách tự nhiên với bo góc SDF 12px
             Column(
                 modifier = Modifier
-                    .background(Color.darkGray)
+                    .background(Color.darkGray, RoundedCornerShape(12f))
                     .padding(12f),
                 gap = 10f
             ) {
 
-                // 1. Header Card với Title & Ghost Anchor Badge
+                // 1. Header Card với Title & Ghost Anchor Badge (Bo góc 8px)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 36f)
-                        .background(Color.black)
+                        .background(Color.black, RoundedCornerShape(8f))
                         .padding(8f)
                 ) {
                     Text(
-                        text = "NekoMod v3 Layout Engine",
+                        text = "NekoMod v3 Layout & SDF Shader",
                         textColor = Color.sky
                     )
 
-                    // Ghost Anchor Badge gắn góc trên-phải của Header
+                    // Ghost Anchor Badge gắn góc trên-phải của Header (Bo góc 4px)
                     Box(
                         modifier = Modifier
                             .anchor(AnchorPreset.TOP_RIGHT)
                             .size(46f, 20f)
-                            .background(Color.scarlet)
+                            .background(Color.scarlet, RoundedCornerShape(4f))
                             .padding(2f)
                     ) {
                         Text(text = "LIVE", textColor = Color.white)
                     }
                 }
 
-                // 2. Reactive Counter Card với Composable Button tương tác trực tiếp
+                // 2. Reactive Counter Card với Composable Button tương tác trực tiếp & Viền SDF
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -88,7 +74,8 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .background(dynamicColor)
+                            .background(dynamicColor, RoundedCornerShape(8f))
+                            .border(1.5f, Color.white, RoundedCornerShape(8f))
                             .padding(10f)
                     ) {
                         Text(
@@ -97,12 +84,13 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                         )
                     }
 
-                    // Nút bấm tương tác trực tiếp bên trong Compose Tree (AOSP Pointer Input)
+                    // Nút bấm tương tác trực tiếp bên trong Compose Tree (AOSP Pointer Input + SDF Shader)
                     Button(
                         onClick = { countState.value++ },
                         modifier = Modifier
                             .fillMaxHeight()
                             .padding(horizontal = 4f),
+                        shape = RoundedCornerShape(8f),
                         backgroundColor = Color.forest,
                         pressedColor = Color.green
                     ) {
@@ -115,6 +103,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                             .fillMaxHeight()
                             .widthIn(min = 72f)
                             .padding(horizontal = 4f),
+                        shape = RoundedCornerShape(8f),
                         backgroundColor = Color.scarlet,
                         pressedColor = Color.crimson
                     ) {
@@ -132,7 +121,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .background(Color.slate)
+                            .background(Color.slate, RoundedCornerShape(6f))
                             .padding(6f)
                     ) {
                         Text(text = "Flex: 1x", textColor = Color.white)
@@ -140,7 +129,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                     Box(
                         modifier = Modifier
                             .weight(2f)
-                            .background(Color.navy)
+                            .background(Color.navy, RoundedCornerShape(6f))
                             .padding(6f)
                     ) {
                         Text(text = "Flex: 2x (Double Width)", textColor = Color.white)
@@ -155,7 +144,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                     gap = 8f
                 ) {
                     Text(
-                        text = "Zero-GC Engine * [gold]Berlin Wall Y-Down[] * AOSP Pointer Input",
+                        text = "Zero-GC Engine * SDF Shader * Berlin Wall Y-Down * AOSP Pointer Input",
                         textColor = Color.gray
                     )
                 }
