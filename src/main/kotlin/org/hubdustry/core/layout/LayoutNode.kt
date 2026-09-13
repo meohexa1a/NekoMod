@@ -11,6 +11,9 @@ import org.hubdustry.core.layout.policies.BoxLayoutPolicy
  * và chuỗi bộ lọc cử chỉ (Pointer Input Filter Chain) trên các trường phẳng đạt chuẩn Zero-GC.
  */
 open class LayoutNode {
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. HIERARCHY & VIRTUAL DOM TREE
+    // ─────────────────────────────────────────────────────────────────────────
     var parent: LayoutNode? = null
         internal set
 
@@ -20,6 +23,9 @@ open class LayoutNode {
     var visible: Boolean = true
     var clip: Boolean = false
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. COMPUTED GEOMETRY & INTRINSIC CONSTRAINTS
+    // ─────────────────────────────────────────────────────────────────────────
     // Tọa độ & Kích thước kết quả (Được tính toán bởi policy)
     var x: Float = 0f
         set(value) {
@@ -71,6 +77,9 @@ open class LayoutNode {
             field = if (value.isNaN() || value < safeMin) safeMin else value
         }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. INSETS (PADDING & MARGIN)
+    // ─────────────────────────────────────────────────────────────────────────
     // Inset (Padding nội tại của Node) - Gateway Sanitization
     var paddingLeft: Float = 0f
         set(value) {
@@ -137,6 +146,9 @@ open class LayoutNode {
         marginBottom = if (bottom.isNaN() || bottom < 0f) 0f else bottom
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4. LAYOUT POLICY, ANCHORS & ALIGNMENT
+    // ─────────────────────────────────────────────────────────────────────────
     // Cấu hình Anchor & SizeFlags theo mô hình Godot Control
     val anchor: AnchorData = AnchorData()
     var sizeFlagHorizontal: SizeFlag = SizeFlag.FILL
@@ -153,7 +165,9 @@ open class LayoutNode {
     // Chiến lược bố cục (Mặc định là BoxLayoutPolicy)
     var policy: LayoutPolicy = BoxLayoutPolicy
 
-
+    // ─────────────────────────────────────────────────────────────────────────
+    // 5. VISUAL TOKENS, SHAPE & BORDER
+    // ─────────────────────────────────────────────────────────────────────────
     // Thuộc tính hiển thị trực quan (Visual Tokens) cho Virtual DOM
     var backgroundColor: Color? = null
     var text: String? = null
@@ -212,6 +226,9 @@ open class LayoutNode {
     val hasBorder: Boolean
         get() = borderWidth > 0.001f && borderColor.a > 0.001f
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 6. POINTER INTERACTION & GESTURE FILTER CHAIN
+    // ─────────────────────────────────────────────────────────────────────────
     // Bộ lọc xử lý cử chỉ con trỏ (Pointer Input Engine) - Hỗ trợ nhiều filter theo chuỗi modifier
     private val _pointerInputFilters = ArrayList<SuspendingPointerInputFilter>()
     val pointerInputFilters: List<SuspendingPointerInputFilter> get() = _pointerInputFilters
@@ -229,7 +246,9 @@ open class LayoutNode {
         _pointerInputFilters.clear()
     }
 
-    // --- NATIVE SCROLLING & VIEWPORT ---
+    // ─────────────────────────────────────────────────────────────────────────
+    // 7. SCROLLING & VIEWPORT STATE
+    // ─────────────────────────────────────────────────────────────────────────
     var isScrollableVertical: Boolean = false
     var isScrollableHorizontal: Boolean = false
 
@@ -264,6 +283,9 @@ open class LayoutNode {
     var contentHeight: Float = 0f
         internal set
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 8. STATE RESET & TREE HIERARCHY MANIPULATION
+    // ─────────────────────────────────────────────────────────────────────────
     /**
      * Khôi phục toàn bộ các thuộc tính có thể bị biến đổi bởi Modifier về giá trị mặc định,
      * ngăn chặn rò rỉ trạng thái giữa các lần Recomposition.
@@ -387,7 +409,9 @@ open class LayoutNode {
 
     fun setPadding(all: Float) = setPadding(all, all, all, all)
 
-    // --- 1D Axis Projections ---
+    // ─────────────────────────────────────────────────────────────────────────
+    // 9. 1D AXIS PROJECTIONS & SYMMETRY
+    // ─────────────────────────────────────────────────────────────────────────
     fun minSize(orientation: Orientation): Float = when (orientation) {
         Orientation.HORIZONTAL -> minWidth
         Orientation.VERTICAL -> minHeight
@@ -463,7 +487,9 @@ open class LayoutNode {
         }
     }
 
-    // --- Self-Arranging & Anchors ---
+    // ─────────────────────────────────────────────────────────────────────────
+    // 10. MEASUREMENT, ANCHORS & LAYOUT EXECUTION
+    // ─────────────────────────────────────────────────────────────────────────
     /**
      * Định vị tọa độ và kích thước cho node, sau đó kích hoạt bố cục nội dung con.
      */
