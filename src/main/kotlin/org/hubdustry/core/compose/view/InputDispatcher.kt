@@ -1,0 +1,604 @@
+package org.hubdustry.core.compose.view
+
+import org.hubdustry.core.compose.input.ConsumedData
+import org.hubdustry.core.compose.input.IntSize
+import org.hubdustry.core.compose.input.Offset
+import org.hubdustry.core.compose.input.PointerButton
+import org.hubdustry.core.compose.input.PointerEvent
+import org.hubdustry.core.compose.input.PointerEventPass
+import org.hubdustry.core.compose.input.PointerEventType
+import org.hubdustry.core.compose.input.PointerId
+import org.hubdustry.core.compose.input.PointerInputChange
+import org.hubdustry.core.compose.input.PointerType
+import org.hubdustry.core.layout.LayoutNode
+
+/**
+ * Ghi lại thông tin node trúng hit-test và tọa độ tuyệt đối của node trong ComposeView.
+ */
+data class LayoutNodeHit(
+    var node: LayoutNode,
+    var absX: Float,
+    var absY: Float
+)
+
+internal class PointerHitRecord(
+    val chain: List<LayoutNodeHit>,
+    var lastComposeX: Float,
+    var lastComposeY: Float,
+    var lastUptime: Long,
+    val button: PointerButton? = PointerButton.Primary,
+    val pointerType: PointerType = PointerType.Touch
+)
+
+/**
+ * Bộ điều phối sự kiện con trỏ và cử chỉ độc lập cho [ComposeView].
+ *
+ * TÁCH BIỆT TRÁCH NHIỆM (Đợt 2 Refactor):
+ * 1. Chịu trách nhiệm Hit-Testing duyệt cây tìm chuỗi node nhận tương tác.
+ * 2. Phân phối sự kiện 3-pass (Initial -> Main -> Final) theo chuẩn Jetpack Compose AOSP.
+ * 3. Theo dõi vòng đời con trỏ (Touch/Mouse/Hover Tracking) và giải phóng sạch sẽ.
+ * 4. Tái sử dụng scratchpads và object pools để triệt tiêu cấp phát heap trong hot-path (Zero-GC).
+ */
+class InputDispatcher(private val rootLayoutNode: LayoutNode) {
+
+    // Bộ theo dõi con trỏ đang hoạt động (Pointer Tracking)
+    private val trackedPointers = HashMap<Int, PointerHitRecord>()
+    private val hitScratch = ArrayList<LayoutNodeHit>()
+    private val hitPool = ArrayList<LayoutNodeHit>()
+    private var hitPoolIndex = 0
+
+    // Scratchpad tái sử dụng trong dispatch3Pass để triệt tiêu cấp phát collection trong hot-path
+    private val eventsScratch = ArrayList<PointerEvent>()
+    private val boundsScratch = ArrayList<IntSize>()
+    private val previousHoverChain = ArrayList<LayoutNodeHit>()
+    private val exitedHoverScratch = ArrayList<LayoutNodeHit>()
+    private val hoverPool = ArrayList<LayoutNodeHit>()
+
+    private fun obtainHit(node: LayoutNode, absX: Float, absY: Float): LayoutNodeHit {
+        val hit = if (hitPoolIndex < hitPool.size) {
+            val existing = hitPool[hitPoolIndex]
+            existing.node = node
+            existing.absX = absX
+            existing.absY = absY
+            existing
+        } else {
+            val newHit = LayoutNodeHit(node, absX, absY)
+            hitPool.add(newHit)
+            newHit
+        }
+        hitPoolIndex++
+        return hit
+    }
+
+    /**
+     * Entry point nhận sự kiện con trỏ tổng quát (sử dụng trong kiểm thử và tích hợp mở rộng).
+     * Tọa độ [x], [y] là tọa độ Top-Left (Y-down) nội bộ của NekoMod Compose.
+     */
+    fun sendPointerInput(
+        type: PointerEventType,
+        x: Float,
+        y: Float,
+        pointer: Int = 0,
+        uptimeMillis: Long = System.currentTimeMillis(),
+        button: PointerButton? = PointerButton.Primary,
+        pointerType: PointerType = PointerType.Touch,
+        scrollDelta: Offset = Offset.Zero
+    ): Boolean {
+        return when (type) {
+            PointerEventType.Press -> touchDown(x, y, pointer, uptimeMillis, button, pointerType)
+            PointerEventType.Move -> {
+                if (trackedPointers.containsKey(pointer)) {
+                    touchMove(x, y, pointer, uptimeMillis)
+                    true
+                } else {
+                    mouseMove(x, y, uptimeMillis)
+                }
+            }
+            PointerEventType.Release -> {
+                touchUp(x, y, pointer, uptimeMillis, button, pointerType)
+                true
+            }
+            PointerEventType.Scroll -> scroll(x, y, scrollDelta, uptimeMillis)
+            PointerEventType.Exit -> {
+                mouseExit(uptimeMillis)
+                cancelAllActivePointers(uptimeMillis)
+                true
+            }
+            PointerEventType.Enter, PointerEventType.Unknown -> false
+        }
+    }
+
+    fun touchDown(
+        composeX: Float,
+        composeY: Float,
+        pointer: Int,
+        uptime: Long,
+        button: PointerButton? = PointerButton.Primary,
+        pointerType: PointerType = PointerType.Touch
+    ): Boolean {
+        hitPoolIndex = 0
+        hitScratch.clear()
+        hitTestChain(rootLayoutNode, parentAbsX = 0f, parentAbsY = 0f, targetX = composeX, targetY = composeY, result = hitScratch)
+
+        if (hitScratch.isEmpty()) return false
+
+        val hitCount = hitScratch.size
+        val chain = ArrayList<LayoutNodeHit>(hitCount)
+        for (i in 0 until hitCount) {
+            val h = hitScratch[i]
+            chain.add(LayoutNodeHit(h.node, h.absX, h.absY))
+        }
+        trackedPointers[pointer] = PointerHitRecord(chain, composeX, composeY, uptime, button, pointerType)
+
+        dispatch3Pass(
+            chain = chain,
+            composeX = composeX,
+            composeY = composeY,
+            pointer = pointer,
+            uptime = uptime,
+            pressed = true,
+            previousUptime = uptime,
+            previousComposeX = composeX,
+            previousComposeY = composeY,
+            previousPressed = false,
+            eventType = PointerEventType.Press,
+            pointerType = pointerType,
+            button = button
+        )
+        return true
+    }
+
+    fun touchMove(composeX: Float, composeY: Float, pointer: Int, uptime: Long) {
+        val record = trackedPointers[pointer] ?: return
+        val prevX = record.lastComposeX
+        val prevY = record.lastComposeY
+        val prevUptime = record.lastUptime
+        record.lastComposeX = composeX
+        record.lastComposeY = composeY
+        record.lastUptime = uptime
+
+        dispatch3Pass(
+            chain = record.chain,
+            composeX = composeX,
+            composeY = composeY,
+            pointer = pointer,
+            uptime = uptime,
+            pressed = true,
+            previousUptime = prevUptime,
+            previousComposeX = prevX,
+            previousComposeY = prevY,
+            previousPressed = true,
+            eventType = PointerEventType.Move,
+            pointerType = record.pointerType,
+            button = record.button
+        )
+    }
+
+    fun touchUp(
+        composeX: Float,
+        composeY: Float,
+        pointer: Int,
+        uptime: Long,
+        button: PointerButton? = PointerButton.Primary,
+        pointerType: PointerType = PointerType.Touch
+    ) {
+        val record = trackedPointers.remove(pointer)
+        val chain = record?.chain ?: run {
+            hitPoolIndex = 0
+            hitScratch.clear()
+            hitTestChain(rootLayoutNode, parentAbsX = 0f, parentAbsY = 0f, targetX = composeX, targetY = composeY, result = hitScratch)
+            hitScratch
+        }
+        val prevX = record?.lastComposeX ?: composeX
+        val prevY = record?.lastComposeY ?: composeY
+        val prevUptime = record?.lastUptime ?: uptime
+        val effectiveType = record?.pointerType ?: pointerType
+        val effectiveButton = record?.button ?: button
+
+        dispatch3Pass(
+            chain = chain,
+            composeX = composeX,
+            composeY = composeY,
+            pointer = pointer,
+            uptime = uptime,
+            pressed = false,
+            previousUptime = prevUptime,
+            previousComposeX = prevX,
+            previousComposeY = prevY,
+            previousPressed = true,
+            eventType = PointerEventType.Release,
+            pointerType = effectiveType,
+            button = effectiveButton
+        )
+    }
+
+    /**
+     * Điều phối sự kiện con lăn chuột (Mouse Wheel / Scroll) qua chuỗi 3-pass theo chuẩn Compose.
+     */
+    fun scroll(
+        composeX: Float,
+        composeY: Float,
+        scrollDelta: Offset,
+        uptime: Long = System.currentTimeMillis()
+    ): Boolean {
+        hitPoolIndex = 0
+        hitScratch.clear()
+        hitTestChain(rootLayoutNode, parentAbsX = 0f, parentAbsY = 0f, targetX = composeX, targetY = composeY, result = hitScratch)
+
+        if (hitScratch.isEmpty()) return false
+
+        val hitCount = hitScratch.size
+        val chain = ArrayList<LayoutNodeHit>(hitCount)
+        for (i in 0 until hitCount) {
+            val h = hitScratch[i]
+            chain.add(LayoutNodeHit(h.node, h.absX, h.absY))
+        }
+
+        return dispatch3Pass(
+            chain = chain,
+            composeX = composeX,
+            composeY = composeY,
+            pointer = 0,
+            uptime = uptime,
+            pressed = false,
+            previousUptime = uptime,
+            previousComposeX = composeX,
+            previousComposeY = composeY,
+            previousPressed = false,
+            eventType = PointerEventType.Scroll,
+            pointerType = PointerType.Mouse,
+            button = null,
+            scrollDelta = scrollDelta
+        )
+    }
+
+    fun mouseMove(composeX: Float, composeY: Float, uptime: Long): Boolean {
+        hitPoolIndex = 0
+        hitScratch.clear()
+        hitTestChain(rootLayoutNode, parentAbsX = 0f, parentAbsY = 0f, targetX = composeX, targetY = composeY, result = hitScratch)
+
+        // 1. Tìm các node đã rời khỏi tầm chuột (Exited nodes)
+        exitedHoverScratch.clear()
+        val prevCount = previousHoverChain.size
+        for (i in 0 until prevCount) {
+            val prevHit = previousHoverChain[i]
+            var stillHit = false
+            val currentCount = hitScratch.size
+            for (j in 0 until currentCount) {
+                if (hitScratch[j].node === prevHit.node) {
+                    stillHit = true
+                    break
+                }
+            }
+            if (!stillHit) {
+                exitedHoverScratch.add(prevHit)
+            }
+        }
+
+        // Dispatch sự kiện ra ngoài bounds cho các node đã rời đi
+        if (exitedHoverScratch.isNotEmpty()) {
+            dispatch3Pass(
+                chain = exitedHoverScratch,
+                composeX = composeX,
+                composeY = composeY,
+                pointer = 0,
+                uptime = uptime,
+                pressed = false,
+                previousUptime = uptime,
+                previousComposeX = composeX,
+                previousComposeY = composeY,
+                previousPressed = false,
+                eventType = PointerEventType.Exit,
+                pointerType = PointerType.Mouse,
+                button = null
+            )
+            exitedHoverScratch.clear()
+        }
+
+        // 2. Dispatch sự kiện Move cho các node đang trúng chuột
+        if (hitScratch.isNotEmpty()) {
+            dispatch3Pass(
+                chain = hitScratch,
+                composeX = composeX,
+                composeY = composeY,
+                pointer = 0,
+                uptime = uptime,
+                pressed = false,
+                previousUptime = uptime,
+                previousComposeX = composeX,
+                previousComposeY = composeY,
+                previousPressed = false,
+                eventType = PointerEventType.Move,
+                pointerType = PointerType.Mouse,
+                button = null
+            )
+        }
+
+        // 3. Cập nhật previousHoverChain mà không cấp phát mới (Zero-GC)
+        updatePreviousHoverChain(hitScratch)
+
+        return hitScratch.isNotEmpty()
+    }
+
+    /**
+     * Thông báo con trỏ chuột đã rời khỏi phạm vi View.
+     * Chỉ giải phóng chuỗi hover, KHÔNG làm gián đoạn thao tác drag của các con trỏ đang nhấn (Fix N17).
+     */
+    fun mouseExit(uptime: Long = System.currentTimeMillis()) {
+        if (previousHoverChain.isNotEmpty()) {
+            dispatch3Pass(
+                chain = previousHoverChain,
+                composeX = -1000f,
+                composeY = -1000f,
+                pointer = 0,
+                uptime = uptime,
+                pressed = false,
+                previousUptime = uptime,
+                previousComposeX = -1000f,
+                previousComposeY = -1000f,
+                previousPressed = false,
+                eventType = PointerEventType.Exit,
+                pointerType = PointerType.Mouse,
+                button = null
+            )
+            previousHoverChain.clear()
+        }
+    }
+
+    private fun updatePreviousHoverChain(currentHits: List<LayoutNodeHit>) {
+        previousHoverChain.clear()
+        val count = currentHits.size
+        for (i in 0 until count) {
+            val src = currentHits[i]
+            val hit = if (i < hoverPool.size) {
+                val existing = hoverPool[i]
+                existing.node = src.node
+                existing.absX = src.absX
+                existing.absY = src.absY
+                existing
+            } else {
+                val newHit = LayoutNodeHit(src.node, src.absX, src.absY)
+                hoverPool.add(newHit)
+                newHit
+            }
+            previousHoverChain.add(hit)
+        }
+    }
+
+    private fun hitTestChain(
+        node: LayoutNode,
+        parentAbsX: Float,
+        parentAbsY: Float,
+        targetX: Float,
+        targetY: Float,
+        result: MutableList<LayoutNodeHit>
+    ): Boolean {
+        if (!node.visible) return false
+        val absX = parentAbsX + node.x + node.offsetX
+        val absY = parentAbsY + node.y + node.offsetY
+        val w = node.width
+        val h = node.height
+
+        val isInBounds = targetX in absX..(absX + w) && targetY in absY..(absY + h)
+        if (node.clip && !isInBounds) {
+            return false
+        }
+
+        val initialSize = result.size
+
+        if (isInBounds && node.pointerInputFilters.isNotEmpty()) {
+            result.add(obtainHit(node, absX, absY))
+        }
+
+        val childParentAbsX = absX - node.scrollX
+        val childParentAbsY = absY - node.scrollY
+
+        val children = node.children
+        val count = children.size
+        for (i in count - 1 downTo 0) {
+            if (hitTestChain(children[i], childParentAbsX, childParentAbsY, targetX, targetY, result)) {
+                break
+            }
+        }
+
+        return result.size > initialSize
+    }
+
+    private fun dispatch3Pass(
+        chain: List<LayoutNodeHit>,
+        composeX: Float,
+        composeY: Float,
+        pointer: Int,
+        uptime: Long,
+        pressed: Boolean,
+        previousUptime: Long,
+        previousComposeX: Float,
+        previousComposeY: Float,
+        previousPressed: Boolean,
+        eventType: PointerEventType,
+        pointerType: PointerType = PointerType.Touch,
+        button: PointerButton? = null,
+        scrollDelta: Offset = Offset.Zero,
+        isConsumed: Boolean = false
+    ): Boolean {
+        val count = chain.size
+        if (count == 0) return false
+
+        val pointerId = PointerId(pointer.toLong())
+        val consumed = ConsumedData(isConsumed)
+
+        if (count == 1) {
+            val hit = chain[0]
+            val filters = hit.node.pointerInputFilters
+            val fCount = filters.size
+            if (fCount == 0) return false
+            val pos = Offset(composeX - hit.absX, composeY - hit.absY)
+            val prevPos = Offset(previousComposeX - hit.absX, previousComposeY - hit.absY)
+            val change = PointerInputChange(
+                id = pointerId,
+                uptimeMillis = uptime,
+                position = pos,
+                pressed = pressed,
+                previousUptimeMillis = previousUptime,
+                previousPosition = prevPos,
+                previousPressed = previousPressed,
+                consumed = consumed,
+                type = pointerType,
+                button = button,
+                scrollDelta = scrollDelta
+            )
+            val event = PointerEvent(listOf(change), eventType)
+            val bounds = IntSize(
+                kotlin.math.ceil(hit.node.width).toInt(),
+                kotlin.math.ceil(hit.node.height).toInt()
+            )
+
+            // Initial Pass: outer to inner (0 until fCount)
+            for (f in 0 until fCount) {
+                filters[f].dispatchPointerEvent(event, PointerEventPass.Initial, bounds)
+            }
+            // Main Pass: inner to outer (fCount - 1 downTo 0)
+            for (f in fCount - 1 downTo 0) {
+                filters[f].dispatchPointerEvent(event, PointerEventPass.Main, bounds)
+            }
+            // Final Pass: inner to outer (fCount - 1 downTo 0)
+            for (f in fCount - 1 downTo 0) {
+                filters[f].dispatchPointerEvent(event, PointerEventPass.Final, bounds)
+            }
+            return consumed.isConsumed
+        }
+
+        eventsScratch.clear()
+        boundsScratch.clear()
+
+        for (i in 0 until count) {
+            val hit = chain[i]
+            val pos = Offset(composeX - hit.absX, composeY - hit.absY)
+            val prevPos = Offset(previousComposeX - hit.absX, previousComposeY - hit.absY)
+            val change = PointerInputChange(
+                id = pointerId,
+                uptimeMillis = uptime,
+                position = pos,
+                pressed = pressed,
+                previousUptimeMillis = previousUptime,
+                previousPosition = prevPos,
+                previousPressed = previousPressed,
+                consumed = consumed,
+                type = pointerType,
+                button = button,
+                scrollDelta = scrollDelta
+            )
+            eventsScratch.add(PointerEvent(listOf(change), eventType))
+            boundsScratch.add(
+                IntSize(
+                    kotlin.math.ceil(hit.node.width).toInt(),
+                    kotlin.math.ceil(hit.node.height).toInt()
+                )
+            )
+        }
+
+        // 1. Initial Pass: Root -> Leaf (Tunneling)
+        for (i in 0 until count) {
+            val filters = chain[i].node.pointerInputFilters
+            val fCount = filters.size
+            for (f in 0 until fCount) {
+                filters[f].dispatchPointerEvent(eventsScratch[i], PointerEventPass.Initial, boundsScratch[i])
+            }
+        }
+
+        // 2. Main Pass: Leaf -> Root (Bubbling)
+        for (i in count - 1 downTo 0) {
+            val filters = chain[i].node.pointerInputFilters
+            val fCount = filters.size
+            for (f in fCount - 1 downTo 0) {
+                filters[f].dispatchPointerEvent(eventsScratch[i], PointerEventPass.Main, boundsScratch[i])
+            }
+        }
+
+        // 3. Final Pass: Leaf -> Root (Post-processing)
+        for (i in count - 1 downTo 0) {
+            val filters = chain[i].node.pointerInputFilters
+            val fCount = filters.size
+            for (f in fCount - 1 downTo 0) {
+                filters[f].dispatchPointerEvent(eventsScratch[i], PointerEventPass.Final, boundsScratch[i])
+            }
+        }
+
+        eventsScratch.clear()
+        boundsScratch.clear()
+        return consumed.isConsumed
+    }
+
+    fun cancelPointer(pointer: Int, uptime: Long = System.currentTimeMillis()) {
+        val record = trackedPointers.remove(pointer) ?: return
+        dispatch3Pass(
+            chain = record.chain,
+            composeX = record.lastComposeX,
+            composeY = record.lastComposeY,
+            pointer = pointer,
+            uptime = uptime,
+            pressed = false,
+            previousUptime = record.lastUptime,
+            previousComposeX = record.lastComposeX,
+            previousComposeY = record.lastComposeY,
+            previousPressed = true,
+            eventType = PointerEventType.Release,
+            pointerType = record.pointerType,
+            button = record.button,
+            isConsumed = true
+        )
+    }
+
+    /**
+     * Giải phóng dứt điểm tất cả con trỏ đang nhấn khi ComposeView bị hủy hoặc reset.
+     */
+    fun cancelAllActivePointers(uptime: Long = System.currentTimeMillis()) {
+        if (trackedPointers.isEmpty()) return
+        val pointers = ArrayList(trackedPointers.keys)
+        for (i in 0 until pointers.size) {
+            cancelPointer(pointers[i], uptime)
+        }
+    }
+
+    /**
+     * Dọn dẹp triệt để các tham chiếu tới node khi node bị gỡ khỏi cây Virtual DOM (Fix O2 Ghost Node).
+     */
+    fun onNodeRemoved(node: LayoutNode) {
+        if (trackedPointers.isNotEmpty()) {
+            val pointersToCancel = ArrayList<Int>()
+            for (entry in trackedPointers.entries) {
+                val chain = entry.value.chain
+                val count = chain.size
+                for (i in 0 until count) {
+                    if (chain[i].node === node) {
+                        pointersToCancel.add(entry.key)
+                        break
+                    }
+                }
+            }
+            val count = pointersToCancel.size
+            for (i in 0 until count) {
+                cancelPointer(pointersToCancel[i])
+            }
+        }
+
+        for (i in previousHoverChain.indices.reversed()) {
+            if (previousHoverChain[i].node === node) {
+                previousHoverChain.removeAt(i)
+            }
+        }
+    }
+
+    fun dispose() {
+        cancelAllActivePointers()
+        trackedPointers.clear()
+        hitScratch.clear()
+        hitPool.clear()
+        hitPoolIndex = 0
+        eventsScratch.clear()
+        boundsScratch.clear()
+        previousHoverChain.clear()
+        exitedHoverScratch.clear()
+        hoverPool.clear()
+    }
+}

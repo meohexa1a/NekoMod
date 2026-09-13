@@ -1,4 +1,4 @@
-package org.hubdustry.libs.compose.input
+package org.hubdustry.core.compose.input
 
 import androidx.compose.runtime.getValue
 import arc.graphics.Color
@@ -7,22 +7,24 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.hubdustry.libs.compose.Box
-import org.hubdustry.libs.compose.Button
-import org.hubdustry.libs.compose.Column
-import org.hubdustry.libs.compose.CompositionManager
-import org.hubdustry.libs.compose.ComposeView
-import org.hubdustry.libs.compose.Modifier
-import org.hubdustry.libs.compose.Row
-import org.hubdustry.libs.compose.Text
-import org.hubdustry.libs.compose.input.gestures.awaitEachGesture
-import org.hubdustry.libs.compose.input.gestures.awaitFirstDown
-import org.hubdustry.libs.compose.input.gestures.detectTapGestures
-import org.hubdustry.libs.compose.input.gestures.waitForUpOrCancellation
-import org.hubdustry.libs.compose.modifier.*
-import org.hubdustry.libs.layout.Alignment
-import org.hubdustry.libs.layout.AnchorPreset
-import org.hubdustry.libs.layout.SizeFlag
+import org.hubdustry.core.compose.primitive.Box
+import org.hubdustry.ui.components.Button
+import org.hubdustry.core.compose.primitive.Column
+import org.hubdustry.core.compose.CompositionManager
+import org.hubdustry.core.compose.view.ComposeView
+import org.hubdustry.core.compose.Modifier
+import org.hubdustry.core.compose.primitive.Row
+import org.hubdustry.core.compose.primitive.Text
+import org.hubdustry.core.compose.input.gestures.awaitAllPointersUp
+import org.hubdustry.core.compose.input.gestures.awaitEachGesture
+import org.hubdustry.core.compose.input.gestures.awaitFirstDown
+import org.hubdustry.core.compose.input.gestures.detectHorizontalDragGestures
+import org.hubdustry.core.compose.input.gestures.detectTapGestures
+import org.hubdustry.core.compose.input.gestures.detectVerticalDragGestures
+import org.hubdustry.core.compose.input.gestures.waitForUpOrCancellation
+import org.hubdustry.core.compose.modifier.*
+import org.hubdustry.core.layout.Alignment
+import org.hubdustry.core.layout.AnchorPreset
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -852,5 +854,281 @@ class PointerInputTest {
         dispatchPointerEvent(event, PointerEventPass.Initial)
         dispatchPointerEvent(event, PointerEventPass.Main)
         dispatchPointerEvent(event, PointerEventPass.Final)
+    }
+
+    @Test
+    fun testMouseScrollWheelEventDispatchedThroughComposeView() = runTest {
+        val view = ComposeView()
+        var receivedScrollDelta: Offset? = null
+        var receivedEventType: PointerEventType? = null
+
+        view.setContent {
+            Box(
+                modifier = Modifier
+                    .size(200f, 200f)
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent(PointerEventPass.Main)
+                                receivedEventType = event.type
+                                val change = event.changes.firstOrNull()
+                                receivedScrollDelta = change?.scrollDelta
+                                change?.consume()
+                            }
+                        }
+                    }
+            )
+        }
+        CompositionManager.frame()
+
+        view.setSize(200f, 200f)
+        view.layout()
+
+        // Gửi sự kiện cuộn con lăn chuột tại (50, 50) với delta = (0, 5)
+        val handled = view.sendPointerInput(
+            type = PointerEventType.Scroll,
+            x = 50f,
+            y = 50f,
+            scrollDelta = Offset(0f, 5f)
+        )
+
+        assertTrue(handled, "Scroll event must be handled and consumed by the targeted node")
+        assertEquals(PointerEventType.Scroll, receivedEventType)
+        assertEquals(Offset(0f, 5f), receivedScrollDelta)
+        view.dispose()
+    }
+
+    @Test
+    fun testMouseScrollWheelEventUnconsumedReturnsFalse() = runTest {
+        val view = ComposeView()
+        view.setContent {
+            Box(
+                modifier = Modifier
+                    .size(200f, 200f)
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitPointerEvent(PointerEventPass.Main)
+                                // Không consume!
+                            }
+                        }
+                    }
+            )
+        }
+        CompositionManager.frame()
+        view.setSize(200f, 200f)
+        view.layout()
+
+        val handled = view.sendPointerInput(
+            type = PointerEventType.Scroll,
+            x = 50f,
+            y = 50f,
+            scrollDelta = Offset(0f, 5f)
+        )
+
+        assertFalse(handled, "Scroll event not consumed must return false so outer Arc ScrollPane can scroll")
+        view.dispose()
+    }
+
+    @Test
+    fun testMouseExitCancelsActivePressedState() = runTest {
+        val view = ComposeView()
+        val interactionSource = MutableInteractionSource()
+        var isPressedState = false
+        var clickCount = 0
+
+        view.setContent {
+            Button(
+                onClick = { clickCount++ },
+                interactionSource = interactionSource,
+                modifier = Modifier.size(100f, 50f)
+            ) {
+                Text("Click Me")
+            }
+        }
+        CompositionManager.frame()
+
+        view.setSize(100f, 50f)
+        view.layout()
+
+        val job = launch {
+            interactionSource.interactions.collect { interaction ->
+                when (interaction) {
+                    is PressInteraction.Press -> isPressedState = true
+                    is PressInteraction.Release, is PressInteraction.Cancel -> isPressedState = false
+                }
+            }
+        }
+        runCurrent()
+
+        // 1. Nhấn chuột xuống tại (30, 20) -> Phải kích hoạt Pressed
+        val hitDown = view.sendPointerInput(PointerEventType.Press, 30f, 20f)
+        runCurrent()
+        assertTrue(hitDown, "sendPointerInput Press phải trúng Button")
+        assertTrue(isPressedState, "Button must be in Pressed state after touchDown")
+
+        // 2. Chuột rời khỏi cửa sổ Arc trong khi đang nhấn -> Giải phóng và Cancel cử chỉ
+        view.sendPointerInput(PointerEventType.Exit, -100f, -100f)
+        runCurrent()
+        assertFalse(isPressedState, "Button must not be in Pressed state after mouse exit")
+        assertEquals(0, clickCount, "Click callback KHÔNG được gọi khi bị hủy do Exit")
+
+        job.cancel()
+        view.dispose()
+    }
+
+    @Test
+    fun testAwaitAllPointersUpReturnsImmediatelyWhenNoPointersDown() = runTest {
+        val filter = SuspendingPointerInputFilter().apply {
+            size = IntSize(100, 100)
+        }
+        var completed = false
+        val job = launch {
+            filter.awaitPointerEventScope {
+                awaitAllPointersUp()
+                completed = true
+            }
+        }
+        runCurrent()
+        assertTrue(completed, "awaitAllPointersUp must return immediately when currentEvent has no pressed pointers")
+        job.cancel()
+    }
+
+    @Test
+    fun testVerticalDragDoesNotTriggerOnHorizontalSwipe() = runTest {
+        val filter = SuspendingPointerInputFilter().apply {
+            size = IntSize(200, 200)
+        }
+        var dragStarted = false
+        var verticalDragAmount = 0f
+
+        val job = launch {
+            filter.detectVerticalDragGestures(
+                onDragStart = { dragStarted = true },
+                onVerticalDrag = { _, amount -> verticalDragAmount += amount }
+            )
+        }
+        runCurrent()
+
+        // 1. Down ti (50, 50)
+        filter.sendDown(50f, 50f)
+        runCurrent()
+
+        // 2. Vu`t ngang 30px sang phi (quA touchSlop 12px), khA'ng di chuyn d?c (deltaY = 0)
+        filter.sendMove(80f, 50f, 50f, 50f)
+        runCurrent()
+
+        assertFalse(dragStarted, "Vertical drag must NOT start on horizontal swipe")
+        assertEquals(0f, verticalDragAmount, "onVerticalDrag must NOT be called on horizontal swipe")
+
+        // 3. Up
+        filter.sendUp(80f, 50f, 80f, 50f)
+        runCurrent()
+
+        job.cancel()
+    }
+
+    @Test
+    fun testVerticalDragTriggersOnVerticalSwipe() = runTest {
+        val filter = SuspendingPointerInputFilter().apply {
+            size = IntSize(200, 200)
+        }
+        var dragStarted = false
+        var verticalDragAmount = 0f
+
+        val job = launch {
+            filter.detectVerticalDragGestures(
+                onDragStart = { dragStarted = true },
+                onVerticalDrag = { _, amount -> verticalDragAmount += amount }
+            )
+        }
+        runCurrent()
+
+        // 1. Down ti (50, 50)
+        filter.sendDown(50f, 50f)
+        runCurrent()
+
+        // 2. Vu`t d?c xu`ng 25px (quA touchSlop 12px)
+        filter.sendMove(50f, 75f, 50f, 50f)
+        runCurrent()
+
+        assertTrue(dragStarted, "Vertical drag MUST start on vertical swipe")
+        assertEquals(25f, verticalDragAmount, "onVerticalDrag must receive the accumulated vertical displacement")
+
+        // 3. Tip tc kAco thAAm 10px
+        filter.sendMove(50f, 85f, 50f, 75f)
+        runCurrent()
+        assertEquals(35f, verticalDragAmount)
+
+        filter.sendUp(50f, 85f, 50f, 85f)
+        runCurrent()
+
+        job.cancel()
+    }
+
+    @Test
+    fun testHorizontalDragDoesNotTriggerOnVerticalSwipe() = runTest {
+        val filter = SuspendingPointerInputFilter().apply {
+            size = IntSize(200, 200)
+        }
+        var dragStarted = false
+        var horizontalDragAmount = 0f
+
+        val job = launch {
+            filter.detectHorizontalDragGestures(
+                onDragStart = { dragStarted = true },
+                onHorizontalDrag = { _, amount -> horizontalDragAmount += amount }
+            )
+        }
+        runCurrent()
+
+        // 1. Down ti (50, 50)
+        filter.sendDown(50f, 50f)
+        runCurrent()
+
+        // 2. Vu`t d?c xu`ng 30px (quA touchSlop 12px), khA'ng di chuyn ngang (deltaX = 0)
+        filter.sendMove(50f, 80f, 50f, 50f)
+        runCurrent()
+
+        assertFalse(dragStarted, "Horizontal drag must NOT start on vertical swipe")
+        assertEquals(0f, horizontalDragAmount, "onHorizontalDrag must NOT be called on vertical swipe")
+
+        filter.sendUp(50f, 80f, 50f, 80f)
+        runCurrent()
+
+        job.cancel()
+    }
+
+    @Test
+    fun testHorizontalDragTriggersOnHorizontalSwipe() = runTest {
+        val filter = SuspendingPointerInputFilter().apply {
+            size = IntSize(200, 200)
+        }
+        var dragStarted = false
+        var horizontalDragAmount = 0f
+
+        val job = launch {
+            filter.detectHorizontalDragGestures(
+                onDragStart = { dragStarted = true },
+                onHorizontalDrag = { _, amount -> horizontalDragAmount += amount }
+            )
+        }
+        runCurrent()
+
+        // 1. Down ti (50, 50)
+        filter.sendDown(50f, 50f)
+        runCurrent()
+
+        // 2. Vu`t ngang sang phi 25px (quA touchSlop 12px)
+        filter.sendMove(75f, 50f, 50f, 50f)
+        runCurrent()
+
+        assertTrue(dragStarted, "Horizontal drag MUST start on horizontal swipe")
+        assertEquals(25f, horizontalDragAmount, "onHorizontalDrag must receive accumulated horizontal displacement")
+
+        filter.sendUp(75f, 50f, 75f, 50f)
+        runCurrent()
+
+        job.cancel()
     }
 }

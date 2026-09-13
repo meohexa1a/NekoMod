@@ -1,10 +1,10 @@
-package org.hubdustry.libs.compose.modifier
+package org.hubdustry.core.compose.modifier
 
-import org.hubdustry.libs.compose.Modifier
-import org.hubdustry.libs.layout.Alignment
-import org.hubdustry.libs.layout.AnchorPreset
-import org.hubdustry.libs.layout.LayoutNode
-import org.hubdustry.libs.layout.SizeFlag
+import org.hubdustry.core.compose.Modifier
+import org.hubdustry.core.layout.Alignment
+import org.hubdustry.core.layout.AnchorPreset
+import org.hubdustry.core.layout.LayoutNode
+import org.hubdustry.core.layout.SizeFlag
 
 private data class AlignmentModifier(
     val horizontal: Alignment,
@@ -17,26 +17,20 @@ private data class AlignmentModifier(
 }
 
 private data class RowWeightModifier(
-    val weight: Float,
-    val fill: Boolean
+    val weight: Float
 ) : Modifier.Element {
     override fun applyTo(node: LayoutNode) {
         node.stretchRatio = weight
-        if (fill) {
-            node.sizeFlagHorizontal = SizeFlag.EXPAND
-        }
+        node.sizeFlagHorizontal = SizeFlag.EXPAND
     }
 }
 
 private data class ColumnWeightModifier(
-    val weight: Float,
-    val fill: Boolean
+    val weight: Float
 ) : Modifier.Element {
     override fun applyTo(node: LayoutNode) {
         node.stretchRatio = weight
-        if (fill) {
-            node.sizeFlagVertical = SizeFlag.EXPAND
-        }
+        node.sizeFlagVertical = SizeFlag.EXPAND
     }
 }
 
@@ -72,15 +66,14 @@ private data class AnchorModifier(
 }
 
 /**
- * Scope cung cấp các modifier chuyên biệt cho các thành phần con bên trong [org.hubdustry.libs.compose.Row].
+ * Scope cung cấp các modifier chuyên biệt cho các thành phần con bên trong [org.hubdustry.core.compose.primitive.Row].
  */
 interface RowScope {
     /**
      * Phân bổ tỷ trọng chiếm dụng không gian còn trống theo trục ngang (main axis).
      * @param weight Tỷ trọng co giãn (tương đương flex-grow).
-     * @param fill Nếu true, widget sẽ nhận cờ [SizeFlag.EXPAND] theo trục ngang để bung rộng hết mức.
      */
-    fun Modifier.weight(weight: Float, fill: Boolean = true): Modifier
+    fun Modifier.weight(weight: Float): Modifier
 
     /**
      * Căn chỉnh vị trí theo trục dọc (cross axis) của phần tử trong Row.
@@ -89,15 +82,14 @@ interface RowScope {
 }
 
 /**
- * Scope cung cấp các modifier chuyên biệt cho các thành phần con bên trong [org.hubdustry.libs.compose.Column].
+ * Scope cung cấp các modifier chuyên biệt cho các thành phần con bên trong [org.hubdustry.core.compose.primitive.Column].
  */
 interface ColumnScope {
     /**
      * Phân bổ tỷ trọng chiếm dụng không gian còn trống theo trục dọc (main axis).
      * @param weight Tỷ trọng co giãn (tương đương flex-grow).
-     * @param fill Nếu true, widget sẽ nhận cờ [SizeFlag.EXPAND] theo trục dọc để bung cao hết mức.
      */
-    fun Modifier.weight(weight: Float, fill: Boolean = true): Modifier
+    fun Modifier.weight(weight: Float): Modifier
 
     /**
      * Căn chỉnh vị trí theo trục ngang (cross axis) của phần tử trong Column.
@@ -106,7 +98,7 @@ interface ColumnScope {
 }
 
 /**
- * Scope cung cấp các modifier chuyên biệt cho các thành phần con bên trong [org.hubdustry.libs.compose.Box].
+ * Scope cung cấp các modifier chuyên biệt cho các thành phần con bên trong [org.hubdustry.core.compose.primitive.Box].
  */
 interface BoxScope {
     /**
@@ -121,16 +113,16 @@ interface BoxScope {
 }
 
 object RowScopeInstance : RowScope {
-    override fun Modifier.weight(weight: Float, fill: Boolean): Modifier =
-        this.then(RowWeightModifier(weight, fill))
+    override fun Modifier.weight(weight: Float): Modifier =
+        this.then(RowWeightModifier(weight))
 
     override fun Modifier.align(alignment: Alignment): Modifier =
         this.then(CrossAlignModifier(alignment, isHorizontal = false))
 }
 
 object ColumnScopeInstance : ColumnScope {
-    override fun Modifier.weight(weight: Float, fill: Boolean): Modifier =
-        this.then(ColumnWeightModifier(weight, fill))
+    override fun Modifier.weight(weight: Float): Modifier =
+        this.then(ColumnWeightModifier(weight))
 
     override fun Modifier.align(alignment: Alignment): Modifier =
         this.then(CrossAlignModifier(alignment, isHorizontal = true))

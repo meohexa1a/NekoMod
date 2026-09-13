@@ -1,15 +1,22 @@
-package org.hubdustry.libs.compose
+package org.hubdustry.core.compose
 
 import androidx.compose.runtime.mutableStateOf
 import arc.graphics.Color
-import org.hubdustry.libs.compose.modifier.*
-import org.hubdustry.libs.layout.LayoutNode
+import org.hubdustry.core.compose.modifier.*
+import org.hubdustry.core.compose.primitive.Box
+import org.hubdustry.core.compose.primitive.Column
+import org.hubdustry.core.compose.primitive.Row
+import org.hubdustry.core.compose.primitive.Text
+import org.hubdustry.core.compose.view.ComposeView
+import org.hubdustry.core.layout.AnchorPreset
+import org.hubdustry.core.layout.LayoutNode
 import java.lang.ref.WeakReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.hubdustry.core.compose.input.clickable
 
 class ComposeLifecycleTest {
 
@@ -96,7 +103,7 @@ class ComposeLifecycleTest {
                     Text(text = "Header")
                     Box(
                         modifier = Modifier
-                            .anchor(org.hubdustry.libs.layout.AnchorPreset.TOP_RIGHT)
+                            .anchor(AnchorPreset.TOP_RIGHT)
                             .size(46f, 20f)
                     ) {
                         Text(text = "LIVE")
@@ -211,5 +218,49 @@ class ComposeLifecycleTest {
         val ref = WeakReference(view)
         view.dispose()
         return ref
+    }
+
+    @Test
+    fun testGhostNodeInvalidationOnNodeRemoval() {
+        val view = ComposeView()
+        val showItem = mutableStateOf(true)
+        var itemClicked = false
+
+        view.setContent {
+            Column(modifier = Modifier.size(200f, 200f)) {
+                if (showItem.value) {
+                    Box(
+                        modifier = Modifier
+                            .size(100f, 50f)
+                            .clickable { itemClicked = true }
+                    ) {
+                        Text("Removable Item")
+                    }
+                }
+            }
+        }
+
+        CompositionManager.frame()
+        view.setSize(200f, 200f)
+        view.layout()
+
+        // 1. Nhn chutt xunng trAn item (Press) -> Bt u track pointer vA hover
+        val hitDown = view.sendPointerInput(org.hubdustry.core.compose.input.PointerEventType.Press, 20f, 20f)
+        assertTrue(hitDown, "Press must hit removable item")
+
+        // 2. XA3a item kh?i cAy bng cAch thay Tic reactive state
+        showItem.value = false
+        CompositionManager.frame()
+        view.layout()
+
+        // XAc nhn item `A b< g- kh?i Virtual Tree
+        val column = view.rootLayoutNode.children[0]
+        assertEquals(0, column.children.size, "Removable item must be detached from tree")
+
+        // 3. G-i s ki?n tip theo (Move hoc Release) - khAng `c nAm ngoi l? vA khAng cAn dA-nh ti node c
+        view.sendPointerInput(org.hubdustry.core.compose.input.PointerEventType.Release, 20f, 20f)
+        assertFalse(itemClicked, "Removed item must not trigger click after being detached")
+
+        view.dispose()
     }
 }

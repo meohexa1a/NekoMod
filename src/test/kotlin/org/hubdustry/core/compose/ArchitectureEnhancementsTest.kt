@@ -1,21 +1,22 @@
-package org.hubdustry.libs.compose
+package org.hubdustry.core.compose
 
-import androidx.compose.runtime.mutableStateOf
 import arc.graphics.Color
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runTest
-import org.hubdustry.libs.compose.input.InteractionSource
-import org.hubdustry.libs.compose.input.IntSize
-import org.hubdustry.libs.compose.input.MutableInteractionSource
-import org.hubdustry.libs.compose.input.Offset
-import org.hubdustry.libs.compose.input.PointerEventType
-import org.hubdustry.libs.compose.input.collectIsHoveredAsState
-import org.hubdustry.libs.compose.input.collectIsPressedAsState
-import org.hubdustry.libs.compose.modifier.*
-import org.hubdustry.libs.layout.SizeFlag
+import org.hubdustry.core.compose.input.IntSize
+import org.hubdustry.core.compose.input.MutableInteractionSource
+import org.hubdustry.core.compose.input.Offset
+import org.hubdustry.core.compose.input.PointerEventType
+import org.hubdustry.core.compose.modifier.*
+import org.hubdustry.core.compose.primitive.Box
+import org.hubdustry.core.compose.primitive.Column
+import org.hubdustry.core.compose.primitive.Row
+import org.hubdustry.core.compose.primitive.Text
+import org.hubdustry.core.compose.primitive.TextMeasurer
+import org.hubdustry.core.compose.view.ComposeView
+import org.hubdustry.core.layout.SizeFlag
+import org.hubdustry.ui.components.Button
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -127,7 +128,7 @@ class ArchitectureEnhancementsTest {
 
     @Test
     fun testTextMeasurerRespectsExplicitConstraints() {
-        val node = org.hubdustry.libs.layout.LayoutNode()
+        val node = org.hubdustry.core.layout.LayoutNode()
         // Đặt kích thước chặt chẽ qua modifier: maxWidth = 80f
         node.minWidth = 0f
         node.maxWidth = 80f

@@ -1,26 +1,21 @@
-package org.hubdustry.libs.compose.modifier
+package org.hubdustry.core.compose.modifier
 
-import org.hubdustry.libs.compose.Modifier
-import org.hubdustry.libs.layout.Alignment
-import org.hubdustry.libs.layout.LayoutNode
-import org.hubdustry.libs.layout.SizeFlag
+import org.hubdustry.core.compose.Modifier
+import org.hubdustry.core.layout.Alignment
+import org.hubdustry.core.layout.LayoutNode
+import org.hubdustry.core.layout.SizeFlag
 
 private data class SizeModifier(
     val minWidth: Float,
     val minHeight: Float,
     val maxWidth: Float,
-    val maxHeight: Float,
-    val enforceShrink: Boolean = true
+    val maxHeight: Float
 ) : Modifier.Element {
     override fun applyTo(node: LayoutNode) {
         node.minWidth = minWidth
         node.maxWidth = maxWidth
         node.minHeight = minHeight
         node.maxHeight = maxHeight
-        if (enforceShrink) {
-            node.sizeFlagHorizontal = SizeFlag.SHRINK
-            node.sizeFlagVertical = SizeFlag.SHRINK
-        }
     }
 }
 
@@ -83,7 +78,7 @@ fun Modifier.sizeIn(
     minHeight: Float = 0f,
     maxWidth: Float = Float.MAX_VALUE,
     maxHeight: Float = Float.MAX_VALUE
-): Modifier = this.then(SizeModifier(minWidth, minHeight, maxWidth, maxHeight, enforceShrink = false))
+): Modifier = this.then(SizeModifier(minWidth, minHeight, maxWidth, maxHeight))
 
 fun Modifier.widthIn(
     min: Float = 0f,
@@ -131,7 +126,6 @@ private data class WidthModifier(
     override fun applyTo(node: LayoutNode) {
         node.minWidth = minWidth
         node.maxWidth = maxWidth
-        node.sizeFlagHorizontal = SizeFlag.SHRINK
     }
 }
 
@@ -142,6 +136,5 @@ private data class HeightModifier(
     override fun applyTo(node: LayoutNode) {
         node.minHeight = minHeight
         node.maxHeight = maxHeight
-        node.sizeFlagVertical = SizeFlag.SHRINK
     }
 }

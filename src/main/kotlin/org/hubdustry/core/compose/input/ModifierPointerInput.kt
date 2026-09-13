@@ -1,19 +1,19 @@
-package org.hubdustry.libs.compose.input
+package org.hubdustry.core.compose.input
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.hubdustry.libs.compose.Modifier
-import org.hubdustry.libs.compose.input.gestures.detectTapGestures
-import org.hubdustry.libs.layout.LayoutNode
+import org.hubdustry.core.compose.Modifier
+import org.hubdustry.core.compose.input.gestures.detectTapGestures
+import org.hubdustry.core.layout.LayoutNode
 
 /**
  * Modifier gắn bộ lọc [SuspendingPointerInputFilter] vào [LayoutNode].
  */
 class PointerInputModifier(
-    val filter: SuspendingPointerInputFilter
+    val filter: SuspendingPointerInputFilter,
 ) : Modifier.Element {
     override fun applyTo(node: LayoutNode) {
         node.addPointerInputFilter(filter)
@@ -32,7 +32,7 @@ class PointerInputModifier(
 @Composable
 fun Modifier.pointerInput(
     key1: Any?,
-    block: suspend PointerInputScope.() -> Unit
+    block: suspend PointerInputScope.() -> Unit,
 ): Modifier {
     val filter = remember(key1) { SuspendingPointerInputFilter() }
     LaunchedEffect(filter, key1) {
@@ -48,9 +48,14 @@ fun Modifier.pointerInput(
 
 @Composable
 fun Modifier.pointerInput(
+    block: suspend PointerInputScope.() -> Unit,
+): Modifier = pointerInput(Unit, block)
+
+@Composable
+fun Modifier.pointerInput(
     key1: Any?,
     key2: Any?,
-    block: suspend PointerInputScope.() -> Unit
+    block: suspend PointerInputScope.() -> Unit,
 ): Modifier {
     val filter = remember(key1, key2) { SuspendingPointerInputFilter() }
     LaunchedEffect(filter, key1, key2) {
@@ -73,7 +78,7 @@ fun Modifier.pointerInput(
 fun Modifier.clickable(
     interactionSource: MutableInteractionSource? = null,
     enabled: Boolean = true,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ): Modifier {
     if (!enabled) return this
     val source = interactionSource ?: remember { MutableInteractionSource() }
@@ -93,7 +98,7 @@ fun Modifier.clickable(
             },
             onTap = {
                 currentOnClick()
-            }
+            },
         )
     }
 }
@@ -109,7 +114,7 @@ fun Modifier.combinedClickable(
     onLongClick: (() -> Unit)? = null,
     onDoubleClick: (() -> Unit)? = null,
     onSecondaryClick: (() -> Unit)? = null,
-    onClick: () -> Unit
+    onClick: () -> Unit,
 ): Modifier {
     if (!enabled) return this
     val source = interactionSource ?: remember { MutableInteractionSource() }
@@ -130,10 +135,16 @@ fun Modifier.combinedClickable(
                 }
                 source.emit(releaseOrCancel)
             },
-            onLongPress = if (currentOnLongClick != null) { { currentOnLongClick?.invoke() } } else null,
-            onDoubleTap = if (currentOnDoubleClick != null) { { currentOnDoubleClick?.invoke() } } else null,
-            onSecondaryTap = if (currentOnSecondaryClick != null) { { currentOnSecondaryClick?.invoke() } } else null,
-            onTap = { currentOnClick() }
+            onLongPress = if (currentOnLongClick != null) {
+                { currentOnLongClick?.invoke() }
+            } else null,
+            onDoubleTap = if (currentOnDoubleClick != null) {
+                { currentOnDoubleClick?.invoke() }
+            } else null,
+            onSecondaryTap = if (currentOnSecondaryClick != null) {
+                { currentOnSecondaryClick?.invoke() }
+            } else null,
+            onTap = { currentOnClick() },
         )
     }
 }
@@ -145,7 +156,7 @@ fun Modifier.combinedClickable(
 @Composable
 fun Modifier.hoverable(
     interactionSource: MutableInteractionSource? = null,
-    enabled: Boolean = true
+    enabled: Boolean = true,
 ): Modifier {
     if (!enabled) return this
     val source = interactionSource ?: remember { MutableInteractionSource() }
@@ -156,18 +167,16 @@ fun Modifier.hoverable(
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Main)
-                    val change = if (event.changes.isNotEmpty()) event.changes[0] else null
-                    if (change != null) {
-                        val isInside = !change.isOutOfBounds(size, 0f)
-                        if (isInside && currentEnter == null) {
-                            val enter = HoverInteraction.Enter()
-                            currentEnter = enter
-                            source.tryEmit(enter)
-                        } else if (!isInside && currentEnter != null) {
-                            val exit = HoverInteraction.Exit(currentEnter!!)
-                            currentEnter = null
-                            source.tryEmit(exit)
-                        }
+                    val change = event.changes.firstOrNull() ?: continue
+                    val isInside = !change.isOutOfBounds(size, 0f)
+                    if (isInside && currentEnter == null) {
+                        val enter = HoverInteraction.Enter()
+                        currentEnter = enter
+                        source.tryEmit(enter)
+                    } else if (!isInside && currentEnter != null) {
+                        val exit = HoverInteraction.Exit(currentEnter!!)
+                        currentEnter = null
+                        source.tryEmit(exit)
                     }
                 }
             }

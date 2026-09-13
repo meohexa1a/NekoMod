@@ -1,7 +1,7 @@
-package org.hubdustry.libs.compose.modifier
+package org.hubdustry.core.compose.modifier
 
-import org.hubdustry.libs.compose.Modifier
-import org.hubdustry.libs.layout.LayoutNode
+import org.hubdustry.core.compose.Modifier
+import org.hubdustry.core.layout.LayoutNode
 
 private data class MarginModifier(
     val start: Float,
