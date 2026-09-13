@@ -81,6 +81,7 @@ dependencies {
     // Compose Multiplatform Runtime & Animation
     implementation("org.jetbrains.compose.runtime:runtime:1.7.1")
     implementation("org.jetbrains.compose.animation:animation-core:1.7.1")
+    implementation("org.jetbrains.compose.ui:ui-util:1.7.1")
 
     // Testing
     testImplementation(kotlin("test"))

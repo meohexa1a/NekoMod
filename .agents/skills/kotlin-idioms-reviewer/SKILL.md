@@ -106,6 +106,29 @@ Skill này cung cấp quy trình và tiêu chuẩn kỹ thuật để rà soát 
 
 ---
 
+### 9. Lồng Ghép Mũi Tên & Thiếu Guard Clauses (Arrow Anti-Pattern & Missing Early Returns)
+* ❌ **Anti-Pattern**:
+  - Viết code hình mũi tên lồng `if` bên trong `if` từ 2 cấp trở lên, đẩy toàn bộ thân hàm thụt sâu vào trong:
+    ```kotlin
+    // TỆ: Lồng if 3 tầng hình mũi tên
+    if (currentW > 0f && currentH > 0f) {
+        if (isLayoutDirty || currentW != lastLayoutW || currentH != lastLayoutH) {
+            ...
+        }
+    }
+    ```
+*  **Kotlin Idiomatic**:
+  - Dùng **Guard Clauses (Early Return / Early Exit)** để đảo ngược điều kiện, thoát sớm ở đầu hàm hoặc vòng lặp (`return`, `continue`, `return@fastForEach`, `?: return`).
+  - Giữ luồng chính của hàm phẳng (Flat Code Path), độ thụt lề tối thiểu ($\le 2$ cấp):
+    ```kotlin
+    // ĐẸP: Bắn bảo vệ (Guard Clause) ngay đầu hàm, thân hàm phẳng và mạch lạc
+    if (currentW <= 0f || currentH <= 0f) return
+    if (!isLayoutDirty && currentW == lastLayoutW && currentH == lastLayoutH) return
+    ...
+    ```
+
+---
+
 ## II. Quy Trình 6 Bước Thanh Tra Code (Review Runbook)
 
 Khi kích hoạt skill này để review bất kỳ diff hoặc file Kotlin nào, hãy thực hiện theo đúng 6 bước sau:

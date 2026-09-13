@@ -183,9 +183,27 @@ Trước khi viết bất kỳ cấu trúc dữ liệu, enum, modifier, hoặc h
 
 ---
 
-## 10. Quản Lý Subagents & Review
+## 10. Review Pipeline & Quản Lý Chất Lượng
 
-- Khi muốn rà soát chất lượng code của một PR/Task, hãy kích hoạt skill `kotlin-idioms-reviewer` (`.agents/skills/kotlin-idioms-reviewer/SKILL.md`) để quét vi phạm và chạy kiểm thử tự động.
+**BẮT BUỘC** sau mỗi task thay đổi code: PM Agent phải chạy test pass trước, sau đó kích hoạt pipeline review.
+
+### Khung Review Pipeline
+Đọc `.agents/skills/review-pipeline/SKILL.md` trước khi chạy bất kỳ skill review nào.
+Pipeline điều phối nhiều skill chuyên biệt song song, mỗi skill chấm 1 góc nhìn, PM tổng hợp quyết định.
+
+### Skills Hiện Có (chạy tuỳ context):
+- **`kotlin-idioms-reviewer`** (`.agents/skills/kotlin-idioms-reviewer/SKILL.md`): Java-thinking, Zero-GC, Expression/Statement, Feature Envy
+- **`semantic-clarity-reviewer`** (`.agents/skills/semantic-clarity-reviewer/SKILL.md`): Tên nói dối, API phantom, suspend giả, abstraction thừa
+- **`code-aesthetics-reviewer`** (`.agents/skills/code-aesthetics-reviewer/SKILL.md`): Expression body, blank line phân đoạn, named args, narrative naming, local functions, section banners, ASCII diagrams
+
+### Khi Nào Chạy Review:
+- Bất kỳ thay đổi nào trong module 🟢 Stable → **bắt buộc** cả 2 skills logic (`kotlin-idioms-reviewer` + `semantic-clarity-reviewer`)
+- Bất kỳ task làm đẹp mã nguồn (aesthetics polish) → **bắt buộc** `code-aesthetics-reviewer`
+- Thêm module mới hoặc modifier mới → `semantic-clarity-reviewer`
+- Sửa hot-path (layout, render, input) → `kotlin-idioms-reviewer`
+
+### Format Output Chuẩn (xem review-pipeline/SKILL.md):
+Mỗi skill trả về: Score X/10 + Findings (🔴 CRITICAL / 🟡 WARNING / 🟢 GOOD) + Recommendation.
 
 ---
 
@@ -232,6 +250,15 @@ Trước khi viết bất kỳ cấu trúc dữ liệu, enum, modifier, hoặc h
 2. **CẤM Anonymous Objects & Object Trung Gian**:
    - **CẤM TUYỆT ĐỐI** việc trả về anonymous inner class (`object : Modifier.Element`) trong các hàm mở rộng modifier.
    - **CẤM TUYỆT ĐỐI** việc khởi tạo một modifier object đầy đủ chỉ để bóc tách gọi một hàm adapter sinh ra object thứ hai (như `SizeModifier(...).applyToWidthOnly()`). Mỗi extension function modifier phải trực tiếp trả về `Modifier.Element` chuyên biệt của chính nó.
+
+---
+
+## 15. Tác Phong & Kỷ Luật Của Lead / PM Agent (Orchestrator Posture)
+
+1. **Không Phản Xạ Hấp Tấp (No Reactive Coding)**: Tuyệt đối không vội vã cào phím làm bừa khi nghe thúc giục ("sửa đi", "nhanh lên"). Luôn giữ nhịp điềm tĩnh, đánh giá rủi ro và lập kế hoạch trước khi chạm vào mã nguồn.
+2. **Điều Phối Khách Quan Thay Vì Ôm Đồm**: Phân tách rạch ròi giữa PM (định hướng, giữ cổng) và Worker/Reviewer (thi công, thẩm định độc lập). Triệt tiêu ảo tưởng "tự làm rồi tự khen hoàn hảo".
+3. **Trung Thực, Công Tâm & Dám Phản Biện**: Không làm "Yes-man". Luôn phân tích rõ ràng hai mặt đúng/sai, cảnh báo các đánh đổi (trade-offs) kỹ thuật và bảo vệ nghiêm ngặt các bất biến kiến trúc.
+
 
 
 
