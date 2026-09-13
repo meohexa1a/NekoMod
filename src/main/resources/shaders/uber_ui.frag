@@ -5,6 +5,7 @@ varying vec4 v_color;
 varying vec2 v_localCoord;
 varying vec2 v_boxSize;
 varying vec4 v_style;         // x = cornerRadius, y = borderWidth, z = mode (0 = TEXT, 1 = BOX)
+varying vec4 v_cornerRadii;  // x = topStart, y = topEnd, z = bottomEnd, w = bottomStart
 varying vec4 v_borderColor;
 varying vec4 v_clipRect;      // Analytical Scissor Clip: xy = min(x,y), zw = max(x,y)
 varying vec2 v_screenCoord;   // Logical Screen Position (DPI-independent)
@@ -13,9 +14,17 @@ varying vec2 v_screenCoord;   // Logical Screen Position (DPI-independent)
 // 0.0 = MODE_TEXT (BMFont text glyph)
 // 1.0 = MODE_BOX  (Solid card, button, rounded avatar/icon, border)
 
-float computeRoundedBoxSDF(vec2 point, vec2 size, float radius) {
+float computeRoundedBoxSDF(vec2 point, vec2 size, vec4 radii) {
     vec2 halfSize = size * 0.5;
     vec2 centeredPoint = point - halfSize;
+    // Quadrant Selection in Arc Local Space (Y is up in localCoord):
+    // Top-Left:     centeredPoint.x <= 0.0 && centeredPoint.y > 0.0  -> radii.x (topStart)
+    // Top-Right:    centeredPoint.x >  0.0 && centeredPoint.y > 0.0  -> radii.y (topEnd)
+    // Bottom-Right: centeredPoint.x >  0.0 && centeredPoint.y <= 0.0 -> radii.z (bottomEnd)
+    // Bottom-Left:  centeredPoint.x <= 0.0 && centeredPoint.y <= 0.0 -> radii.w (bottomStart)
+    float radius = (centeredPoint.y > 0.0) ?
+        ((centeredPoint.x > 0.0) ? radii.y : radii.x) :
+        ((centeredPoint.x > 0.0) ? radii.z : radii.w);
     float clampedRadius = min(radius, min(halfSize.x, halfSize.y));
     vec2 offset = abs(centeredPoint) - halfSize + clampedRadius;
     return length(max(offset, 0.0)) + min(max(offset.x, offset.y), 0.0) - clampedRadius;
@@ -38,10 +47,9 @@ void main() {
     }
 
     // --- MODE 1: All Boxes (Solid fill, Rounded card, Avatar, Textured Icon, Border) ---
-    float cornerRadius = v_style.x;
     float borderWidth = v_style.y;
 
-    float distance = computeRoundedBoxSDF(v_localCoord, v_boxSize, cornerRadius);
+    float distance = computeRoundedBoxSDF(v_localCoord, v_boxSize, v_cornerRadii);
     float edgeSoftness = 1.0;
     float boxAlpha = clamp(0.5 - distance / edgeSoftness, 0.0, 1.0);
 

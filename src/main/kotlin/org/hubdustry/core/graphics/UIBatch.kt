@@ -37,7 +37,7 @@ object UIBatch : Disposable {
     const val MODE_BOX = 1.0f
 
     const val MAX_QUADS = 4096
-    const val FLOATS_PER_VERTEX = 18
+    const val FLOATS_PER_VERTEX = 22
     const val FLOATS_PER_QUAD = FLOATS_PER_VERTEX * 4
     const val MAX_VERTICES = MAX_QUADS * 4
     const val MAX_INDICES = MAX_QUADS * 6
@@ -87,6 +87,7 @@ object UIBatch : Disposable {
                 VertexAttribute(4, Gl.unsignedByte, true, "a_color"),       // rgba = packed ABGR color
                 VertexAttribute(4, "a_boxData"),                            // xy = local pos, zw = box dimensions
                 VertexAttribute(4, "a_style"),                              // x = radius, y = borderWidth, z = mode, w = unused
+                VertexAttribute(4, "a_cornerRadii"),                        // x = topStart, y = topEnd, z = bottomEnd, w = bottomStart
                 VertexAttribute(4, Gl.unsignedByte, true, "a_borderColor"), // rgba = packed ABGR border color
                 VertexAttribute(4, "a_clipRect")                            // xy = min(x,y), zw = max(x,y) analytical scissor clip
             )
@@ -119,7 +120,7 @@ object UIBatch : Disposable {
      * Bắt đầu phiên vẽ UI.
      * Cấu hình shader, ma trận biến đổi và khởi tạo trạng thái scissor clipping.
      */
-    fun begin(width: Float, height: Float) {
+    fun begin() {
         if (isDrawing) return
         isDrawing = true
 
@@ -233,7 +234,10 @@ object UIBatch : Disposable {
         width: Float,
         height: Float,
         region: TextureRegion? = null,
-        radius: Float = 0.0f,
+        radiusTopStart: Float = 0.0f,
+        radiusTopEnd: Float = 0.0f,
+        radiusBottomEnd: Float = 0.0f,
+        radiusBottomStart: Float = 0.0f,
         color: Color = Color.white,
         borderWidth: Float = 0.0f,
         borderColor: Color = Color.clear
@@ -278,7 +282,8 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = leftX; vertexBuffer[offset++] = bottomY; vertexBuffer[offset++] = uvMinU; vertexBuffer[offset++] = uvMinV
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
-        vertexBuffer[offset++] = radius; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = radiusTopEnd; vertexBuffer[offset++] = radiusBottomEnd; vertexBuffer[offset++] = radiusBottomStart
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
 
@@ -286,7 +291,8 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = leftX; vertexBuffer[offset++] = topY; vertexBuffer[offset++] = uvMinU; vertexBuffer[offset++] = uvMaxV
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = height; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
-        vertexBuffer[offset++] = radius; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = radiusTopEnd; vertexBuffer[offset++] = radiusBottomEnd; vertexBuffer[offset++] = radiusBottomStart
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
 
@@ -294,7 +300,8 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = rightX; vertexBuffer[offset++] = topY; vertexBuffer[offset++] = uvMaxU; vertexBuffer[offset++] = uvMaxV
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = width; vertexBuffer[offset++] = height; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
-        vertexBuffer[offset++] = radius; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = radiusTopEnd; vertexBuffer[offset++] = radiusBottomEnd; vertexBuffer[offset++] = radiusBottomStart
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
 
@@ -302,13 +309,42 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = rightX; vertexBuffer[offset++] = bottomY; vertexBuffer[offset++] = uvMaxU; vertexBuffer[offset++] = uvMinV
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = width; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
-        vertexBuffer[offset++] = radius; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = radiusTopEnd; vertexBuffer[offset++] = radiusBottomEnd; vertexBuffer[offset++] = radiusBottomStart
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
 
         vertexIndex = offset
         queuedQuadCount++
     }
+
+    /**
+     * Overload tiện lợi dựng hình hộp chữ nhật bo 4 góc đồng đều với cùng [radius].
+     */
+    fun drawBox(
+        x: Float,
+        y: Float,
+        width: Float,
+        height: Float,
+        radius: Float = 0.0f,
+        region: TextureRegion? = null,
+        color: Color = Color.white,
+        borderWidth: Float = 0.0f,
+        borderColor: Color = Color.clear
+    ) = drawBox(
+        x = x,
+        y = y,
+        width = width,
+        height = height,
+        region = region,
+        radiusTopStart = radius,
+        radiusTopEnd = radius,
+        radiusBottomEnd = radius,
+        radiusBottomStart = radius,
+        color = color,
+        borderWidth = borderWidth,
+        borderColor = borderColor
+    )
 
     /**
      * Dựng hình một ký tự đơn BMFont (Mode = MODE_TEXT).
@@ -359,6 +395,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = MODE_TEXT; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
 
@@ -367,6 +404,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = height; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = MODE_TEXT; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
 
@@ -375,6 +413,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = width; vertexBuffer[offset++] = height; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = MODE_TEXT; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
 
@@ -383,6 +422,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = width; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = MODE_TEXT; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
 
@@ -430,7 +470,7 @@ object UIBatch : Disposable {
                     val drawY = currentY + glyph.yoffset * scaleY
                     val glyphWidth = glyph.width * scaleX
                     val glyphHeight = glyph.height * scaleY
-                    val fontRegion = if (glyph.page < font.regions.size) font.regions[glyph.page] else font.regions.first()
+                    val fontRegion = if (glyph.page < font.regions.size) font.regions[glyph.page] else font.regions[0]
                     val fontTexture = fontRegion?.texture
 
                     drawGlyph(

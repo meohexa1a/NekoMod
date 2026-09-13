@@ -1,24 +1,15 @@
 package org.hubdustry.core.compose.modifier
 
 import org.hubdustry.core.compose.Modifier
-import org.hubdustry.core.graphics.RectangleShape
-import org.hubdustry.core.graphics.RoundedCornerShape
-import org.hubdustry.core.graphics.Shape
+import org.hubdustry.core.graphics.RoundedCorners
 import org.hubdustry.core.layout.LayoutNode
 
 data class ClipModifier(
-    val shape: Shape
+    val corners: RoundedCorners
 ) : Modifier.Element {
     override fun applyTo(node: LayoutNode) {
         node.clip = true
-        when (shape) {
-            is RoundedCornerShape -> {
-                node.setCornerRadius(shape.topStart, shape.topEnd, shape.bottomEnd, shape.bottomStart)
-            }
-            RectangleShape -> {
-                node.setCornerRadius(0f)
-            }
-        }
+        node.setCornerRadius(corners.topStart, corners.topEnd, corners.bottomEnd, corners.bottomStart)
     }
 }
 
@@ -40,9 +31,9 @@ data class CornerRadiusModifier(
 }
 
 /**
- * Cắt gọt (clip) container theo hình dạng [Shape] chỉ định.
+ * Cắt gọt (clip) container theo bán kính bo 4 góc [corners] chỉ định.
  */
-fun Modifier.clip(shape: Shape): Modifier = this.then(ClipModifier(shape))
+fun Modifier.clip(corners: RoundedCorners): Modifier = this.then(ClipModifier(corners))
 
 /**
  * Cắt gọt (clip) toàn bộ nội dung con theo đúng khung viền chữ nhật của container này.

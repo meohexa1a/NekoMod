@@ -13,17 +13,22 @@ import kotlin.test.assertTrue
 class UIBatchTest {
 
     @Test
-    fun testShapeHierarchyAndConstructors() {
-        val rect: Any = RectangleShape
-        assertTrue(rect is Shape)
+    fun testRoundedCornersConstructors() {
+        val none = RoundedCorners.None
+        assertEquals(0f, none.topStart)
+        assertEquals(0f, none.topEnd)
+        assertEquals(0f, none.bottomEnd)
+        assertEquals(0f, none.bottomStart)
+        assertTrue(none.isZero)
 
-        val uniformRound = RoundedCornerShape(12f)
+        val uniformRound = RoundedCorners(12f)
         assertEquals(12f, uniformRound.topStart)
         assertEquals(12f, uniformRound.topEnd)
         assertEquals(12f, uniformRound.bottomEnd)
         assertEquals(12f, uniformRound.bottomStart)
+        assertFalse(uniformRound.isZero)
 
-        val asymmetricRound = RoundedCornerShape(
+        val asymmetricRound = RoundedCorners(
             topStart = 4f,
             topEnd = 8f,
             bottomEnd = 16f,
@@ -34,13 +39,13 @@ class UIBatchTest {
         assertEquals(16f, asymmetricRound.bottomEnd)
         assertEquals(24f, asymmetricRound.bottomStart)
 
-        val topBottomRound = RoundedCornerShape(top = 10f, bottom = 20f)
+        val topBottomRound = RoundedCorners(top = 10f, bottom = 20f)
         assertEquals(10f, topBottomRound.topStart)
         assertEquals(10f, topBottomRound.topEnd)
         assertEquals(20f, topBottomRound.bottomEnd)
         assertEquals(20f, topBottomRound.bottomStart)
 
-        assertTrue(CircleShape.topStart >= 9999f)
+        assertTrue(RoundedCorners.Circle.topStart >= 9999f)
     }
 
     @Test
@@ -97,8 +102,8 @@ class UIBatchTest {
     fun testModifiersApplyToSdfAndClipTokens() {
         val node = LayoutNode()
 
-        // 1. Modifier.background(color, shape)
-        val bgMod = Modifier.background(Color.blue, RoundedCornerShape(8f))
+        // 1. Modifier.background(color, corners)
+        val bgMod = Modifier.background(Color.blue, RoundedCorners(8f))
         bgMod.applyTo(node)
         assertEquals(Color.blue, node.backgroundColor)
         assertEquals(8f, node.cornerRadiusTopStart)
@@ -106,8 +111,8 @@ class UIBatchTest {
         assertEquals(8f, node.cornerRadiusBottomEnd)
         assertEquals(8f, node.cornerRadiusBottomStart)
 
-        // 2. Modifier.border(width, color, shape)
-        val borderMod = Modifier.border(3f, Color.white, RoundedCornerShape(top = 4f, bottom = 12f))
+        // 2. Modifier.border(width, color, corners)
+        val borderMod = Modifier.border(3f, Color.white, RoundedCorners(top = 4f, bottom = 12f))
         borderMod.applyTo(node)
         assertEquals(3f, node.borderWidth)
         assertEquals(Color.white, node.borderColor)
@@ -116,8 +121,8 @@ class UIBatchTest {
         assertEquals(12f, node.cornerRadiusBottomEnd)
         assertEquals(12f, node.cornerRadiusBottomStart)
 
-        // 3. Modifier.clip(shape) sets cornerRadius AND enables node.clip = true
-        val clipMod = Modifier.clip(RoundedCornerShape(20f))
+        // 3. Modifier.clip(corners) sets cornerRadius AND enables node.clip = true
+        val clipMod = Modifier.clip(RoundedCorners(20f))
         clipMod.applyTo(node)
         assertEquals(20f, node.cornerRadiusTopStart)
         assertEquals(20f, node.cornerRadiusBottomEnd)
@@ -137,7 +142,7 @@ class UIBatchTest {
 
     @Test
     fun testUIBatchQuadLayoutAndAttributes() {
-        UIBatch.begin(800f, 600f)
+        UIBatch.begin()
 
         UIBatch.drawBox(
             x = 10f,
@@ -151,7 +156,7 @@ class UIBatchTest {
         )
 
         assertEquals(1, UIBatch.queuedQuadCount)
-        assertEquals(72, UIBatch.vertexIndex, "1 quad * 4 vertices * 18 floats = 72 floats")
+        assertEquals(88, UIBatch.vertexIndex, "1 quad * 4 vertices * 22 floats = 88 floats")
 
         val buf = UIBatch.vertexBuffer
 
@@ -171,30 +176,35 @@ class UIBatchTest {
         assertEquals(2f, buf[10])
         assertEquals(UIBatch.MODE_BOX, buf[11])
         assertEquals(0f, buf[12])
+        // a_cornerRadii (x = topStart, y = topEnd, z = bottomEnd, w = bottomStart)
+        assertEquals(8f, buf[13])
+        assertEquals(8f, buf[14])
+        assertEquals(8f, buf[15])
+        assertEquals(8f, buf[16])
         // a_borderColor
-        assertEquals(Color.blue.toFloatBits(), buf[13])
+        assertEquals(Color.blue.toFloatBits(), buf[17])
         // a_clipRect (default unclipped minX, minY, maxX, maxY)
-        assertEquals(-100000f, buf[14])
-        assertEquals(-100000f, buf[15])
-        assertEquals(100000f, buf[16])
-        assertEquals(100000f, buf[17])
+        assertEquals(-100000f, buf[18])
+        assertEquals(-100000f, buf[19])
+        assertEquals(100000f, buf[20])
+        assertEquals(100000f, buf[21])
 
         // Vertex 1: Top-Left (10, 70)
-        val v1Offset = 18
+        val v1Offset = 22
         assertEquals(10f, buf[v1Offset])
         assertEquals(70f, buf[v1Offset + 1])
         assertEquals(0f, buf[v1Offset + 5])  // localX
         assertEquals(50f, buf[v1Offset + 6]) // localY = height
 
         // Vertex 2: Top-Right (110, 70)
-        val v2Offset = 36
+        val v2Offset = 44
         assertEquals(110f, buf[v2Offset])
         assertEquals(70f, buf[v2Offset + 1])
         assertEquals(100f, buf[v2Offset + 5]) // localX = width
         assertEquals(50f, buf[v2Offset + 6])  // localY = height
 
         // Vertex 3: Bottom-Right (110, 20)
-        val v3Offset = 54
+        val v3Offset = 66
         assertEquals(110f, buf[v3Offset])
         assertEquals(20f, buf[v3Offset + 1])
         assertEquals(100f, buf[v3Offset + 5]) // localX = width
@@ -204,8 +214,39 @@ class UIBatchTest {
     }
 
     @Test
+    fun testAsymmetric4CornerRadiiDrawBox() {
+        UIBatch.begin()
+
+        UIBatch.drawBox(
+            x = 0f,
+            y = 0f,
+            width = 200f,
+            height = 100f,
+            radiusTopStart = 4f,
+            radiusTopEnd = 8f,
+            radiusBottomEnd = 16f,
+            radiusBottomStart = 24f,
+            color = Color.white
+        )
+
+        assertEquals(1, UIBatch.queuedQuadCount)
+        val buf = UIBatch.vertexBuffer
+
+        // Verify a_cornerRadii attribute values across all 4 vertices
+        for (v in 0 until 4) {
+            val offset = v * 22
+            assertEquals(4f, buf[offset + 13], "Vertex $v topStart radius")
+            assertEquals(8f, buf[offset + 14], "Vertex $v topEnd radius")
+            assertEquals(16f, buf[offset + 15], "Vertex $v bottomEnd radius")
+            assertEquals(24f, buf[offset + 16], "Vertex $v bottomStart radius")
+        }
+
+        UIBatch.end()
+    }
+
+    @Test
     fun testAnalyticalScissorClippingStack() {
-        UIBatch.begin(800f, 600f)
+        UIBatch.begin()
 
         assertEquals(-100000f, UIBatch.clipMinX)
         assertEquals(-100000f, UIBatch.clipMinY)
@@ -233,10 +274,10 @@ class UIBatchTest {
         // Draw quad inside nested clip - must carry intersection clip
         UIBatch.drawBox(60f, 60f, 50f, 50f)
         val buf = UIBatch.vertexBuffer
-        assertEquals(50f, buf[14], "Vertex must receive intersected clipMinX")
-        assertEquals(50f, buf[15], "Vertex must receive intersected clipMinY")
-        assertEquals(210f, buf[16], "Vertex must receive intersected clipMaxX")
-        assertEquals(170f, buf[17], "Vertex must receive intersected clipMaxY")
+        assertEquals(50f, buf[18], "Vertex must receive intersected clipMinX")
+        assertEquals(50f, buf[19], "Vertex must receive intersected clipMinY")
+        assertEquals(210f, buf[20], "Vertex must receive intersected clipMaxX")
+        assertEquals(170f, buf[21], "Vertex must receive intersected clipMaxY")
 
         // 3. Pop nested clip -> restores parent clip
         UIBatch.popClip()
@@ -259,7 +300,7 @@ class UIBatchTest {
 
     @Test
     fun testInterleavedZIndexStream() {
-        UIBatch.begin(800f, 600f)
+        UIBatch.begin()
 
         // 1. Parent Box Background (MODE_BOX)
         UIBatch.drawBox(x = 0f, y = 0f, width = 300f, height = 200f, radius = 10f, color = Color.darkGray)
@@ -282,7 +323,7 @@ class UIBatchTest {
         )
 
         assertEquals(4, UIBatch.queuedQuadCount, "All 4 quads must be queued in exact preorder sequence")
-        assertEquals(72 * 4, UIBatch.vertexIndex)
+        assertEquals(88 * 4, UIBatch.vertexIndex)
 
         val buf = UIBatch.vertexBuffer
 
@@ -290,24 +331,24 @@ class UIBatchTest {
         assertEquals(UIBatch.MODE_BOX, buf[11], "Quad 0 must be MODE_BOX")
         assertEquals(10f, buf[9], "Quad 0 radius")
 
-        // Quad 1: Parent Text Glyph (mode at offset 72 + 11 = 83)
-        assertEquals(UIBatch.MODE_TEXT, buf[72 + 11], "Quad 1 must be MODE_TEXT")
-        assertEquals(20f, buf[72], "Quad 1 drawX")
+        // Quad 1: Parent Text Glyph (mode at offset 88 + 11 = 99)
+        assertEquals(UIBatch.MODE_TEXT, buf[88 + 11], "Quad 1 must be MODE_TEXT")
+        assertEquals(20f, buf[88], "Quad 1 drawX")
 
-        // Quad 2: Child Card Background (mode at offset 144 + 11 = 155)
-        assertEquals(UIBatch.MODE_BOX, buf[144 + 11], "Quad 2 must be MODE_BOX")
-        assertEquals(4f, buf[144 + 9], "Quad 2 radius")
+        // Quad 2: Child Card Background (mode at offset 176 + 11 = 187)
+        assertEquals(UIBatch.MODE_BOX, buf[176 + 11], "Quad 2 must be MODE_BOX")
+        assertEquals(4f, buf[176 + 9], "Quad 2 radius")
 
-        // Quad 3: Child Text Glyph (mode at offset 216 + 11 = 227)
-        assertEquals(UIBatch.MODE_TEXT, buf[216 + 11], "Quad 3 must be MODE_TEXT")
-        assertEquals(15f, buf[216], "Quad 3 drawX")
+        // Quad 3: Child Text Glyph (mode at offset 264 + 11 = 275)
+        assertEquals(UIBatch.MODE_TEXT, buf[264 + 11], "Quad 3 must be MODE_TEXT")
+        assertEquals(15f, buf[264], "Quad 3 drawX")
 
         UIBatch.end()
     }
 
     @Test
     fun testTexturedBoxWithCornerRadiusAndBorder() {
-        UIBatch.begin(800f, 600f)
+        UIBatch.begin()
 
         // Draw a textured avatar with bo góc 16px and border 2px
         val region = arc.graphics.g2d.TextureRegion().apply {
@@ -339,12 +380,12 @@ class UIBatchTest {
         // UVs
         assertEquals(0.25f, buf[2]) // BL u
         assertEquals(0.25f, buf[3]) // BL v
-        assertEquals(0.25f, buf[18 + 2]) // TL u
-        assertEquals(0.5f, buf[18 + 3]) // TL v2
-        assertEquals(0.5f, buf[36 + 2]) // TR u2
-        assertEquals(0.5f, buf[36 + 3]) // TR v2
-        assertEquals(0.5f, buf[54 + 2]) // BR u2
-        assertEquals(0.25f, buf[54 + 3]) // BR v
+        assertEquals(0.25f, buf[22 + 2]) // TL u
+        assertEquals(0.5f, buf[22 + 3]) // TL v2
+        assertEquals(0.5f, buf[44 + 2]) // TR u2
+        assertEquals(0.5f, buf[44 + 3]) // TR v2
+        assertEquals(0.5f, buf[66 + 2]) // BR u2
+        assertEquals(0.25f, buf[66 + 3]) // BR v
 
         UIBatch.end()
     }
@@ -354,7 +395,7 @@ class UIBatchTest {
         // In headless testing environment (Core.gl == null), UIBatch must never throw!
         assertFalse(UIBatch.isSupported, "In headless test environment, isSupported should be false")
 
-        UIBatch.begin(800f, 600f)
+        UIBatch.begin()
         UIBatch.drawBox(0f, 0f, 100f, 100f)
         UIBatch.flush()
         UIBatch.end()
@@ -366,7 +407,7 @@ class UIBatchTest {
 
     @Test
     fun testClipStackOverflowSafetyAndMatchingPops() {
-        UIBatch.begin(800f, 600f)
+        UIBatch.begin()
         val initialMinX = UIBatch.clipMinX
         val initialMaxX = UIBatch.clipMaxX
 
