@@ -1,4 +1,4 @@
-ï»¿package org.hubdustry.graphics
+package org.hubdustry.core.graphics
 
 import kotlin.math.*
 import kotlin.test.*
@@ -67,14 +67,14 @@ class SdfMathVerificationTest {
 
         // 4. Rounded corner center is at (w - r, r) = (180, 20)
         // Top-right corner arc at 45 degrees:
-        // Angle 45 deg: point = (180 + 20 * cos(45Â°), 20 - 20 * sin(45Â°))
+        // Angle 45 deg: point = (180 + 20 * cos(45°), 20 - 20 * sin(45°))
         val cornerX = 180f + 20f * cos(PI / 4).toFloat()
         val cornerY = 20f - 20f * sin(PI / 4).toFloat()
         val dCorner = computeRoundedBoxSDF(cornerX, cornerY, w, h, r)
         assertEquals(0f, dCorner, 0.005f, "Corner arc point distance should be 0")
 
         // 5. Point at the sharp bounding box corner (200, 0):
-        // Distance from circle center (180, 20) is hypot(20, 20) = 20 * sqrt(2) â‰ˆ 28.284
+        // Distance from circle center (180, 20) is hypot(20, 20) = 20 * sqrt(2) ˜ 28.284
         // Distance to SDF boundary is 28.284 - 20 = 8.284
         val dSharpCorner = computeRoundedBoxSDF(200f, 0f, w, h, r)
         val expectedSharpDist = (20f * sqrt(2.0) - 20.0).toFloat()
@@ -148,7 +148,7 @@ class SdfMathVerificationTest {
         val dOutsideCorner = computeRoundedBoxSDF(105f, 105f, w, h, negativeRadius)
         // q = (55, 55) - 50 + (-10) = (-5, -5). max(q, 0) = (0, 0).
         // length = 0. min(-5, 0) - (-10) = +5.
-        // True Euclidean distance from (105, 105) to sharp rect corner (100, 100) is hypot(5, 5) â‰ˆ 7.071!
+        // True Euclidean distance from (105, 105) to sharp rect corner (100, 100) is hypot(5, 5) ˜ 7.071!
         // But formula yields 5.0! An error of 29.3% in Euclidean metric!
         val trueDist = hypot(5.0, 5.0).toFloat()
         assertTrue(abs(dOutsideCorner - trueDist) > 1.5f,
