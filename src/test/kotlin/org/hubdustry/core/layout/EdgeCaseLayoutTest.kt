@@ -92,12 +92,12 @@ class EdgeCaseLayoutTest {
         val row = LayoutNode().apply { policy = RowPolicy(gap = 0f) }
         val hugeRatio = LayoutNode().apply {
             minWidth = 0f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 1_000_000f
         }
         val tinyRatio = LayoutNode().apply {
             minWidth = 0f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 0.00001f
         }
         row.addChild(hugeRatio)

@@ -16,13 +16,13 @@ class FlexRedistributionTest {
         val nodeA = LayoutNode().apply {
             minWidth = 0f
             maxWidth = 50f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 1f
         }
         val nodeB = LayoutNode().apply {
             minWidth = 0f
             maxWidth = Float.MAX_VALUE
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 1f
         }
 
@@ -49,19 +49,19 @@ class FlexRedistributionTest {
         val nodeA = LayoutNode().apply {
             minWidth = 0f
             maxWidth = 40f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 1f
         }
         val nodeB = LayoutNode().apply {
             minWidth = 0f
             maxWidth = 90f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 1f
         }
         val nodeC = LayoutNode().apply {
             minWidth = 0f
             maxWidth = Float.MAX_VALUE
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 1f
         }
 
@@ -93,13 +93,13 @@ class FlexRedistributionTest {
         val nodeA = LayoutNode().apply {
             minHeight = 0f
             maxHeight = 60f
-            sizeFlagVertical = SizeFlag.EXPAND
+            sizeFlagVertical = SizeFlag.FILL
             stretchRatio = 1f
         }
         val nodeB = LayoutNode().apply {
             minHeight = 0f
             maxHeight = Float.MAX_VALUE
-            sizeFlagVertical = SizeFlag.EXPAND
+            sizeFlagVertical = SizeFlag.FILL
             stretchRatio = 1f
         }
 
@@ -122,13 +122,13 @@ class FlexRedistributionTest {
         val nodeA = LayoutNode().apply {
             minWidth = 0f
             maxWidth = 50f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 1f
         }
         val nodeB = LayoutNode().apply {
             minWidth = 0f
             maxWidth = 50f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 1f
         }
 
@@ -152,13 +152,13 @@ class FlexRedistributionTest {
         val nodeA = LayoutNode().apply {
             minWidth = 20f
             maxWidth = 60f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 1f
         }
         val nodeB = LayoutNode().apply {
             minWidth = 30f
             maxWidth = Float.MAX_VALUE
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 1f
         }
 
@@ -184,12 +184,12 @@ class FlexRedistributionTest {
         }
         val hugeRatio = LayoutNode().apply {
             minWidth = 0f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 1_000_000f
         }
         val tinyRatio = LayoutNode().apply {
             minWidth = 0f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 0.0001f
         }
 

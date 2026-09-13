@@ -323,24 +323,24 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
      * Chỉ giải phóng chuỗi hover, KHÔNG làm gián đoạn thao tác drag của các con trỏ đang nhấn (Fix N17).
      */
     fun mouseExit(uptime: Long = System.currentTimeMillis()) {
-        if (previousHoverChain.isNotEmpty()) {
-            dispatch3Pass(
-                chain = previousHoverChain,
-                composeX = -1000f,
-                composeY = -1000f,
-                pointer = 0,
-                uptime = uptime,
-                pressed = false,
-                previousUptime = uptime,
-                previousComposeX = -1000f,
-                previousComposeY = -1000f,
-                previousPressed = false,
-                eventType = PointerEventType.Exit,
-                pointerType = PointerType.Mouse,
-                button = null
-            )
-            previousHoverChain.clear()
-        }
+        if (previousHoverChain.isEmpty()) return
+
+        dispatch3Pass(
+            chain = previousHoverChain,
+            composeX = -1000f,
+            composeY = -1000f,
+            pointer = 0,
+            uptime = uptime,
+            pressed = false,
+            previousUptime = uptime,
+            previousComposeX = -1000f,
+            previousComposeY = -1000f,
+            previousPressed = false,
+            eventType = PointerEventType.Exit,
+            pointerType = PointerType.Mouse,
+            button = null
+        )
+        previousHoverChain.clear()
     }
 
     private fun updatePreviousHoverChain(currentHits: List<LayoutNodeHit>) {
@@ -376,9 +376,7 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         val h = node.height
 
         val isInBounds = targetX >= absX && targetX <= (absX + w) && targetY >= absY && targetY <= (absY + h)
-        if (node.clip && !isInBounds) {
-            return false
-        }
+        if (node.clip && !isInBounds) return false
 
         val initialSize = result.size
 
@@ -562,17 +560,16 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
      * Dọn dẹp triệt để các tham chiếu tới node khi node bị gỡ khỏi cây Virtual DOM (Fix O2 Ghost Node).
      */
     fun onNodeRemoved(node: LayoutNode) {
-        if (trackedPointers.isNotEmpty()) {
-            val pointersToCancel = ArrayList<Int>()
-            for (entry in trackedPointers.entries) {
-                if (entry.value.chain.fastAny { it.node === node }) {
-                    pointersToCancel.add(entry.key)
-                }
-            }
-            pointersToCancel.fastForEach { cancelPointer(it) }
-        }
-
         previousHoverChain.removeAll { it.node === node }
+        if (trackedPointers.isEmpty()) return
+
+        val pointersToCancel = ArrayList<Int>()
+        for (entry in trackedPointers.entries) {
+            if (entry.value.chain.fastAny { it.node === node }) {
+                pointersToCancel.add(entry.key)
+            }
+        }
+        pointersToCancel.fastForEach { cancelPointer(it) }
     }
 
     fun dispose() {

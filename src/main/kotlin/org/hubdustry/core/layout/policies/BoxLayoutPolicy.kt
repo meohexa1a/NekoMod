@@ -18,12 +18,12 @@ object BoxLayoutPolicy : LayoutPolicy {
         node.children.fastForEach { child ->
             if (!child.visible) return@fastForEach
             child.policy.computeMinSize(child)
-            if (!child.anchor.isEnabled) {
-                val childRequiredW = child.minWidth + child.marginLeft + child.marginRight
-                val childRequiredH = child.minHeight + child.marginTop + child.marginBottom
-                if (childRequiredW > maxChildMinWidth) maxChildMinWidth = childRequiredW
-                if (childRequiredH > maxChildMinHeight) maxChildMinHeight = childRequiredH
-            }
+            if (child.anchor.isEnabled) return@fastForEach
+
+            val childRequiredW = child.minWidth + child.marginLeft + child.marginRight
+            val childRequiredH = child.minHeight + child.marginTop + child.marginBottom
+            if (childRequiredW > maxChildMinWidth) maxChildMinWidth = childRequiredW
+            if (childRequiredH > maxChildMinHeight) maxChildMinHeight = childRequiredH
         }
 
         val totalCalculatedW = maxChildMinWidth + node.paddingLeft + node.paddingRight
@@ -53,25 +53,26 @@ object BoxLayoutPolicy : LayoutPolicy {
 
             if (child.anchor.isEnabled) {
                 child.resolveAnchors(innerX, innerY, innerWidth, innerHeight)
-            } else {
-                val availableW = maxOf(0f, innerWidth - child.marginLeft - child.marginRight)
-                val availableH = maxOf(0f, innerHeight - child.marginTop - child.marginBottom)
-
-                val childW = when (child.sizeFlagHorizontal) {
-                    SizeFlag.FILL, SizeFlag.EXPAND -> availableW
-                    SizeFlag.SHRINK -> child.minWidth
-                }.coerceAtMost(child.maxWidth)
-
-                val childH = when (child.sizeFlagVertical) {
-                    SizeFlag.FILL, SizeFlag.EXPAND -> availableH
-                    SizeFlag.SHRINK -> child.minHeight
-                }.coerceAtMost(child.maxHeight)
-
-                val childX = innerX + child.marginLeft + child.alignHorizontal.computeOffset(availableW, childW)
-                val childY = innerY + child.marginTop + child.alignVertical.computeOffset(availableH, childH)
-
-                child.arrange(childX, childY, childW, childH)
+                return@fastForEach
             }
+
+            val availableW = maxOf(0f, innerWidth - child.marginLeft - child.marginRight)
+            val availableH = maxOf(0f, innerHeight - child.marginTop - child.marginBottom)
+
+            val childW = when (child.sizeFlagHorizontal) {
+                SizeFlag.FILL -> availableW
+                SizeFlag.SHRINK -> child.minWidth
+            }.coerceAtMost(child.maxWidth)
+
+            val childH = when (child.sizeFlagVertical) {
+                SizeFlag.FILL -> availableH
+                SizeFlag.SHRINK -> child.minHeight
+            }.coerceAtMost(child.maxHeight)
+
+            val childX = innerX + child.marginLeft + child.alignHorizontal.computeOffset(availableW, childW)
+            val childY = innerY + child.marginTop + child.alignVertical.computeOffset(availableH, childH)
+
+            child.arrange(childX, childY, childW, childH)
         }
     }
 }

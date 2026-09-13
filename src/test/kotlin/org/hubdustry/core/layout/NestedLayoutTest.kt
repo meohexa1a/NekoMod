@@ -27,10 +27,10 @@ class NestedLayoutTest {
             sizeFlagVertical = SizeFlag.SHRINK
         }
 
-        // 2. Vùng Content (EXPAND, stretchRatio = 1f)
+        // 2. Vùng Content (FILL, stretchRatio = 1f)
         val content = LayoutNode().apply {
             minHeight = 0f
-            sizeFlagVertical = SizeFlag.EXPAND
+            sizeFlagVertical = SizeFlag.FILL
             stretchRatio = 1f
         }
 

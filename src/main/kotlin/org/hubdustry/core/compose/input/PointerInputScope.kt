@@ -134,19 +134,19 @@ internal class PointerEventHandlerCoroutine<R>(
     }
 
     fun dispatch(event: PointerEvent, pass: PointerEventPass) {
-        if (awaitingPass == pass) {
-            val cont = awaitingContinuation
-            awaitingPass = null
-            awaitingContinuation = null
-            currentEvent = event
-            cont?.resume(event)
-        }
+        if (awaitingPass != pass) return
+        val cont = awaitingContinuation ?: return
+
+        awaitingPass = null
+        awaitingContinuation = null
+        currentEvent = event
+        cont.resume(event)
     }
 
     fun cancel(cause: Throwable?) {
-        val cont = awaitingContinuation
+        val cont = awaitingContinuation ?: return
         awaitingPass = null
         awaitingContinuation = null
-        cont?.cancel(cause)
+        cont.cancel(cause)
     }
 }

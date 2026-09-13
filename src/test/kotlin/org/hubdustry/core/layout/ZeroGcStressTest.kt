@@ -24,14 +24,14 @@ class ZeroGcStressTest {
         val row = LayoutNode().apply {
             policy = RowPolicy(gap = 8f)
             minHeight = 40f
-            sizeFlagVertical = SizeFlag.EXPAND
+            sizeFlagVertical = SizeFlag.FILL
         }
         column.addChild(row)
 
         for (i in 0 until 10) {
             val child = LayoutNode().apply {
                 minWidth = 20f
-                sizeFlagHorizontal = SizeFlag.EXPAND
+                sizeFlagHorizontal = SizeFlag.FILL
                 stretchRatio = (i + 1).toFloat()
             }
             row.addChild(child)
@@ -55,11 +55,11 @@ class ZeroGcStressTest {
 
         val child1 = LayoutNode().apply {
             minWidth = 100f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
         }
         val child2 = LayoutNode().apply {
             minWidth = 100f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
         }
         row.addChild(child1)
         row.addChild(child2)

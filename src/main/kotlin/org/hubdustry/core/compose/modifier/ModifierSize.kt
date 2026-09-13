@@ -24,8 +24,14 @@ private data class FillModifier(
     val fillVertical: Boolean
 ) : Modifier.Element {
     override fun applyTo(node: LayoutNode) {
-        if (fillHorizontal) node.sizeFlagHorizontal = SizeFlag.FILL
-        if (fillVertical) node.sizeFlagVertical = SizeFlag.FILL
+        if (fillHorizontal) {
+            node.sizeFlagHorizontal = SizeFlag.FILL
+            if (node.stretchRatio <= 0f) node.stretchRatio = 1f
+        }
+        if (fillVertical) {
+            node.sizeFlagVertical = SizeFlag.FILL
+            if (node.stretchRatio <= 0f) node.stretchRatio = 1f
+        }
     }
 }
 

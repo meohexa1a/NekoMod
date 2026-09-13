@@ -111,16 +111,14 @@ class ArchitectureEnhancementsTest {
 
         val rowNode = view.rootLayoutNode.children[0]
         val rowChild = rowNode.children[0]
-        // RowScope.weight: chỉ mở EXPAND theo trục ngang (sizeFlagHorizontal), trục dọc không bị ép EXPAND
-        assertEquals(SizeFlag.EXPAND, rowChild.sizeFlagHorizontal)
-        assertEquals(SizeFlag.FILL, rowChild.sizeFlagVertical, "RowScope.weight không được phép ép trục dọc thành EXPAND")
+        // RowScope.weight: mở FILL theo trục ngang với stretchRatio = 1f
+        assertEquals(SizeFlag.FILL, rowChild.sizeFlagHorizontal)
         assertEquals(1f, rowChild.stretchRatio)
 
         val colNode = view.rootLayoutNode.children[1]
         val colChild = colNode.children[0]
-        // ColumnScope.weight: chỉ mở EXPAND theo trục dọc (sizeFlagVertical), trục ngang không bị ép EXPAND
-        assertEquals(SizeFlag.FILL, colChild.sizeFlagHorizontal, "ColumnScope.weight không được phép ép trục ngang thành EXPAND")
-        assertEquals(SizeFlag.EXPAND, colChild.sizeFlagVertical)
+        // ColumnScope.weight: mở FILL theo trục dọc với stretchRatio = 2f
+        assertEquals(SizeFlag.FILL, colChild.sizeFlagVertical)
         assertEquals(2f, colChild.stretchRatio)
 
         view.dispose()

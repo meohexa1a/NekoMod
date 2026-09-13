@@ -23,14 +23,11 @@ enum class Orientation {
  * Cờ quy định cách [LayoutNode] chiếm không gian trong slot được phân bổ bởi container.
  */
 enum class SizeFlag {
-    /** Thu gọn kích thước về minWidth / minHeight (Hug Content). */
+    /** Thu gọn kích thước về minWidth / minHeight (Hug / Wrap Content). */
     SHRINK,
 
-    /** Chiếm toàn bộ không gian của slot được phân bổ. */
-    FILL,
-
-    /** Tranh chấp khoảng trống còn thừa của Container cha theo stretchRatio. */
-    EXPAND
+    /** Chiếm toàn bộ không gian khả dụng của container cha hoặc tranh chấp theo stretchRatio. */
+    FILL
 }
 
 /**

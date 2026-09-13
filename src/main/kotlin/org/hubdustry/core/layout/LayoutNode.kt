@@ -153,7 +153,7 @@ open class LayoutNode {
     val anchor: AnchorData = AnchorData()
     var sizeFlagHorizontal: SizeFlag = SizeFlag.FILL
     var sizeFlagVertical: SizeFlag = SizeFlag.FILL
-    var stretchRatio: Float = 1f
+    var stretchRatio: Float = 0f
         set(value) {
             field = if (value.isNaN() || value < 0f) 0f else value
         }
@@ -304,7 +304,7 @@ open class LayoutNode {
 
         // Layout policy & alignment
         sizeFlagHorizontal = defaultSizeFlagH;  sizeFlagVertical = defaultSizeFlagV
-        stretchRatio = 1f
+        stretchRatio = 0f
         alignHorizontal = Alignment.START;  alignVertical = Alignment.START
         offsetX = 0f;  offsetY = 0f
 

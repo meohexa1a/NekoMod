@@ -21,7 +21,7 @@ private data class RowWeightModifier(
 ) : Modifier.Element {
     override fun applyTo(node: LayoutNode) {
         node.stretchRatio = weight
-        node.sizeFlagHorizontal = SizeFlag.EXPAND
+        node.sizeFlagHorizontal = SizeFlag.FILL
     }
 }
 
@@ -30,7 +30,7 @@ private data class ColumnWeightModifier(
 ) : Modifier.Element {
     override fun applyTo(node: LayoutNode) {
         node.stretchRatio = weight
-        node.sizeFlagVertical = SizeFlag.EXPAND
+        node.sizeFlagVertical = SizeFlag.FILL
     }
 }
 

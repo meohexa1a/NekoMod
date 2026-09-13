@@ -99,13 +99,17 @@ object NodeRenderer {
         if (node.backgroundColor == null && !node.hasBorder) return
 
         val bg = node.backgroundColor
-        val fillColor = if (bg != null) {
-            if (effectiveAlpha < 1f) colorScratch.set(bg.r, bg.g, bg.b, bg.a * effectiveAlpha) else bg
-        } else Color.clear
+        val fillColor = when {
+            bg == null -> Color.clear
+            effectiveAlpha < 1f -> colorScratch.set(bg.r, bg.g, bg.b, bg.a * effectiveAlpha)
+            else -> bg
+        }
 
-        val borderColor = if (node.hasBorder) {
-            if (effectiveAlpha < 1f) borderScratch.set(node.borderColor.r, node.borderColor.g, node.borderColor.b, node.borderColor.a * effectiveAlpha) else node.borderColor
-        } else Color.clear
+        val borderColor = when {
+            !node.hasBorder -> Color.clear
+            effectiveAlpha < 1f -> borderScratch.set(node.borderColor.r, node.borderColor.g, node.borderColor.b, node.borderColor.a * effectiveAlpha)
+            else -> node.borderColor
+        }
 
         UIBatch.drawBox(
             x = arcX,
@@ -166,44 +170,65 @@ object NodeRenderer {
         nodeH: Float,
         effectiveAlpha: Float
     ) {
-        if (node.isScrollableVertical && node.maxScrollY > 0.001f && nodeH > 10f) {
-            val thumbH = maxOf(16f, (nodeH / (nodeH + node.maxScrollY)) * nodeH)
-            val availableTrack = nodeH - thumbH
-            val progress = (node.scrollY / node.maxScrollY).coerceIn(0f, 1f)
-            val thumbTop = progress * availableTrack
-            val arcThumbY = arcY + nodeH - thumbTop - thumbH
-            val scrollbarW = 4f
-            val arcScrollbarX = arcX + nodeW - scrollbarW - 2f
+        renderVerticalScrollbar(node, arcX, arcY, nodeW, nodeH, effectiveAlpha)
+        renderHorizontalScrollbar(node, arcX, arcY, nodeW, nodeH, effectiveAlpha)
+    }
 
-            scrollbarScratch.set(1f, 1f, 1f, 0.35f * effectiveAlpha)
-            UIBatch.drawBox(
-                x = arcScrollbarX,
-                y = arcThumbY,
-                width = scrollbarW,
-                height = thumbH,
-                radius = 2f,
-                color = scrollbarScratch
-            )
-        }
+    private fun renderVerticalScrollbar(
+        node: LayoutNode,
+        arcX: Float,
+        arcY: Float,
+        nodeW: Float,
+        nodeH: Float,
+        effectiveAlpha: Float
+    ) {
+        if (!node.isScrollableVertical || node.maxScrollY <= 0.001f || nodeH <= 10f) return
 
-        if (node.isScrollableHorizontal && node.maxScrollX > 0.001f && nodeW > 10f) {
-            val thumbW = maxOf(16f, (nodeW / (nodeW + node.maxScrollX)) * nodeW)
-            val availableTrack = nodeW - thumbW
-            val progress = (node.scrollX / node.maxScrollX).coerceIn(0f, 1f)
-            val thumbLeft = progress * availableTrack
-            val arcThumbX = arcX + thumbLeft
-            val scrollbarH = 4f
-            val arcScrollbarY = arcY + 2f
+        val thumbH = maxOf(16f, (nodeH / (nodeH + node.maxScrollY)) * nodeH)
+        val availableTrack = nodeH - thumbH
+        val progress = (node.scrollY / node.maxScrollY).coerceIn(0f, 1f)
+        val thumbTop = progress * availableTrack
+        val arcThumbY = arcY + nodeH - thumbTop - thumbH
+        val scrollbarW = 4f
+        val arcScrollbarX = arcX + nodeW - scrollbarW - 2f
 
-            scrollbarScratch.set(1f, 1f, 1f, 0.35f * effectiveAlpha)
-            UIBatch.drawBox(
-                x = arcThumbX,
-                y = arcScrollbarY,
-                width = thumbW,
-                height = scrollbarH,
-                radius = 2f,
-                color = scrollbarScratch
-            )
-        }
+        scrollbarScratch.set(1f, 1f, 1f, 0.35f * effectiveAlpha)
+        UIBatch.drawBox(
+            x = arcScrollbarX,
+            y = arcThumbY,
+            width = scrollbarW,
+            height = thumbH,
+            radius = 2f,
+            color = scrollbarScratch
+        )
+    }
+
+    private fun renderHorizontalScrollbar(
+        node: LayoutNode,
+        arcX: Float,
+        arcY: Float,
+        nodeW: Float,
+        nodeH: Float,
+        effectiveAlpha: Float
+    ) {
+        if (!node.isScrollableHorizontal || node.maxScrollX <= 0.001f || nodeW <= 10f) return
+
+        val thumbW = maxOf(16f, (nodeW / (nodeW + node.maxScrollX)) * nodeW)
+        val availableTrack = nodeW - thumbW
+        val progress = (node.scrollX / node.maxScrollX).coerceIn(0f, 1f)
+        val thumbLeft = progress * availableTrack
+        val arcThumbX = arcX + thumbLeft
+        val scrollbarH = 4f
+        val arcScrollbarY = arcY + 2f
+
+        scrollbarScratch.set(1f, 1f, 1f, 0.35f * effectiveAlpha)
+        UIBatch.drawBox(
+            x = arcThumbX,
+            y = arcScrollbarY,
+            width = thumbW,
+            height = scrollbarH,
+            radius = 2f,
+            color = scrollbarScratch
+        )
     }
 }

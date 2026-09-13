@@ -124,29 +124,7 @@ object UIBatch : Disposable {
         if (isDrawing) return
         isDrawing = true
 
-        if (isSupported && ensureMesh()) {
-            try {
-                Draw.flush()
-
-                val shader = UberShader.getOrCreate()
-                if (shader != null) {
-                    val atlasTexture = Core.atlas?.white()?.texture
-                    activeAtlasTexture = atlasTexture
-                    if (atlasTexture != null) {
-                        Gl.activeTexture(Gl.texture0)
-                        atlasTexture.bind()
-                    }
-
-                    shader.bind()
-                    shader.applyProjection(Draw.proj())
-
-                    Gl.depthMask(false)
-                    Gl.enable(Gl.blend)
-                    Gl.blendFunc(Gl.srcAlpha, Gl.oneMinusSrcAlpha)
-                }
-            } catch (_: Throwable) {
-            }
-        }
+        setupGpuPipeline()
 
         vertexIndex = 0
         queuedQuadCount = 0
@@ -155,6 +133,29 @@ object UIBatch : Disposable {
         clipMinY = -100000.0f
         clipMaxX = 100000.0f
         clipMaxY = 100000.0f
+    }
+
+    private fun setupGpuPipeline() {
+        if (!isSupported || !ensureMesh()) return
+        try {
+            Draw.flush()
+
+            val shader = UberShader.getOrCreate() ?: return
+            val atlasTexture = Core.atlas?.white()?.texture
+            activeAtlasTexture = atlasTexture
+            if (atlasTexture != null) {
+                Gl.activeTexture(Gl.texture0)
+                atlasTexture.bind()
+            }
+
+            shader.bind()
+            shader.applyProjection(Draw.proj())
+
+            Gl.depthMask(false)
+            Gl.enable(Gl.blend)
+            Gl.blendFunc(Gl.srcAlpha, Gl.oneMinusSrcAlpha)
+        } catch (_: Throwable) {
+        }
     }
 
     /**
@@ -180,24 +181,26 @@ object UIBatch : Disposable {
      */
     fun pushClip(x: Float, y: Float, width: Float, height: Float) {
         val offset = clipDepth * 4
-        if (offset + 4 <= clipStackBuffer.size) {
-            clipStackBuffer[offset] = clipMinX
-            clipStackBuffer[offset + 1] = clipMinY
-            clipStackBuffer[offset + 2] = clipMaxX
-            clipStackBuffer[offset + 3] = clipMaxY
-
-            val minX = maxOf(clipMinX, x)
-            val minY = maxOf(clipMinY, y)
-            val maxX = minOf(clipMaxX, x + width)
-            val maxY = minOf(clipMaxY, y + height)
-
-            clipMinX = minX
-            clipMinY = minY
-            clipMaxX = maxOf(minX, maxX)
-            clipMaxY = maxOf(minY, maxY)
-        } else {
+        if (offset + 4 > clipStackBuffer.size) {
             arc.util.Log.err("[UIBatch] Clip stack overflow! Maximum depth $MAX_CLIP_DEPTH exceeded.")
+            clipDepth++
+            return
         }
+
+        clipStackBuffer[offset] = clipMinX
+        clipStackBuffer[offset + 1] = clipMinY
+        clipStackBuffer[offset + 2] = clipMaxX
+        clipStackBuffer[offset + 3] = clipMaxY
+
+        val minX = maxOf(clipMinX, x)
+        val minY = maxOf(clipMinY, y)
+        val maxX = minOf(clipMaxX, x + width)
+        val maxY = minOf(clipMaxY, y + height)
+
+        clipMinX = minX
+        clipMinY = minY
+        clipMaxX = maxOf(minX, maxX)
+        clipMaxY = maxOf(minY, maxY)
         clipDepth++
     }
 
@@ -205,21 +208,22 @@ object UIBatch : Disposable {
      * Khôi phục vùng cắt gọt của container cha từ ngăn xếp.
      */
     fun popClip() {
-        if (clipDepth > 0) {
-            clipDepth--
-            if (clipDepth < MAX_CLIP_DEPTH) {
-                val offset = clipDepth * 4
-                clipMinX = clipStackBuffer[offset]
-                clipMinY = clipStackBuffer[offset + 1]
-                clipMaxX = clipStackBuffer[offset + 2]
-                clipMaxY = clipStackBuffer[offset + 3]
-            }
-        } else {
+        if (clipDepth <= 0) {
             clipMinX = -100000.0f
             clipMinY = -100000.0f
             clipMaxX = 100000.0f
             clipMaxY = 100000.0f
+            return
         }
+
+        clipDepth--
+        if (clipDepth >= MAX_CLIP_DEPTH) return
+
+        val offset = clipDepth * 4
+        clipMinX = clipStackBuffer[offset]
+        clipMinY = clipStackBuffer[offset + 1]
+        clipMaxX = clipStackBuffer[offset + 2]
+        clipMaxY = clipStackBuffer[offset + 3]
     }
 
     // --- DRAWING PRIMITIVES ---

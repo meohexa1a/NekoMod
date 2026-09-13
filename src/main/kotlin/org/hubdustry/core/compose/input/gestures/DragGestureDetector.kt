@@ -57,11 +57,9 @@ suspend fun PointerInputScope.detectDragGestures(
                     onDrag(matched, Offset(totalDx, totalDy))
                     matched.consume()
                 }
-            } else {
-                if (deltaX != 0f || deltaY != 0f) {
-                    onDrag(matched, Offset(deltaX, deltaY))
-                    matched.consume()
-                }
+            } else if (deltaX != 0f || deltaY != 0f) {
+                onDrag(matched, Offset(deltaX, deltaY))
+                matched.consume()
             }
 
             previousPos = currentPos
@@ -123,11 +121,9 @@ suspend fun PointerInputScope.detectVerticalDragGestures(
                     onVerticalDrag(matched, totalDy)
                     matched.consume()
                 }
-            } else {
-                if (deltaY != 0f) {
-                    onVerticalDrag(matched, deltaY)
-                    matched.consume()
-                }
+            } else if (deltaY != 0f) {
+                onVerticalDrag(matched, deltaY)
+                matched.consume()
             }
 
             previousPos = currentPos
@@ -189,11 +185,9 @@ suspend fun PointerInputScope.detectHorizontalDragGestures(
                     onHorizontalDrag(matched, totalDx)
                     matched.consume()
                 }
-            } else {
-                if (deltaX != 0f) {
-                    onHorizontalDrag(matched, deltaX)
-                    matched.consume()
-                }
+            } else if (deltaX != 0f) {
+                onHorizontalDrag(matched, deltaX)
+                matched.consume()
             }
 
             previousPos = currentPos

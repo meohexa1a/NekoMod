@@ -196,34 +196,33 @@ suspend fun PointerInputScope.detectTapGestures(
         // 4. Phân định Single-tap vs Double-tap
         if (onDoubleTap == null) {
             onTap?.invoke(up.position)
-        } else {
-            var secondDown: PointerInputChange? = null
-            try {
-                withTimeout(viewConfiguration.doubleTapTimeoutMillis.milliseconds) {
-                    while (secondDown == null) {
-                        val event = awaitPointerEvent(PointerEventPass.Main)
-                        val c = event.changes.fastFirstOrNull { it.changedToDown }
-                        if (c != null) {
-                            val ddx = c.position.x - up.position.x
-                            val ddy = c.position.y - up.position.y
-                            val maxDoubleTapDist = touchSlop * 2f
-                            if (ddx * ddx + ddy * ddy <= maxDoubleTapDist * maxDoubleTapDist) {
-                                secondDown = c
-                                c.consume()
-                            }
-                            break
-                        }
-                    }
-                }
-            } catch (_: TimeoutCancellationException) {
-                onTap?.invoke(up.position)
-                return@awaitEachGesture
-            }
-
-            val validSecondDown = secondDown ?: return@awaitEachGesture
-            val secondUp = waitForUpOrCancellation(validSecondDown.id) ?: return@awaitEachGesture
-            secondUp.consume()
-            onDoubleTap(validSecondDown.position)
+            return@awaitEachGesture
         }
+
+        var secondDown: PointerInputChange? = null
+        try {
+            withTimeout(viewConfiguration.doubleTapTimeoutMillis.milliseconds) {
+                while (secondDown == null) {
+                    val event = awaitPointerEvent(PointerEventPass.Main)
+                    val c = event.changes.fastFirstOrNull { it.changedToDown } ?: continue
+                    val ddx = c.position.x - up.position.x
+                    val ddy = c.position.y - up.position.y
+                    val maxDoubleTapDist = touchSlop * 2f
+                    if (ddx * ddx + ddy * ddy <= maxDoubleTapDist * maxDoubleTapDist) {
+                        secondDown = c
+                        c.consume()
+                    }
+                    break
+                }
+            }
+        } catch (_: TimeoutCancellationException) {
+            onTap?.invoke(up.position)
+            return@awaitEachGesture
+        }
+
+        val validSecondDown = secondDown ?: return@awaitEachGesture
+        val secondUp = waitForUpOrCancellation(validSecondDown.id) ?: return@awaitEachGesture
+        secondUp.consume()
+        onDoubleTap(validSecondDown.position)
     }
 }

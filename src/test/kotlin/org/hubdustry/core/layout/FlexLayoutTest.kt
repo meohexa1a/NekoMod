@@ -12,9 +12,9 @@ class FlexLayoutTest {
         val row = LayoutNode().apply {
             policy = RowPolicy(gap = 0f)
         }
-        val c1 = LayoutNode().apply { minWidth = 10f; sizeFlagHorizontal = SizeFlag.EXPAND; stretchRatio = 1f }
-        val c2 = LayoutNode().apply { minWidth = 10f; sizeFlagHorizontal = SizeFlag.EXPAND; stretchRatio = 1f }
-        val c3 = LayoutNode().apply { minWidth = 10f; sizeFlagHorizontal = SizeFlag.EXPAND; stretchRatio = 1f }
+        val c1 = LayoutNode().apply { minWidth = 10f; sizeFlagHorizontal = SizeFlag.FILL; stretchRatio = 1f }
+        val c2 = LayoutNode().apply { minWidth = 10f; sizeFlagHorizontal = SizeFlag.FILL; stretchRatio = 1f }
+        val c3 = LayoutNode().apply { minWidth = 10f; sizeFlagHorizontal = SizeFlag.FILL; stretchRatio = 1f }
 
         row.addChild(c1)
         row.addChild(c2)
@@ -38,9 +38,9 @@ class FlexLayoutTest {
         }
         // Total ratio = 1 + 2 + 3 = 6. Total width = 600. MinWidth = 0.
         // Expected: c1 = 100, c2 = 200, c3 = 300
-        val c1 = LayoutNode().apply { minWidth = 0f; sizeFlagHorizontal = SizeFlag.EXPAND; stretchRatio = 1f }
-        val c2 = LayoutNode().apply { minWidth = 0f; sizeFlagHorizontal = SizeFlag.EXPAND; stretchRatio = 2f }
-        val c3 = LayoutNode().apply { minWidth = 0f; sizeFlagHorizontal = SizeFlag.EXPAND; stretchRatio = 3f }
+        val c1 = LayoutNode().apply { minWidth = 0f; sizeFlagHorizontal = SizeFlag.FILL; stretchRatio = 1f }
+        val c2 = LayoutNode().apply { minWidth = 0f; sizeFlagHorizontal = SizeFlag.FILL; stretchRatio = 2f }
+        val c3 = LayoutNode().apply { minWidth = 0f; sizeFlagHorizontal = SizeFlag.FILL; stretchRatio = 3f }
 
         row.addChild(c1)
         row.addChild(c2)
@@ -64,9 +64,9 @@ class FlexLayoutTest {
         }
         // 3 children, 2 gaps = 40px. Total = 340px.
         // Available for expand = 340 - 40 = 300px -> each gets 100px.
-        val c1 = LayoutNode().apply { minWidth = 0f; sizeFlagHorizontal = SizeFlag.EXPAND; stretchRatio = 1f }
-        val c2 = LayoutNode().apply { minWidth = 0f; sizeFlagHorizontal = SizeFlag.EXPAND; stretchRatio = 1f }
-        val c3 = LayoutNode().apply { minWidth = 0f; sizeFlagHorizontal = SizeFlag.EXPAND; stretchRatio = 1f }
+        val c1 = LayoutNode().apply { minWidth = 0f; sizeFlagHorizontal = SizeFlag.FILL; stretchRatio = 1f }
+        val c2 = LayoutNode().apply { minWidth = 0f; sizeFlagHorizontal = SizeFlag.FILL; stretchRatio = 1f }
+        val c3 = LayoutNode().apply { minWidth = 0f; sizeFlagHorizontal = SizeFlag.FILL; stretchRatio = 1f }
 
         row.addChild(c1)
         row.addChild(c2)
@@ -88,9 +88,9 @@ class FlexLayoutTest {
         val column = LayoutNode().apply {
             policy = ColumnPolicy(gap = 0f)
         }
-        val c1 = LayoutNode().apply { minHeight = 10f; sizeFlagVertical = SizeFlag.EXPAND; stretchRatio = 1f }
-        val c2 = LayoutNode().apply { minHeight = 10f; sizeFlagVertical = SizeFlag.EXPAND; stretchRatio = 1f }
-        val c3 = LayoutNode().apply { minHeight = 10f; sizeFlagVertical = SizeFlag.EXPAND; stretchRatio = 1f }
+        val c1 = LayoutNode().apply { minHeight = 10f; sizeFlagVertical = SizeFlag.FILL; stretchRatio = 1f }
+        val c2 = LayoutNode().apply { minHeight = 10f; sizeFlagVertical = SizeFlag.FILL; stretchRatio = 1f }
+        val c3 = LayoutNode().apply { minHeight = 10f; sizeFlagVertical = SizeFlag.FILL; stretchRatio = 1f }
 
         column.addChild(c1)
         column.addChild(c2)
@@ -112,9 +112,9 @@ class FlexLayoutTest {
         val column = LayoutNode().apply {
             policy = ColumnPolicy(gap = 0f)
         }
-        val c1 = LayoutNode().apply { minHeight = 0f; sizeFlagVertical = SizeFlag.EXPAND; stretchRatio = 1f }
-        val c2 = LayoutNode().apply { minHeight = 0f; sizeFlagVertical = SizeFlag.EXPAND; stretchRatio = 2f }
-        val c3 = LayoutNode().apply { minHeight = 0f; sizeFlagVertical = SizeFlag.EXPAND; stretchRatio = 3f }
+        val c1 = LayoutNode().apply { minHeight = 0f; sizeFlagVertical = SizeFlag.FILL; stretchRatio = 1f }
+        val c2 = LayoutNode().apply { minHeight = 0f; sizeFlagVertical = SizeFlag.FILL; stretchRatio = 2f }
+        val c3 = LayoutNode().apply { minHeight = 0f; sizeFlagVertical = SizeFlag.FILL; stretchRatio = 3f }
 
         column.addChild(c1)
         column.addChild(c2)
@@ -136,9 +136,9 @@ class FlexLayoutTest {
         val column = LayoutNode().apply {
             policy = ColumnPolicy(gap = 25f)
         }
-        val c1 = LayoutNode().apply { minHeight = 0f; sizeFlagVertical = SizeFlag.EXPAND; stretchRatio = 1f }
-        val c2 = LayoutNode().apply { minHeight = 0f; sizeFlagVertical = SizeFlag.EXPAND; stretchRatio = 1f }
-        val c3 = LayoutNode().apply { minHeight = 0f; sizeFlagVertical = SizeFlag.EXPAND; stretchRatio = 1f }
+        val c1 = LayoutNode().apply { minHeight = 0f; sizeFlagVertical = SizeFlag.FILL; stretchRatio = 1f }
+        val c2 = LayoutNode().apply { minHeight = 0f; sizeFlagVertical = SizeFlag.FILL; stretchRatio = 1f }
+        val c3 = LayoutNode().apply { minHeight = 0f; sizeFlagVertical = SizeFlag.FILL; stretchRatio = 1f }
 
         column.addChild(c1)
         column.addChild(c2)

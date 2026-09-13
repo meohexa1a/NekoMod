@@ -17,12 +17,12 @@ class ExtremeBoundaryTest {
         val c1 = LayoutNode().apply {
             minWidth = 30f
             minHeight = 20f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
         }
         val c2 = LayoutNode().apply {
             minWidth = 40f
             minHeight = 25f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
         }
         row.addChild(c1)
         row.addChild(c2)
@@ -56,12 +56,12 @@ class ExtremeBoundaryTest {
         val c1 = LayoutNode().apply {
             minWidth = 20f
             minHeight = 50f
-            sizeFlagVertical = SizeFlag.EXPAND
+            sizeFlagVertical = SizeFlag.FILL
         }
         val c2 = LayoutNode().apply {
             minWidth = 25f
             minHeight = 60f
-            sizeFlagVertical = SizeFlag.EXPAND
+            sizeFlagVertical = SizeFlag.FILL
         }
         col.addChild(c1)
         col.addChild(c2)

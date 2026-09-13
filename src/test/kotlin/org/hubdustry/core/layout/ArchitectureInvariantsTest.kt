@@ -154,7 +154,7 @@ class ArchitectureInvariantsTest {
             maxWidth = 300f
             minHeight = 50f
             maxHeight = 150f
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             sizeFlagVertical = SizeFlag.SHRINK
             alignHorizontal = Alignment.CENTER
             alignVertical = Alignment.END
@@ -167,7 +167,7 @@ class ArchitectureInvariantsTest {
         // HORIZONTAL: main là X, cross là Y
         assertEquals(100f, node.minSize(Orientation.HORIZONTAL))
         assertEquals(300f, node.maxSize(Orientation.HORIZONTAL))
-        assertEquals(SizeFlag.EXPAND, node.sizeFlag(Orientation.HORIZONTAL))
+        assertEquals(SizeFlag.FILL, node.sizeFlag(Orientation.HORIZONTAL))
         assertEquals(Alignment.CENTER, node.alignment(Orientation.HORIZONTAL))
         assertEquals(25f, node.paddingMain(Orientation.HORIZONTAL)) // 10 + 15
         assertEquals(45f, node.paddingCross(Orientation.HORIZONTAL)) // 20 + 25
@@ -212,7 +212,7 @@ class ArchitectureInvariantsTest {
 
         val child1 = LayoutNode().apply {
             policy = ColumnPolicy(gap = 5f)
-            sizeFlagHorizontal = SizeFlag.EXPAND
+            sizeFlagHorizontal = SizeFlag.FILL
             stretchRatio = 1f
         }
         val child2 = LayoutNode().apply {
@@ -225,7 +225,8 @@ class ArchitectureInvariantsTest {
 
         val grandChild1 = LayoutNode().apply {
             minHeight = 30f
-            sizeFlagVertical = SizeFlag.EXPAND
+            sizeFlagVertical = SizeFlag.FILL
+            stretchRatio = 1f
         }
         val grandChild2 = LayoutNode().apply {
             minHeight = 40f
