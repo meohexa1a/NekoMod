@@ -143,9 +143,9 @@ class FlexLayoutPolicy(
         val freeSpace = if (isUnconstrainedMain) 0f else maxOf(0f, safeAvailableMain - totalMinMain - gapsTotal)
 
         // ── Clamping Redistribution & Remainder Absorption ───────────────────
-        if (freeSpace > 0f && totalStretchRatio > 0f) {
-            var remainingFreeSpace = freeSpace
-            var remainingStretchRatio = totalStretchRatio
+        fun redistributeFreeSpace(initialFreeSpace: Float, initialTotalRatio: Float) {
+            var remainingFreeSpace = initialFreeSpace
+            var remainingStretchRatio = initialTotalRatio
 
             while (remainingStretchRatio > 1e-5f && remainingFreeSpace > 1e-4f) {
                 var newlyClamped = false
@@ -203,6 +203,10 @@ class FlexLayoutPolicy(
                     break
                 }
             }
+        }
+
+        if (freeSpace > 0f && totalStretchRatio > 0f) {
+            redistributeFreeSpace(freeSpace, totalStretchRatio)
         }
 
         // ── Pass 2: Position children along main axis ─────────────────────────
