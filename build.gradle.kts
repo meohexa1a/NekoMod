@@ -16,7 +16,7 @@ plugins {
 
 group = "org.hubdustry"
 
-val mindustryVersion = "v159.7"
+val mindustryVersion = "v160.1"
 val mindustryRuntime = configurations.create("mindustryRuntime")
 
 // =============================================================================

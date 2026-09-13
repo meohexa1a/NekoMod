@@ -1,4 +1,4 @@
-package org.hubdustry.libs.compose.input
+package org.hubdustry.core.compose.input
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect

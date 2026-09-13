@@ -1,8 +1,8 @@
-package org.hubdustry.libs.layout
+package org.hubdustry.core.layout
 
 import arc.graphics.Color
-import org.hubdustry.libs.compose.input.SuspendingPointerInputFilter
-import org.hubdustry.libs.layout.policies.BoxLayoutPolicy
+import org.hubdustry.core.compose.input.SuspendingPointerInputFilter
+import org.hubdustry.core.layout.policies.BoxLayoutPolicy
 
 /**
  * Thực thể Virtual DOM tự trị (Unified Virtual Layout Node) của NekoMod.
@@ -17,6 +17,7 @@ open class LayoutNode {
     val children: List<LayoutNode> get() = _children
 
     var visible: Boolean = true
+    var clip: Boolean = false
 
     // Tọa độ & Kích thước kết quả (Được tính toán bởi policy)
     var x: Float = 0f
@@ -151,19 +152,64 @@ open class LayoutNode {
     // Chiến lược bố cục (Mặc định là BoxLayoutPolicy)
     var policy: LayoutPolicy = BoxLayoutPolicy
 
-    // Scratchpad dùng nội bộ cho các LayoutPolicy đạt chuẩn Zero-GC
-    internal var tempMain: Float = 0f
-    internal var isFrozen: Boolean = false
 
     // Thuộc tính hiển thị trực quan (Visual Tokens) cho Virtual DOM
     var backgroundColor: Color? = null
     var text: String? = null
     var textColor: Color = Color.white
+    var font: arc.graphics.g2d.Font? = null
 
     var alpha: Float = 1f
         set(value) {
             field = if (value.isNaN()) 1f else value.coerceIn(0f, 1f)
         }
+
+    // Bo góc (Corner Radii) cho SDF Shader - Gateway Sanitization
+    var cornerRadiusTopStart: Float = 0f
+        set(value) {
+            field = if (value.isNaN() || value < 0f) 0f else value
+        }
+    var cornerRadiusTopEnd: Float = 0f
+        set(value) {
+            field = if (value.isNaN() || value < 0f) 0f else value
+        }
+    var cornerRadiusBottomEnd: Float = 0f
+        set(value) {
+            field = if (value.isNaN() || value < 0f) 0f else value
+        }
+    var cornerRadiusBottomStart: Float = 0f
+        set(value) {
+            field = if (value.isNaN() || value < 0f) 0f else value
+        }
+
+    fun setCornerRadius(uniform: Float) {
+        val safe = if (uniform.isNaN() || uniform < 0f) 0f else uniform
+        cornerRadiusTopStart = safe
+        cornerRadiusTopEnd = safe
+        cornerRadiusBottomEnd = safe
+        cornerRadiusBottomStart = safe
+    }
+
+    fun setCornerRadius(topStart: Float, topEnd: Float, bottomEnd: Float, bottomStart: Float) {
+        cornerRadiusTopStart = if (topStart.isNaN() || topStart < 0f) 0f else topStart
+        cornerRadiusTopEnd = if (topEnd.isNaN() || topEnd < 0f) 0f else topEnd
+        cornerRadiusBottomEnd = if (bottomEnd.isNaN() || bottomEnd < 0f) 0f else bottomEnd
+        cornerRadiusBottomStart = if (bottomStart.isNaN() || bottomStart < 0f) 0f else bottomStart
+    }
+
+    val hasRoundedCorners: Boolean
+        get() = cornerRadiusTopStart > 0.001f || cornerRadiusTopEnd > 0.001f ||
+                cornerRadiusBottomEnd > 0.001f || cornerRadiusBottomStart > 0.001f
+
+    // Viền (Border) cho SDF Shader - Gateway Sanitization
+    var borderWidth: Float = 0f
+        set(value) {
+            field = if (value.isNaN() || value < 0f) 0f else value
+        }
+    var borderColor: Color = Color.clear
+
+    val hasBorder: Boolean
+        get() = borderWidth > 0.001f && borderColor.a > 0.001f
 
     // Bộ lọc xử lý cử chỉ con trỏ (Pointer Input Engine) - Hỗ trợ nhiều filter theo chuỗi modifier
     private val _pointerInputFilters = ArrayList<SuspendingPointerInputFilter>()
@@ -181,6 +227,49 @@ open class LayoutNode {
     fun clearPointerInputFilters() {
         _pointerInputFilters.clear()
     }
+
+    // --- NATIVE SCROLLING & VIEWPORT ---
+    var isScrollableVertical: Boolean = false
+    var isScrollableHorizontal: Boolean = false
+
+    var verticalScrollState: org.hubdustry.core.compose.foundation.ScrollState? = null
+    var horizontalScrollState: org.hubdustry.core.compose.foundation.ScrollState? = null
+
+    var scrollX: Float = 0f
+        get() = horizontalScrollState?.let { if (maxScrollX > 0f) it.value.coerceIn(0f, maxScrollX) else it.value } ?: field
+        set(value) {
+            val safe = if (value.isNaN() || value < 0f) 0f else value
+            field = safe
+            horizontalScrollState?.let { it.dispatchRawDelta(safe - it.value) }
+        }
+    var scrollY: Float = 0f
+        get() = verticalScrollState?.let { if (maxScrollY > 0f) it.value.coerceIn(0f, maxScrollY) else it.value } ?: field
+        set(value) {
+            val safe = if (value.isNaN() || value < 0f) 0f else value
+            field = safe
+            verticalScrollState?.let { it.dispatchRawDelta(safe - it.value) }
+        }
+    var maxScrollX: Float = 0f
+        set(value) {
+            field = if (value.isNaN() || value < 0f) 0f else value
+        }
+    var maxScrollY: Float = 0f
+        set(value) {
+            field = if (value.isNaN() || value < 0f) 0f else value
+        }
+
+    var contentWidth: Float = 0f
+        internal set
+    var contentHeight: Float = 0f
+        internal set
+
+    var scrollState: org.hubdustry.core.compose.foundation.ScrollState?
+        get() = verticalScrollState ?: horizontalScrollState
+        set(value) {
+            if (isScrollableVertical) verticalScrollState = value
+            if (isScrollableHorizontal) horizontalScrollState = value
+            if (!isScrollableVertical && !isScrollableHorizontal) verticalScrollState = value
+        }
 
     /**
      * Khôi phục toàn bộ các thuộc tính có thể bị biến đổi bởi Modifier về giá trị mặc định,
@@ -210,9 +299,29 @@ open class LayoutNode {
         offsetX = 0f
         offsetY = 0f
         backgroundColor = null
+        textColor = Color.white
+        font = null
+        text = null
         alpha = 1f
+        cornerRadiusTopStart = 0f
+        cornerRadiusTopEnd = 0f
+        cornerRadiusBottomEnd = 0f
+        cornerRadiusBottomStart = 0f
+        borderWidth = 0f
+        borderColor = Color.clear
+        clip = false
         _pointerInputFilters.clear()
-        anchor.isEnabled = false
+        anchor.reset()
+        isScrollableVertical = false
+        isScrollableHorizontal = false
+        scrollX = 0f
+        scrollY = 0f
+        maxScrollX = 0f
+        maxScrollY = 0f
+        contentWidth = 0f
+        contentHeight = 0f
+        verticalScrollState = null
+        horizontalScrollState = null
     }
 
     fun isAncestorOf(node: LayoutNode): Boolean {
@@ -266,12 +375,12 @@ open class LayoutNode {
         val safeFrom = from.coerceIn(0, _children.size - 1)
         val safeCount = count.coerceIn(0, _children.size - safeFrom)
         if (safeCount <= 0) return
-        val dest = if (to > safeFrom) to - safeCount else to
-        val safeDest = dest.coerceIn(0, _children.size - safeCount)
         val moved = ArrayList<LayoutNode>(safeCount)
         repeat(safeCount) {
             moved.add(_children.removeAt(safeFrom))
         }
+        val targetIndex = if (to > safeFrom) to - safeCount else to
+        val safeDest = targetIndex.coerceIn(0, _children.size)
         _children.addAll(safeDest, moved)
     }
 
@@ -281,6 +390,17 @@ open class LayoutNode {
             _children[i].parent = null
         }
         _children.clear()
+    }
+
+    /**
+     * Duyệt đệ quy toàn bộ cây con xuất phát từ node này (bao gồm chính node này).
+     */
+    fun forEachInSubtree(action: (LayoutNode) -> Unit) {
+        action(this)
+        val count = _children.size
+        for (i in 0 until count) {
+            _children[i].forEachInSubtree(action)
+        }
     }
 
     fun setPadding(left: Float, top: Float, right: Float, bottom: Float) {
@@ -363,6 +483,16 @@ open class LayoutNode {
         }
     }
 
+    fun setContentSize(orientation: Orientation, main: Float, cross: Float) {
+        if (orientation == Orientation.HORIZONTAL) {
+            contentWidth = main
+            contentHeight = cross
+        } else {
+            contentWidth = cross
+            contentHeight = main
+        }
+    }
+
     // --- Self-Arranging & Anchors ---
     /**
      * Định vị tọa độ và kích thước cho node, sau đó kích hoạt bố cục nội dung con.
@@ -401,7 +531,31 @@ open class LayoutNode {
         val innerY = paddingTop
         val innerW = maxOf(0f, width - paddingLeft - paddingRight)
         val innerH = maxOf(0f, height - paddingTop - paddingBottom)
-        policy.arrangeChildren(this, innerX, innerY, innerW, innerH)
+
+        val arrangeW = if (isScrollableHorizontal && contentWidth > innerW) contentWidth else innerW
+        val arrangeH = if (isScrollableVertical && contentHeight > innerH) contentHeight else innerH
+
+        policy.arrangeChildren(this, innerX, innerY, arrangeW, arrangeH)
+
+        maxScrollX = maxOf(0f, contentWidth - innerW)
+        maxScrollY = maxOf(0f, contentHeight - innerH)
+
+        verticalScrollState?.let { s ->
+            if (kotlin.math.abs(s.viewportSize - innerH) > 0.001f) {
+                s.viewportSize = innerH
+            }
+            if (kotlin.math.abs(s.maxValue - maxScrollY) > 0.001f) {
+                s.maxValue = maxScrollY
+            }
+        }
+        horizontalScrollState?.let { s ->
+            if (kotlin.math.abs(s.viewportSize - innerW) > 0.001f) {
+                s.viewportSize = innerW
+            }
+            if (kotlin.math.abs(s.maxValue - maxScrollX) > 0.001f) {
+                s.maxValue = maxScrollX
+            }
+        }
     }
 
     /**
@@ -418,22 +572,14 @@ open class LayoutNode {
             width > 0f -> width
             else -> minWidth
         }.coerceIn(minWidth, maxWidth)
-
-        val finalX = when {
-            anchor.hasExplicitWidth -> targetLeft
-            else -> targetLeft - finalW * anchor.anchorLeft
-        }
+        val finalX = if (anchor.hasExplicitWidth) targetLeft else targetLeft - finalW * anchor.anchorLeft
 
         val finalH = when {
             anchor.hasExplicitHeight -> maxOf(minHeight, targetBottom - targetTop)
             height > 0f -> height
             else -> minHeight
         }.coerceIn(minHeight, maxHeight)
-
-        val finalY = when {
-            anchor.hasExplicitHeight -> targetTop
-            else -> targetTop - finalH * anchor.anchorTop
-        }
+        val finalY = if (anchor.hasExplicitHeight) targetTop else targetTop - finalH * anchor.anchorTop
 
         arrange(finalX, finalY, finalW, finalH)
     }
@@ -443,41 +589,27 @@ open class LayoutNode {
      */
     @JvmOverloads
     fun layout(availableWidth: Float, availableHeight: Float, exact: Boolean = false) {
-        val safeAvailableWidth = when {
-            availableWidth.isNaN() || availableWidth < 0f -> 0f
-            else -> availableWidth
-        }
-        val safeAvailableHeight = when {
-            availableHeight.isNaN() || availableHeight < 0f -> 0f
-            else -> availableHeight
-        }
+        val safeW = if (availableWidth.isNaN() || availableWidth < 0f) 0f else availableWidth
+        val safeH = if (availableHeight.isNaN() || availableHeight < 0f) 0f else availableHeight
 
         policy.computeMinSize(this)
 
-        val safeMinWidth = minWidth
-        val safeMinHeight = minHeight
-        val safeMaxWidth = maxWidth
-        val safeMaxHeight = maxHeight
+        val isExactW = exact && safeW > 0f
+        this.width = when {
+            anchor.isEnabled || isExactW -> safeW
+            safeW == Float.MAX_VALUE || safeW.isInfinite() -> minWidth
+            sizeFlagHorizontal == SizeFlag.SHRINK -> minWidth
+            else -> maxOf(minWidth, safeW)
+        }.coerceIn(if (isExactW) 0f else minWidth, maxWidth)
 
-        // Kích thước của chính node này
-        val finalW = when {
-            anchor.isEnabled -> safeAvailableWidth
-            exact && safeAvailableWidth > 0f -> safeAvailableWidth
-            safeAvailableWidth == Float.MAX_VALUE || safeAvailableWidth.isInfinite() -> safeMinWidth
-            else -> maxOf(safeMinWidth, safeAvailableWidth)
-        }.coerceIn(if (exact && safeAvailableWidth > 0f) 0f else safeMinWidth, safeMaxWidth)
-
-        val finalH = when {
-            anchor.isEnabled -> safeAvailableHeight
-            exact && safeAvailableHeight > 0f -> safeAvailableHeight
-            safeAvailableHeight == Float.MAX_VALUE || safeAvailableHeight.isInfinite() -> safeMinHeight
-            else -> maxOf(safeMinHeight, safeAvailableHeight)
-        }.coerceIn(if (exact && safeAvailableHeight > 0f) 0f else safeMinHeight, safeMaxHeight)
-
-        this.width = finalW
-        this.height = finalH
+        val isExactH = exact && safeH > 0f
+        this.height = when {
+            anchor.isEnabled || isExactH -> safeH
+            safeH == Float.MAX_VALUE || safeH.isInfinite() -> minHeight
+            sizeFlagVertical == SizeFlag.SHRINK -> minHeight
+            else -> maxOf(minHeight, safeH)
+        }.coerceIn(if (isExactH) 0f else minHeight, maxHeight)
 
         arrangeContent()
     }
 }
-

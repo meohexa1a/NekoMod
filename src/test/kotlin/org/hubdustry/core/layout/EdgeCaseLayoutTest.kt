@@ -1,6 +1,6 @@
-package org.hubdustry.libs.layout
+package org.hubdustry.core.layout
 
-import org.hubdustry.libs.layout.policies.*
+import org.hubdustry.core.layout.policies.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

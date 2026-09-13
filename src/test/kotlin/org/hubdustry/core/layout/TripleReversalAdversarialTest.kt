@@ -1,8 +1,7 @@
-package org.hubdustry.libs.layout
+package org.hubdustry.core.layout
 
 import androidx.compose.runtime.AbstractApplier
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class TripleReversalAdversarialTest {

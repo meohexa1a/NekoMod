@@ -1,4 +1,4 @@
-package org.hubdustry.libs.layout
+package org.hubdustry.core.layout
 
 /**
  * Hướng sắp xếp trục của bố cục tuyến tính (Flex).

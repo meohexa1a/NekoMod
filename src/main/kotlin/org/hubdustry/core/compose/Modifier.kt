@@ -1,6 +1,6 @@
-package org.hubdustry.libs.compose
+package org.hubdustry.core.compose
 
-import org.hubdustry.libs.layout.LayoutNode
+import org.hubdustry.core.layout.LayoutNode
 
 /**
  * Giao diện cấu hình [LayoutNode] theo mô hình Modifier bất biến của Jetpack Compose (AOSP).

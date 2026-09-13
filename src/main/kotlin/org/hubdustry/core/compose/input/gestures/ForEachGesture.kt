@@ -1,11 +1,11 @@
-﻿package org.hubdustry.libs.compose.input.gestures
+package org.hubdustry.core.compose.input.gestures
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
-import org.hubdustry.libs.compose.input.AwaitPointerEventScope
-import org.hubdustry.libs.compose.input.PointerEventPass
-import org.hubdustry.libs.compose.input.PointerInputScope
+import org.hubdustry.core.compose.input.AwaitPointerEventScope
+import org.hubdustry.core.compose.input.PointerEventPass
+import org.hubdustry.core.compose.input.PointerInputScope
 
 /**
  * Lặp lại việc lắng nghe các cử chỉ con trỏ độc lập theo chuẩn AOSP Compose.
@@ -39,6 +39,7 @@ suspend fun PointerInputScope.awaitEachGesture(
  * Hot-path Zero-GC: sử dụng thuộc tính hasPressed của PointerEvent.
  */
 suspend fun AwaitPointerEventScope.awaitAllPointersUp() {
+    if (!currentEvent.hasPressed) return
     while (awaitPointerEvent(PointerEventPass.Final).hasPressed) {
         // Tiếp tục chờ cho đến khi tất cả các con trỏ được nhả hoàn toàn
     }

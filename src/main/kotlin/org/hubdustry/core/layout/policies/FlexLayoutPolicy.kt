@@ -1,10 +1,10 @@
-package org.hubdustry.libs.layout.policies
+package org.hubdustry.core.layout.policies
 
-import org.hubdustry.libs.layout.LayoutNode
-import org.hubdustry.libs.layout.LayoutPolicy
-import org.hubdustry.libs.layout.Orientation
-import org.hubdustry.libs.layout.SizeFlag
-import org.hubdustry.libs.layout.computeOffset
+import org.hubdustry.core.layout.LayoutNode
+import org.hubdustry.core.layout.LayoutPolicy
+import org.hubdustry.core.layout.Orientation
+import org.hubdustry.core.layout.SizeFlag
+import org.hubdustry.core.layout.computeOffset
 
 /**
  * Bố cục tuyến tính Flex đa năng (hỗ trợ cả HBox/Row và VBox/Column).
@@ -45,7 +45,34 @@ class FlexLayoutPolicy(
         val padMain = node.paddingMain(orientation)
         val padCross = node.paddingCross(orientation)
 
-        node.setMinSizeByAxis(orientation, totalMinMain + gapsTotal + padMain, maxMinCross + padCross)
+        val pureContentMain = totalMinMain + gapsTotal
+        val pureContentCross = maxMinCross
+
+        val totalCalculatedMain = pureContentMain + padMain
+        val totalCalculatedCross = pureContentCross + padCross
+
+        val isScrollMain = (orientation == Orientation.VERTICAL && node.isScrollableVertical) ||
+                (orientation == Orientation.HORIZONTAL && node.isScrollableHorizontal)
+
+        // contentWidth / contentHeight là kích thước thuần của nội dung bên trong inner bounds (tránh cộng đúp padding khi cuộn)
+        node.setContentSize(orientation, main = pureContentMain, cross = pureContentCross)
+        val minMain = if (isScrollMain) padMain else totalCalculatedMain
+        node.setMinSizeByAxis(
+            orientation,
+            maxOf(node.minSize(orientation), minMain).coerceAtMost(node.maxSize(orientation)),
+            maxOf(node.minSize(cross), totalCalculatedCross).coerceAtMost(node.maxSize(cross))
+        )
+    }
+
+    private var scratchTempMain = FloatArray(32)
+    private var scratchIsFrozen = BooleanArray(32)
+
+    private fun ensureCapacity(size: Int) {
+        if (scratchTempMain.size < size) {
+            val newCap = maxOf(size, scratchTempMain.size * 2)
+            scratchTempMain = FloatArray(newCap)
+            scratchIsFrozen = BooleanArray(newCap)
+        }
     }
 
     override fun arrangeChildren(
@@ -68,6 +95,7 @@ class FlexLayoutPolicy(
         val safeAvailableCross = if (isUnconstrainedCross) 0f else rawAvailableCross
 
         val count = node.children.size
+        ensureCapacity(count)
         var totalMinMain = 0f
         var totalStretchRatio = 0f
         var visibleCount = 0
@@ -76,15 +104,15 @@ class FlexLayoutPolicy(
         // Pass 1: Thu thập tổng minMain và tổng stretchRatio
         for (i in 0 until count) {
             val child = node.children[i]
-            child.isFrozen = false
+            scratchIsFrozen[i] = false
 
             if (!child.visible || child.anchor.isEnabled) {
-                child.tempMain = 0f
+                scratchTempMain[i] = 0f
                 continue
             }
 
             val childMin = child.minSize(orientation)
-            child.tempMain = childMin
+            scratchTempMain[i] = childMin
             totalMinMain += childMin + child.marginMain(orientation)
 
             if (child.sizeFlag(orientation) == SizeFlag.EXPAND && child.stretchRatio > 0f) {
@@ -107,7 +135,7 @@ class FlexLayoutPolicy(
 
                 for (i in 0 until count) {
                     val child = node.children[i]
-                    if (!child.visible || child.isFrozen || child.anchor.isEnabled) continue
+                    if (!child.visible || scratchIsFrozen[i] || child.anchor.isEnabled) continue
                     if (child.sizeFlag(orientation) != SizeFlag.EXPAND || child.stretchRatio <= 0f) continue
 
                     val childMin = child.minSize(orientation)
@@ -115,8 +143,8 @@ class FlexLayoutPolicy(
                     val tentative = childMin + spacePerRatio * child.stretchRatio
 
                     if (tentative >= childMax) {
-                        child.isFrozen = true
-                        child.tempMain = childMax
+                        scratchIsFrozen[i] = true
+                        scratchTempMain[i] = childMax
                         remainingFreeSpace = maxOf(0f, remainingFreeSpace - (childMax - childMin))
                         remainingStretchRatio = maxOf(0f, remainingStretchRatio - child.stretchRatio)
                         newlyClamped = true
@@ -128,7 +156,7 @@ class FlexLayoutPolicy(
                     var unfrozenExpandCount = 0
                     for (i in 0 until count) {
                         val child = node.children[i]
-                        if (!child.visible || child.isFrozen || child.anchor.isEnabled) continue
+                        if (!child.visible || scratchIsFrozen[i] || child.anchor.isEnabled) continue
                         if (child.sizeFlag(orientation) == SizeFlag.EXPAND && child.stretchRatio > 0f) {
                             unfrozenExpandCount++
                         }
@@ -138,7 +166,7 @@ class FlexLayoutPolicy(
                     var processedUnfrozen = 0
                     for (i in 0 until count) {
                         val child = node.children[i]
-                        if (!child.visible || child.isFrozen || child.anchor.isEnabled) continue
+                        if (!child.visible || scratchIsFrozen[i] || child.anchor.isEnabled) continue
                         if (child.sizeFlag(orientation) == SizeFlag.EXPAND && child.stretchRatio > 0f) {
                             processedUnfrozen++
                             val childMin = child.minSize(orientation)
@@ -150,8 +178,8 @@ class FlexLayoutPolicy(
                                 remainingFreeSpace * (child.stretchRatio / remainingStretchRatio)
                             }
 
-                            child.tempMain = (childMin + additional).coerceIn(childMin, childMax)
-                            distributedFreeSpace += maxOf(0f, child.tempMain - childMin)
+                            scratchTempMain[i] = (childMin + additional).coerceIn(childMin, childMax)
+                            distributedFreeSpace += maxOf(0f, scratchTempMain[i] - childMin)
                         }
                     }
                     break
@@ -170,7 +198,7 @@ class FlexLayoutPolicy(
             val marginLeadCross = child.marginCrossLeading(orientation)
             val marginTotalCross = child.marginCross(orientation)
 
-            val slotMain = child.tempMain
+            val slotMain = scratchTempMain[i]
             val childMinMain = child.minSize(orientation)
             val childMaxMain = child.maxSize(orientation)
             val childMinCross = child.minSize(cross)
@@ -184,10 +212,8 @@ class FlexLayoutPolicy(
             val alignOffsetMain = child.alignment(orientation).computeOffset(slotMain, childMain)
 
             val availableCross = maxOf(0f, safeAvailableCross - marginTotalCross)
-            val childCross = when (child.sizeFlag(cross)) {
-                SizeFlag.FILL, SizeFlag.EXPAND -> if (isUnconstrainedCross) childMinCross else availableCross
-                SizeFlag.SHRINK -> childMinCross
-            }.coerceAtMost(childMaxCross)
+            val shouldFillCross = child.sizeFlag(cross) != SizeFlag.SHRINK && !isUnconstrainedCross
+            val childCross = (if (shouldFillCross) availableCross else childMinCross).coerceAtMost(childMaxCross)
 
             val crossSlot = if (isUnconstrainedCross) childCross else availableCross
             val alignOffsetCross = child.alignment(cross).computeOffset(crossSlot, childCross)

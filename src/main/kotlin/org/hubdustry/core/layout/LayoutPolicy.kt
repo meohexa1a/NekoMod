@@ -1,4 +1,4 @@
-package org.hubdustry.libs.layout
+package org.hubdustry.core.layout
 
 /**
  * Chiến lược bố cục (Layout Policy) theo mô hình 2 pha:

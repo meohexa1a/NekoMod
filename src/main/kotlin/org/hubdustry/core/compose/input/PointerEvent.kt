@@ -1,4 +1,4 @@
-package org.hubdustry.libs.compose.input
+package org.hubdustry.core.compose.input
 
 import kotlin.math.sqrt
 

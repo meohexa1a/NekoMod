@@ -1,8 +1,8 @@
-package org.hubdustry.libs.compose
+package org.hubdustry.core.compose
 
 import androidx.compose.runtime.AbstractApplier
 import arc.util.Log
-import org.hubdustry.libs.layout.LayoutNode
+import org.hubdustry.core.layout.LayoutNode
 
 /**
  * Applier cho Jetpack Compose Runtime ánh xạ trực tiếp lên cây Virtual [LayoutNode].
@@ -14,6 +14,7 @@ import org.hubdustry.libs.layout.LayoutNode
  */
 class LayoutNodeApplier(
     root: LayoutNode,
+    private val onNodeRemovedCallback: ((LayoutNode) -> Unit)? = null,
     private val onEndChangesCallback: () -> Unit = {}
 ) : AbstractApplier<LayoutNode>(root) {
 
@@ -40,6 +41,16 @@ class LayoutNodeApplier(
 
     override fun remove(index: Int, count: Int) {
         try {
+            if (onNodeRemovedCallback != null) {
+                val children = current.children
+                val safeIndex = index.coerceIn(0, children.size)
+                val safeCount = count.coerceIn(0, children.size - safeIndex)
+                for (i in safeIndex until (safeIndex + safeCount)) {
+                    children[i].forEachInSubtree { node ->
+                        onNodeRemovedCallback.invoke(node)
+                    }
+                }
+            }
             current.removeChildren(index, count)
         } catch (t: Throwable) {
             Log.err("[LayoutNodeApplier] Error in remove at index $index, count $count", t)
@@ -56,6 +67,15 @@ class LayoutNodeApplier(
 
     public override fun onClear() {
         try {
+            if (onNodeRemovedCallback != null) {
+                val children = root.children
+                val count = children.size
+                for (i in 0 until count) {
+                    children[i].forEachInSubtree { node ->
+                        onNodeRemovedCallback.invoke(node)
+                    }
+                }
+            }
             root.clearChildren()
         } catch (t: Throwable) {
             Log.err("[LayoutNodeApplier] Error in onClear", t)

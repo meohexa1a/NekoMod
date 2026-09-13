@@ -1,4 +1,4 @@
-package org.hubdustry.libs.compose.input
+package org.hubdustry.core.compose.input
 
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CoroutineScope
@@ -64,14 +64,10 @@ class SuspendingPointerInputFilter(
     override suspend fun <R> awaitPointerEventScope(block: suspend AwaitPointerEventScope.() -> R): R =
         suspendCancellableCoroutine { continuation ->
             val handler = PointerEventHandlerCoroutine(this, continuation, block)
-            synchronized(handlers) {
-                handlers.add(handler)
-            }
+            handlers.add(handler)
             continuation.invokeOnCancellation {
                 handler.cancel(it)
-                synchronized(handlers) {
-                    handlers.remove(handler)
-                }
+                handlers.remove(handler)
             }
             handler.start()
         }
@@ -82,12 +78,10 @@ class SuspendingPointerInputFilter(
      */
     fun dispatchPointerEvent(event: PointerEvent, pass: PointerEventPass, bounds: IntSize = this.size) {
         this.size = bounds
-        synchronized(handlers) {
-            dispatchingHandlers.clear()
-            val count = handlers.size
-            for (i in 0 until count) {
-                dispatchingHandlers.add(handlers[i])
-            }
+        dispatchingHandlers.clear()
+        val count = handlers.size
+        for (i in 0 until count) {
+            dispatchingHandlers.add(handlers[i])
         }
 
         val dispatchCount = dispatchingHandlers.size
@@ -101,13 +95,11 @@ class SuspendingPointerInputFilter(
      * Hủy bỏ toàn bộ handler đang chờ và giải phóng tài nguyên.
      */
     fun reset() {
-        synchronized(handlers) {
-            val count = handlers.size
-            for (i in 0 until count) {
-                handlers[i].cancel(null)
-            }
-            handlers.clear()
+        val count = handlers.size
+        for (i in 0 until count) {
+            handlers[i].cancel(null)
         }
+        handlers.clear()
     }
 }
 
@@ -127,9 +119,7 @@ internal class PointerEventHandlerCoroutine<R>(
     override val context: CoroutineContext = completion.context
 
     override fun resumeWith(result: Result<R>) {
-        synchronized(filter.handlers) {
-            filter.handlers.remove(this)
-        }
+        filter.handlers.remove(this)
         completion.resumeWith(result)
     }
 

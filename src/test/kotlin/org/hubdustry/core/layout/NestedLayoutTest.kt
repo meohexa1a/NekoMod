@@ -1,7 +1,7 @@
-package org.hubdustry.libs.layout
+package org.hubdustry.core.layout
 
-import org.hubdustry.libs.layout.policies.BoxLayoutPolicy
-import org.hubdustry.libs.layout.policies.ColumnPolicy
+import org.hubdustry.core.layout.policies.BoxLayoutPolicy
+import org.hubdustry.core.layout.policies.ColumnPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

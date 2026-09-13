@@ -1,4 +1,4 @@
-package org.hubdustry.libs.layout
+package org.hubdustry.core.layout
 
 /**
  * Các preset neo (Anchor) thông dụng của Godot Control, ánh xạ sang hệ tọa độ Y-down (Top-Left origin).
@@ -78,6 +78,18 @@ class AnchorData {
         this.offsetTop = top
         this.offsetRight = right
         this.offsetBottom = bottom
+    }
+
+    fun reset() {
+        isEnabled = false
+        anchorLeft = 0f
+        anchorTop = 0f
+        anchorRight = 0f
+        anchorBottom = 0f
+        offsetLeft = 0f
+        offsetTop = 0f
+        offsetRight = 0f
+        offsetBottom = 0f
     }
 }
 

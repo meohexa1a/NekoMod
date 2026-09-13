@@ -1,9 +1,9 @@
-package org.hubdustry.libs.layout.policies
+package org.hubdustry.core.layout.policies
 
-import org.hubdustry.libs.layout.LayoutNode
-import org.hubdustry.libs.layout.LayoutPolicy
-import org.hubdustry.libs.layout.SizeFlag
-import org.hubdustry.libs.layout.computeOffset
+import org.hubdustry.core.layout.LayoutNode
+import org.hubdustry.core.layout.LayoutPolicy
+import org.hubdustry.core.layout.SizeFlag
+import org.hubdustry.core.layout.computeOffset
 
 /**
  * Bố cục tự do dạng Box. Hỗ trợ định vị theo Anchor/Preset hoặc căn chỉnh theo Alignment/SizeFlags.
@@ -27,8 +27,19 @@ object BoxLayoutPolicy : LayoutPolicy {
             }
         }
 
-        node.minWidth = maxOf(node.minWidth, maxChildMinWidth + node.paddingLeft + node.paddingRight)
-        node.minHeight = maxOf(node.minHeight, maxChildMinHeight + node.paddingTop + node.paddingBottom)
+        val totalCalculatedW = maxChildMinWidth + node.paddingLeft + node.paddingRight
+        val totalCalculatedH = maxChildMinHeight + node.paddingTop + node.paddingBottom
+
+        // contentWidth / contentHeight là kích thước thuần của nội dung bên trong inner bounds (tránh cộng đúp padding khi cuộn)
+        node.contentWidth = maxChildMinWidth
+        node.contentHeight = maxChildMinHeight
+
+        val contentMinWidth = if (node.isScrollableHorizontal) node.paddingLeft + node.paddingRight else totalCalculatedW
+        val contentMinHeight = if (node.isScrollableVertical) node.paddingTop + node.paddingBottom else totalCalculatedH
+
+        // Cập nhật minWidth/minHeight nhưng tuyệt đối KHÔNG đục thủng giới hạn maxWidth/maxHeight tường minh
+        node.minWidth = maxOf(node.minWidth, contentMinWidth).coerceAtMost(node.maxWidth)
+        node.minHeight = maxOf(node.minHeight, contentMinHeight).coerceAtMost(node.maxHeight)
     }
 
     override fun arrangeChildren(

@@ -1,4 +1,4 @@
-﻿package org.hubdustry.libs.layout
+package org.hubdustry.core.layout
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

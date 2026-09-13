@@ -1,4 +1,4 @@
-package org.hubdustry.libs.compose.input.gestures
+package org.hubdustry.core.compose.input.gestures
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -7,13 +7,14 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import org.hubdustry.libs.compose.input.AwaitPointerEventScope
-import org.hubdustry.libs.compose.input.Offset
-import org.hubdustry.libs.compose.input.PointerButton
-import org.hubdustry.libs.compose.input.PointerEventPass
-import org.hubdustry.libs.compose.input.PointerId
-import org.hubdustry.libs.compose.input.PointerInputChange
-import org.hubdustry.libs.compose.input.PointerInputScope
+import org.hubdustry.core.compose.input.AwaitPointerEventScope
+import org.hubdustry.core.compose.input.Offset
+import org.hubdustry.core.compose.input.PointerButton
+import org.hubdustry.core.compose.input.PointerEventPass
+import org.hubdustry.core.compose.input.PointerId
+import org.hubdustry.core.compose.input.PointerInputChange
+import org.hubdustry.core.compose.input.PointerInputScope
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Phạm vi điều khiển trạng thái cho callback onPress theo chuẩn AOSP Compose.
@@ -75,9 +76,8 @@ suspend fun AwaitPointerEventScope.awaitFirstDown(
         val count = changes.size
         for (i in 0 until count) {
             val c = changes[i]
-            if (if (requireUnconsumed) c.changedToDown else c.changedToDownIgnoreConsumed) {
-                return c
-            }
+            val isDown = if (requireUnconsumed) c.changedToDown else c.changedToDownIgnoreConsumed
+            if (isDown) return c
         }
     }
 }
@@ -219,7 +219,7 @@ suspend fun PointerInputScope.detectTapGestures(
         } else {
             var secondDown: PointerInputChange? = null
             try {
-                withTimeout(viewConfiguration.doubleTapTimeoutMillis) {
+                withTimeout(viewConfiguration.doubleTapTimeoutMillis.milliseconds) {
                     while (secondDown == null) {
                         val event = awaitPointerEvent(PointerEventPass.Main)
                         val changes = event.changes

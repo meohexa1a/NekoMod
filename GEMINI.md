@@ -4,6 +4,35 @@ Tài liệu này là quy chuẩn lập trình bắt buộc (Always-On Universal 
 
 ---
 
+## 0. Bộ Lọc Nguồn Gốc & Tính Toàn Vẹn Ngữ Nghĩa (Architectural Origin & Semantic Integrity)
+
+Trước khi viết bất kỳ cấu trúc dữ liệu, enum, modifier, hoặc hàm xử lý mới nào, **BẮT BUỘC** phải vượt qua bài kiểm tra 3 câu hỏi nguồn gốc và các nguyên tắc ngữ nghĩa sau:
+
+1. **Bộ Ba Câu Hỏi Nguồn Gốc (Three Architectural Origin Questions)**:
+   - **Khái niệm này đến từ framework nào?** (Jetpack Compose AOSP, Godot Control, Arc Scene2D, hay tự chế?)
+   - **Trong framework gốc, nó hoạt động chính xác ra sao?** (Hợp đồng dữ liệu, giả định luồng, thứ tự ưu tiên?)
+   - **Khi chuyển sang NekoMod, có phần nào của ngữ nghĩa gốc bị mất mát hoặc xung đột với hệ thống khác không?**
+   *(Nếu không thể trả lời rõ ràng 3 câu hỏi này, CẤM TUYỆT ĐỐI việc gộp chắp vá các khái niệm khác nhau vào một class).*
+
+2. **Cấm API Ảo & Ngữ Nghĩa Nói Dối (No Phantom APIs & No Semantic Lies)**:
+   - Mọi hàm, mọi tham số được phơi ra public API **bắt buộc phải có tác dụng thật sự 100%**. CẤM tạo các tham số "bán hàng giả" (như `weight(fill = false)` nhưng nhánh `false` không hề làm gì).
+   - Hàm mang tên A **tuyệt đối không được phép có side-effect ngầm B**. (Ví dụ: `widthIn()` chỉ được đặt giới hạn biên `minWidth`/`maxWidth`, CẤM TUYỆT ĐỐI việc âm thầm đổi `sizeFlag` thành `SHRINK`).
+
+3. **Độc Lập Tuyệt Đối Giữa Ràng Buộc Khung và Chính Sách Co Giãn (Constraints vs Sizing Independence)**:
+   - Ràng buộc hình học (`minWidth`, `maxWidth`, `minHeight`, `maxHeight`) là "hàng rào biên giới".
+   - Chính sách co giãn (`sizeFlag`, `stretchRatio`) là "động cơ phân bổ".
+   - Hàng rào biên giới không được quyền tắt động cơ. Việc đặt `minWidth` không được phép hủy cờ `FILL` hay `EXPAND` của phần tử.
+
+4. **Sự Trong Sạch Của Thực Thể (Entity Memory Hygiene)**:
+   - `LayoutNode` là Virtual DOM Node, chỉ chứa trạng thái hình học và visual của chính nó.
+   - CẤM TUYỆT ĐỐI việc nhét các biến nháp, cờ tạm trung gian của thuật toán giải bố cục (như `tempMain`, `isFrozen` của Flex redistribution) vào `LayoutNode`. Mọi Policy phải tự quản lý bộ nhớ giải thuật của riêng mình.
+
+5. **Phân Định Rạch Ròi Vòng Đời Cục Bộ vs Toàn Cục (Lifecycle Isolation)**:
+   - Vòng đời instance của một View (`ComposeView.dispose()`) **chỉ được phép dọn dẹp tài nguyên thuộc về chính instance đó**.
+   - CẤM TUYỆT ĐỐI việc một instance View khi bị hủy lại gọi `dispose()` lên các tài nguyên Singleton toàn cục của tiến trình (`UIBatch`, `UberShader`, `CompositionManager`).
+
+---
+
 ## 1. Thiết Kế Miền & Đóng Gói (Domain Architecture Invariants)
 
 1. **Active Self-Validating Entity thay vì Anemic DTO**:
