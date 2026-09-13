@@ -135,15 +135,9 @@ fun Modifier.combinedClickable(
                 }
                 source.emit(releaseOrCancel)
             },
-            onLongPress = if (currentOnLongClick != null) {
-                { currentOnLongClick?.invoke() }
-            } else null,
-            onDoubleTap = if (currentOnDoubleClick != null) {
-                { currentOnDoubleClick?.invoke() }
-            } else null,
-            onSecondaryTap = if (currentOnSecondaryClick != null) {
-                { currentOnSecondaryClick?.invoke() }
-            } else null,
+            onLongPress    = currentOnLongClick?.let    { cb -> { cb() } },
+            onDoubleTap    = currentOnDoubleClick?.let  { cb -> { cb() } },
+            onSecondaryTap = currentOnSecondaryClick?.let { cb -> { cb() } },
             onTap = { currentOnClick() },
         )
     }

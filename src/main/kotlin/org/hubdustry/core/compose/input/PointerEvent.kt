@@ -1,5 +1,6 @@
 package org.hubdustry.core.compose.input
 
+import androidx.compose.ui.util.fastAny
 import kotlin.math.sqrt
 
 /**
@@ -198,23 +199,11 @@ class PointerEvent(
      * Hot-path Zero-GC kiểm tra xem có bất kỳ con trỏ nào đang được nhấn không.
      */
     val hasPressed: Boolean
-        get() {
-            val count = changes.size
-            for (i in 0 until count) {
-                if (changes[i].pressed) return true
-            }
-            return false
-        }
+        get() = changes.fastAny { it.pressed }
 
     val button: PointerButton?
         get() = if (changes.isNotEmpty()) changes[0].button else null
 
-    fun isButtonPressed(targetButton: PointerButton): Boolean {
-        val count = changes.size
-        for (i in 0 until count) {
-            val c = changes[i]
-            if (c.pressed && c.button == targetButton) return true
-        }
-        return false
-    }
+    fun isButtonPressed(targetButton: PointerButton): Boolean =
+        changes.fastAny { it.pressed && it.button == targetButton }
 }

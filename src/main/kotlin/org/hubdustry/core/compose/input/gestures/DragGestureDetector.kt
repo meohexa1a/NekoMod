@@ -1,5 +1,6 @@
 package org.hubdustry.core.compose.input.gestures
 
+import androidx.compose.ui.util.fastFirstOrNull
 import kotlinx.coroutines.coroutineScope
 import org.hubdustry.core.compose.input.Offset
 import org.hubdustry.core.compose.input.PointerEventPass
@@ -24,23 +25,14 @@ suspend fun PointerInputScope.detectDragGestures(
         val slopSquared = touchSlop * touchSlop
 
         var dragStarted = false
-        var pointerId = down.id
+        val pointerId = down.id
         var previousPos = down.position
         var totalDx = 0f
         var totalDy = 0f
 
         while (true) {
             val event = awaitPointerEvent(PointerEventPass.Main)
-            val changes = event.changes
-            val count = changes.size
-            var matched: PointerInputChange? = null
-
-            for (i in 0 until count) {
-                if (changes[i].id == pointerId) {
-                    matched = changes[i]
-                    break
-                }
-            }
+            val matched = event.changes.fastFirstOrNull { it.id == pointerId }
 
             if (matched == null || matched.isConsumed) {
                 if (dragStarted) onDragCancel?.invoke()
@@ -93,23 +85,14 @@ suspend fun PointerInputScope.detectVerticalDragGestures(
         val slopSquared = touchSlop * touchSlop
 
         var dragStarted = false
-        var pointerId = down.id
+        val pointerId = down.id
         var previousPos = down.position
         var totalDx = 0f
         var totalDy = 0f
 
         while (true) {
             val event = awaitPointerEvent(PointerEventPass.Main)
-            val changes = event.changes
-            val count = changes.size
-            var matched: PointerInputChange? = null
-
-            for (i in 0 until count) {
-                if (changes[i].id == pointerId) {
-                    matched = changes[i]
-                    break
-                }
-            }
+            val matched = event.changes.fastFirstOrNull { it.id == pointerId }
 
             if (matched == null || matched.isConsumed) {
                 if (dragStarted) onDragCancel?.invoke()
@@ -168,23 +151,14 @@ suspend fun PointerInputScope.detectHorizontalDragGestures(
         val slopSquared = touchSlop * touchSlop
 
         var dragStarted = false
-        var pointerId = down.id
+        val pointerId = down.id
         var previousPos = down.position
         var totalDx = 0f
         var totalDy = 0f
 
         while (true) {
             val event = awaitPointerEvent(PointerEventPass.Main)
-            val changes = event.changes
-            val count = changes.size
-            var matched: PointerInputChange? = null
-
-            for (i in 0 until count) {
-                if (changes[i].id == pointerId) {
-                    matched = changes[i]
-                    break
-                }
-            }
+            val matched = event.changes.fastFirstOrNull { it.id == pointerId }
 
             if (matched == null || matched.isConsumed) {
                 if (dragStarted) onDragCancel?.invoke()

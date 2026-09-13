@@ -1,5 +1,6 @@
 package org.hubdustry.core.compose.input.gestures
 
+import androidx.compose.ui.util.fastFirstOrNull
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.TimeoutCancellationException
@@ -72,13 +73,10 @@ suspend fun AwaitPointerEventScope.awaitFirstDown(
 ): PointerInputChange {
     while (true) {
         val event = awaitPointerEvent(pass)
-        val changes = event.changes
-        val count = changes.size
-        for (i in 0 until count) {
-            val c = changes[i]
-            val isDown = if (requireUnconsumed) c.changedToDown else c.changedToDownIgnoreConsumed
-            if (isDown) return c
+        val down = event.changes.fastFirstOrNull { c ->
+            if (requireUnconsumed) c.changedToDown else c.changedToDownIgnoreConsumed
         }
+        if (down != null) return down
     }
 }
 
@@ -93,17 +91,9 @@ suspend fun AwaitPointerEventScope.waitForUpOrCancellation(
     while (true) {
         val event = awaitPointerEvent(pass)
         val changes = event.changes
-        val count = changes.size
 
         val matched = if (pointerId != null) {
-            var found: PointerInputChange? = null
-            for (i in 0 until count) {
-                if (changes[i].id == pointerId) {
-                    found = changes[i]
-                    break
-                }
-            }
-            found
+            changes.fastFirstOrNull { it.id == pointerId }
         } else {
             if (changes.isNotEmpty()) changes[0] else null
         }
@@ -140,11 +130,9 @@ suspend fun PointerInputScope.detectTapGestures(
 
         // 1. Nhận diện Secondary Click (Chuột phải trên PC / Desktop)
         if (down.button == PointerButton.Secondary && onSecondaryTap != null) {
-            val up = waitForUpOrCancellation(down.id)
-            if (up != null) {
-                up.consume()
-                onSecondaryTap(up.position)
-            }
+            val up = waitForUpOrCancellation(down.id) ?: return@awaitEachGesture
+            up.consume()
+            onSecondaryTap(up.position)
             return@awaitEachGesture
         }
 
@@ -170,15 +158,7 @@ suspend fun PointerInputScope.detectTapGestures(
         var upOrCancel: PointerInputChange? = null
         while (upOrCancel == null) {
             val event = awaitPointerEvent(PointerEventPass.Main)
-            val changes = event.changes
-            val count = changes.size
-            var matched: PointerInputChange? = null
-            for (i in 0 until count) {
-                if (changes[i].id == down.id) {
-                    matched = changes[i]
-                    break
-                }
-            }
+            val matched = event.changes.fastFirstOrNull { it.id == down.id }
 
             if (matched == null || matched.isConsumed || matched.isOutOfBounds(size, touchSlop)) {
                 break
@@ -222,20 +202,16 @@ suspend fun PointerInputScope.detectTapGestures(
                 withTimeout(viewConfiguration.doubleTapTimeoutMillis.milliseconds) {
                     while (secondDown == null) {
                         val event = awaitPointerEvent(PointerEventPass.Main)
-                        val changes = event.changes
-                        val count = changes.size
-                        for (i in 0 until count) {
-                            val c = changes[i]
-                            if (c.changedToDown) {
-                                val ddx = c.position.x - up.position.x
-                                val ddy = c.position.y - up.position.y
-                                val maxDoubleTapDist = touchSlop * 2f
-                                if (ddx * ddx + ddy * ddy <= maxDoubleTapDist * maxDoubleTapDist) {
-                                    secondDown = c
-                                    c.consume()
-                                }
-                                break
+                        val c = event.changes.fastFirstOrNull { it.changedToDown }
+                        if (c != null) {
+                            val ddx = c.position.x - up.position.x
+                            val ddy = c.position.y - up.position.y
+                            val maxDoubleTapDist = touchSlop * 2f
+                            if (ddx * ddx + ddy * ddy <= maxDoubleTapDist * maxDoubleTapDist) {
+                                secondDown = c
+                                c.consume()
                             }
+                            break
                         }
                     }
                 }
@@ -244,14 +220,10 @@ suspend fun PointerInputScope.detectTapGestures(
                 return@awaitEachGesture
             }
 
-            val validSecondDown = secondDown
-            if (validSecondDown != null) {
-                val secondUp = waitForUpOrCancellation(validSecondDown.id)
-                if (secondUp != null) {
-                    secondUp.consume()
-                    onDoubleTap(validSecondDown.position)
-                }
-            }
+            val validSecondDown = secondDown ?: return@awaitEachGesture
+            val secondUp = waitForUpOrCancellation(validSecondDown.id) ?: return@awaitEachGesture
+            secondUp.consume()
+            onDoubleTap(validSecondDown.position)
         }
     }
 }

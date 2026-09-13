@@ -1,5 +1,6 @@
 package org.hubdustry.core.compose.input
 
+import androidx.compose.ui.util.fastForEach
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -79,15 +80,9 @@ class SuspendingPointerInputFilter(
     fun dispatchPointerEvent(event: PointerEvent, pass: PointerEventPass, bounds: IntSize = this.size) {
         this.size = bounds
         dispatchingHandlers.clear()
-        val count = handlers.size
-        for (i in 0 until count) {
-            dispatchingHandlers.add(handlers[i])
-        }
+        handlers.fastForEach { dispatchingHandlers.add(it) }
 
-        val dispatchCount = dispatchingHandlers.size
-        for (i in 0 until dispatchCount) {
-            dispatchingHandlers[i].dispatch(event, pass)
-        }
+        dispatchingHandlers.fastForEach { it.dispatch(event, pass) }
         dispatchingHandlers.clear()
     }
 
@@ -95,10 +90,7 @@ class SuspendingPointerInputFilter(
      * Hủy bỏ toàn bộ handler đang chờ và giải phóng tài nguyên.
      */
     fun reset() {
-        val count = handlers.size
-        for (i in 0 until count) {
-            handlers[i].cancel(null)
-        }
+        handlers.fastForEach { it.cancel(null) }
         handlers.clear()
     }
 }
