@@ -24,7 +24,9 @@ import org.hubdustry.core.layout.AnchorPreset
 import org.hubdustry.core.layout.Orientation
 import org.hubdustry.core.layout.SizeFlag
 import org.hubdustry.ui.components.Button
+import org.hubdustry.ui.components.Checkbox
 import org.hubdustry.ui.components.DefaultButtonPressedColor
+import org.hubdustry.ui.components.Switch
 
 // --- 1. TYPEALIASES & CORE EXPORTS ---
 
@@ -114,6 +116,65 @@ fun Button(
     hoverColor: Color? = null,
     content: @Composable BoxScope.() -> Unit
 ) = org.hubdustry.ui.components.Button(onClick, modifier, interactionSource, enabled, corners, backgroundColor, pressedColor, hoverColor, content)
+
+/**
+ * Hộp chọn (Checkbox) chuẩn của NekoMod UI:
+ * - Kích thước mặc định 20x20 px với bo góc SDF 4px.
+ * - Hiển thị ký tự "✓" căn chính giữa khi được chọn ([checked] = true).
+ * - Kết nối trực tiếp cử chỉ click/tap mà không dùng Arc ClickListener.
+ * - Tự động giảm độ mờ (alpha 0.5f) và vô hiệu hóa tương tác khi [enabled] = false.
+ */
+@Composable
+fun Checkbox(
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    interactionSource: MutableInteractionSource? = null,
+    checkedColor: Color = Color.royal,
+    uncheckedColor: Color = Color.darkGray,
+    checkmarkColor: Color = Color.white,
+    borderColor: Color = Color.lightGray
+) = org.hubdustry.ui.components.Checkbox(
+    checked = checked,
+    onCheckedChange = onCheckedChange,
+    modifier = modifier,
+    enabled = enabled,
+    interactionSource = interactionSource,
+    checkedColor = checkedColor,
+    uncheckedColor = uncheckedColor,
+    checkmarkColor = checkmarkColor,
+    borderColor = borderColor
+)
+
+/**
+ * Công tắc trượt (Switch) chuẩn của NekoMod UI:
+ * - Khung ray (Track) kích thước mặc định 40x22 px với bo góc SDF 11px (viên thuốc).
+ * - Nút trượt tròn (Thumb) kích thước 16x16 px với bo góc SDF 8px.
+ * - Tự động chuyển vị trí thumb giữa START và END theo trạng thái [checked].
+ * - Kết nối trực tiếp cử chỉ click/tap mà không dùng Arc ClickListener.
+ * - Tự động giảm độ mờ (alpha 0.5f) và vô hiệu hóa tương tác khi [enabled] = false.
+ */
+@Composable
+fun Switch(
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    interactionSource: MutableInteractionSource? = null,
+    trackCheckedColor: Color = Color.royal,
+    trackUncheckedColor: Color = Color.darkGray,
+    thumbColor: Color = Color.white
+) = org.hubdustry.ui.components.Switch(
+    checked = checked,
+    onCheckedChange = onCheckedChange,
+    modifier = modifier,
+    enabled = enabled,
+    interactionSource = interactionSource,
+    trackCheckedColor = trackCheckedColor,
+    trackUncheckedColor = trackUncheckedColor,
+    thumbColor = thumbColor
+)
 
 /**
  * Factory tạo [MutableInteractionSource] quản lý tương tác người dùng.

@@ -3,6 +3,7 @@ package org.hubdustry.sample
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import arc.graphics.Color
 import mindustry.ui.dialogs.BaseDialog
 import org.hubdustry.ui.*
@@ -15,6 +16,7 @@ import org.hubdustry.core.compose.modifier.*
  * 3. Bố cục Flexbox (Row, Column) với Gap, Padding và Stretch Ratio qua Modifier.
  * 4. Định vị neo Godot-style (AnchorPreset overlay / ghost badge).
  * 5. Dựng hình SDF Shader cho Box: Bo góc độc lập 4 đỉnh và viền nổi (Inner Border).
+ * 6. Bộ đôi điều khiển tương tác: Checkbox & Switch.
  */
 class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
 
@@ -24,6 +26,8 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
         // Nhúng Compose DSL trực tiếp vào Table, để Cell quản lý kích thước và padding
         cont.compose {
             val count by remember { countState }
+            var autoMiningEnabled by remember { mutableStateOf(false) }
+            var soundFxEnabled by remember { mutableStateOf(true) }
             val dynamicColor = when (count % 4) {
                 0 -> Color.royal
                 1 -> Color.forest
@@ -138,7 +142,49 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                     }
                 }
 
-                // 4. Footer Info
+                // 4. Showcase: Interactive Selection Controls (Checkbox & Switch)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 40f)
+                        .background(Color.slate, RoundedCorners(8f))
+                        .padding(8f),
+                    gap = 16f
+                ) {
+                    // Checkbox Item
+                    Row(
+                        gap = 8f,
+                        modifier = Modifier.weight(1f).align(Alignment.CENTER)
+                    ) {
+                        Checkbox(
+                            checked = autoMiningEnabled,
+                            onCheckedChange = { autoMiningEnabled = it }
+                        )
+                        Text(
+                            text = if (autoMiningEnabled) "Auto Mining: ON" else "Auto Mining: OFF",
+                            textColor = if (autoMiningEnabled) Color.sky else Color.white,
+                            modifier = Modifier.align(Alignment.CENTER)
+                        )
+                    }
+
+                    // Switch Item
+                    Row(
+                        gap = 8f,
+                        modifier = Modifier.weight(1f).align(Alignment.CENTER)
+                    ) {
+                        Switch(
+                            checked = soundFxEnabled,
+                            onCheckedChange = { soundFxEnabled = it }
+                        )
+                        Text(
+                            text = if (soundFxEnabled) "Sound FX: ON" else "Sound FX: OFF",
+                            textColor = if (soundFxEnabled) Color.sky else Color.white,
+                            modifier = Modifier.align(Alignment.CENTER)
+                        )
+                    }
+                }
+
+                // 5. Footer Info
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -151,7 +197,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                     )
                 }
             }
-        }.size(560f, 260f).pad(10f).row()
+        }.size(560f, 320f).pad(10f).row()
 
         addCloseButton()
     }
