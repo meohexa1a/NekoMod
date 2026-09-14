@@ -2,7 +2,10 @@ package org.hubdustry.core.compose.view
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Composition
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.util.fastForEach
+import arc.Core
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
 import arc.input.KeyCode
@@ -13,6 +16,7 @@ import arc.scene.event.InputListener
 import arc.util.Log
 import org.hubdustry.core.compose.CompositionManager
 import org.hubdustry.core.compose.LayoutNodeApplier
+import org.hubdustry.core.compose.input.ime.SdlReflectionImeBridge
 import org.hubdustry.core.compose.input.Offset
 import org.hubdustry.core.compose.input.PointerButton
 import org.hubdustry.core.compose.input.PointerEventType
@@ -36,6 +40,8 @@ import org.hubdustry.core.layout.LayoutNode
  *    - Input từ Arc vào: `composeY = height - arcY`.
  *    - Render ra Arc: Bù trừ tọa độ Y-up trong [NodeRenderer].
  */
+val LocalComposeView = staticCompositionLocalOf<ComposeView?> { null }
+
 open class ComposeView : Element() {
 
     val rootLayoutNode: LayoutNode = LayoutNode()
@@ -100,6 +106,15 @@ open class ComposeView : Element() {
                     inputDispatcher.mouseExit(System.currentTimeMillis())
                 }
             }
+
+            override fun keyDown(event: InputEvent?, keycode: KeyCode?): Boolean =
+                inputDispatcher.keyDown(keycode)
+
+            override fun keyUp(event: InputEvent?, keycode: KeyCode?): Boolean =
+                inputDispatcher.keyUp(keycode)
+
+            override fun keyTyped(event: InputEvent?, character: Char): Boolean =
+                inputDispatcher.keyTyped(character)
         })
     }
 
@@ -107,7 +122,11 @@ open class ComposeView : Element() {
         this.composableContent = content
 
         ensureCompositionStarted()
-        composition?.setContent(content)
+        composition?.setContent {
+            CompositionLocalProvider(LocalComposeView provides this) {
+                content()
+            }
+        }
 
         rootLayoutNode.policy.computeMinSize(rootLayoutNode)
         invalidateHierarchy()
@@ -121,7 +140,11 @@ open class ComposeView : Element() {
             // GẮN VÀO SCENE: Khởi động composition nếu có nội dung
             ensureCompositionStarted()
             composableContent?.let { content ->
-                composition?.setContent(content)
+                composition?.setContent {
+                    CompositionLocalProvider(LocalComposeView provides this) {
+                        content()
+                    }
+                }
             }
         } else if (stage == null && oldScene != null) {
             // GỠ KHỎI SCENE: Giải phóng composition và node
@@ -153,13 +176,21 @@ open class ComposeView : Element() {
             )
             this.composition = comp
             composableContent?.let { content ->
-                comp.setContent(content)
+                comp.setContent {
+                    CompositionLocalProvider(LocalComposeView provides this) {
+                        content()
+                    }
+                }
             }
         }
     }
 
     open fun dispose() {
         // Phase 1: Cancel active interactions before tearing down
+        SdlReflectionImeBridge.stopSession()
+        if (Core.scene != null && Core.scene.keyboardFocus === this) {
+            Core.scene.keyboardFocus = null
+        }
         inputDispatcher.cancelAllActivePointers(System.currentTimeMillis())
         disposeNodeRecursive(rootLayoutNode)
 

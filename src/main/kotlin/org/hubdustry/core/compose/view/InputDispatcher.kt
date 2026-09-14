@@ -3,6 +3,7 @@ package org.hubdustry.core.compose.view
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
+import arc.input.KeyCode
 import org.hubdustry.core.compose.input.ConsumedData
 import org.hubdustry.core.compose.input.IntSize
 import org.hubdustry.core.compose.input.Offset
@@ -14,6 +15,16 @@ import org.hubdustry.core.compose.input.PointerId
 import org.hubdustry.core.compose.input.PointerInputChange
 import org.hubdustry.core.compose.input.PointerType
 import org.hubdustry.core.layout.LayoutNode
+
+/**
+ * Interface đón nhận các sự kiện bàn phím từ [InputDispatcher].
+ */
+interface KeyboardInputHandler {
+    fun onKeyTyped(character: Char): Boolean
+    fun onKeyDown(keycode: KeyCode?): Boolean
+    fun onKeyUp(keycode: KeyCode?): Boolean = false
+    fun onFocusLost() {}
+}
 
 /**
  * Ghi lại thông tin node trúng hit-test và tọa độ tuyệt đối của node trong ComposeView.
@@ -572,6 +583,26 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         pointersToCancel.fastForEach { cancelPointer(it) }
     }
 
+    // ── KEYBOARD & FOCUS ROUTING ─────────────────────────────────────────────
+
+    var focusedKeyHandler: KeyboardInputHandler? = null
+        set(value) {
+            if (field !== value) {
+                val previous = field
+                field = value
+                previous?.onFocusLost()
+            }
+        }
+
+    fun keyTyped(character: Char): Boolean =
+        focusedKeyHandler?.onKeyTyped(character) ?: false
+
+    fun keyDown(keycode: KeyCode?): Boolean =
+        focusedKeyHandler?.onKeyDown(keycode) ?: false
+
+    fun keyUp(keycode: KeyCode?): Boolean =
+        focusedKeyHandler?.onKeyUp(keycode) ?: false
+
     fun dispose() {
         cancelAllActivePointers()
         trackedPointers.clear()
@@ -584,5 +615,7 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         previousHoverChain.clear()
         exitedHoverScratch.clear()
         hoverPool.clear()
+
+        focusedKeyHandler = null
     }
 }

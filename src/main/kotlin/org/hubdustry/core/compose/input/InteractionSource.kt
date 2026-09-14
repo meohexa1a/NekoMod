@@ -133,3 +133,34 @@ fun InteractionSource.collectIsHoveredAsState(): State<Boolean> {
     }
     return isHovered
 }
+
+/**
+ * Nhóm tương tác tiêu điểm (Focus) theo kiến trúc Jetpack Compose.
+ */
+sealed interface FocusInteraction : Interaction {
+    /** Phát ra khi thành phần nhận tiêu điểm bàn phím (Focus). */
+    class Focus : FocusInteraction
+
+    /** Phát ra khi thành phần mất tiêu điểm bàn phím (Unfocus / Blur). */
+    class Unfocus(val focus: Focus) : FocusInteraction
+}
+
+/**
+ * Composable helper lắng nghe luồng [InteractionSource] và trả về [State] boolean
+ * phản ánh xem thành phần có đang nhận tiêu điểm bàn phím (Focus) hay không.
+ */
+@Composable
+fun InteractionSource.collectIsFocusedAsState(): State<Boolean> {
+    val isFocused = remember { mutableStateOf(false) }
+    LaunchedEffect(this) {
+        val focusInteractions = ArrayList<FocusInteraction.Focus>()
+        interactions.collect { interaction ->
+            when (interaction) {
+                is FocusInteraction.Focus -> focusInteractions.add(interaction)
+                is FocusInteraction.Unfocus -> focusInteractions.remove(interaction.focus)
+            }
+            isFocused.value = focusInteractions.isNotEmpty()
+        }
+    }
+    return isFocused
+}
