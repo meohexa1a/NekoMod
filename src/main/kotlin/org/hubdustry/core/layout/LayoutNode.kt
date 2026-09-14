@@ -3,6 +3,7 @@ package org.hubdustry.core.layout
 import androidx.compose.ui.util.fastForEach
 import arc.graphics.Color
 import org.hubdustry.core.compose.input.SuspendingPointerInputFilter
+import org.hubdustry.core.graphics.RoundedCorners
 import org.hubdustry.core.layout.policies.BoxLayoutPolicy
 import org.hubdustry.core.layout.policies.LayoutPolicy
 
@@ -22,7 +23,15 @@ class LayoutNode {
     val children: List<LayoutNode> get() = _children
 
     var visible: Boolean = true
-    var clip: Boolean = false
+    var clipHorizontal: Boolean = false
+    var clipVertical: Boolean = false
+
+    var clip: Boolean
+        get() = clipHorizontal || clipVertical
+        set(value) {
+            clipHorizontal = value
+            clipVertical = value
+        }
 
     // ─────────────────────────────────────────────────────────────────────────
     // 2. COMPUTED GEOMETRY & INTRINSIC CONSTRAINTS
@@ -156,6 +165,15 @@ class LayoutNode {
 
     fun setPadding(all: Float) = setPadding(all, all, all, all)
 
+    fun setPadding(horizontal: Float, vertical: Float) {
+        val safeH = if (horizontal.isNaN() || horizontal < 0f) 0f else horizontal
+        val safeV = if (vertical.isNaN() || vertical < 0f) 0f else vertical
+        paddingLeft = safeH
+        paddingTop = safeV
+        paddingRight = safeH
+        paddingBottom = safeV
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // 4. LAYOUT POLICY, ANCHORS & ALIGNMENT
     // ─────────────────────────────────────────────────────────────────────────
@@ -215,6 +233,13 @@ class LayoutNode {
         cornerRadiusBottomStart = safe
     }
 
+    fun setCornerRadius(shape: RoundedCorners) {
+        cornerRadiusTopStart = shape.safeTopStart
+        cornerRadiusTopEnd = shape.safeTopEnd
+        cornerRadiusBottomEnd = shape.safeBottomEnd
+        cornerRadiusBottomStart = shape.safeBottomStart
+    }
+
     fun setCornerRadius(topStart: Float, topEnd: Float, bottomEnd: Float, bottomStart: Float) {
         cornerRadiusTopStart = if (topStart.isNaN() || topStart < 0f) 0f else topStart
         cornerRadiusTopEnd = if (topEnd.isNaN() || topEnd < 0f) 0f else topEnd
@@ -235,6 +260,50 @@ class LayoutNode {
 
     val hasBorder: Boolean
         get() = borderWidth > 0.001f && borderColor.a > 0.001f
+
+    // Bo góc cắt gọt (Clip Corner Radii) cho SDF Shader - Gateway Sanitization
+    var clipRadiusTopStart: Float = 0f
+        set(value) {
+            field = if (value.isNaN() || value < 0f) 0f else value
+        }
+    var clipRadiusTopEnd: Float = 0f
+        set(value) {
+            field = if (value.isNaN() || value < 0f) 0f else value
+        }
+    var clipRadiusBottomEnd: Float = 0f
+        set(value) {
+            field = if (value.isNaN() || value < 0f) 0f else value
+        }
+    var clipRadiusBottomStart: Float = 0f
+        set(value) {
+            field = if (value.isNaN() || value < 0f) 0f else value
+        }
+
+    fun setClipCornerRadius(uniform: Float) {
+        val safe = if (uniform.isNaN() || uniform < 0f) 0f else uniform
+        clipRadiusTopStart = safe
+        clipRadiusTopEnd = safe
+        clipRadiusBottomEnd = safe
+        clipRadiusBottomStart = safe
+    }
+
+    fun setClipCornerRadius(shape: RoundedCorners) {
+        clipRadiusTopStart = shape.safeTopStart
+        clipRadiusTopEnd = shape.safeTopEnd
+        clipRadiusBottomEnd = shape.safeBottomEnd
+        clipRadiusBottomStart = shape.safeBottomStart
+    }
+
+    fun setClipCornerRadius(topStart: Float, topEnd: Float, bottomEnd: Float, bottomStart: Float) {
+        clipRadiusTopStart = if (topStart.isNaN() || topStart < 0f) 0f else topStart
+        clipRadiusTopEnd = if (topEnd.isNaN() || topEnd < 0f) 0f else topEnd
+        clipRadiusBottomEnd = if (bottomEnd.isNaN() || bottomEnd < 0f) 0f else bottomEnd
+        clipRadiusBottomStart = if (bottomStart.isNaN() || bottomStart < 0f) 0f else bottomStart
+    }
+
+    val hasClipCorners: Boolean
+        get() = clipRadiusTopStart > 0.001f || clipRadiusTopEnd > 0.001f ||
+                clipRadiusBottomEnd > 0.001f || clipRadiusBottomStart > 0.001f
 
     // ─────────────────────────────────────────────────────────────────────────
     // 6. POINTER INTERACTION & GESTURE FILTER CHAIN
@@ -322,10 +391,13 @@ class LayoutNode {
         backgroundColor = null
         textColor = Color.white;  font = null;  text = null;  alpha = 1f
 
-        // Shape & border
+        // Shape, border & clip
         cornerRadiusTopStart = 0f;  cornerRadiusTopEnd = 0f
         cornerRadiusBottomEnd = 0f;  cornerRadiusBottomStart = 0f
-        borderWidth = 0f;  borderColor = Color.clear;  clip = false
+        borderWidth = 0f;  borderColor = Color.clear
+        clipHorizontal = false;  clipVertical = false
+        clipRadiusTopStart = 0f;  clipRadiusTopEnd = 0f
+        clipRadiusBottomEnd = 0f;  clipRadiusBottomStart = 0f
 
         // Pointer interaction
         _pointerInputFilters.clear()

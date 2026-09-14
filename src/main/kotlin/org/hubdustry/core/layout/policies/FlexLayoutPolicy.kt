@@ -142,72 +142,8 @@ class FlexLayoutPolicy(
         val freeSpace = if (isUnconstrainedMain) 0f else maxOf(0f, safeAvailableMain - totalMinMain - gapsTotal)
 
         // ── Clamping Redistribution & Remainder Absorption ───────────────────
-        fun redistributeFreeSpace(initialFreeSpace: Float, initialTotalRatio: Float) {
-            var remainingFreeSpace = initialFreeSpace
-            var remainingStretchRatio = initialTotalRatio
-
-            while (remainingStretchRatio > 1e-5f && remainingFreeSpace > 1e-4f) {
-                var newlyClamped = false
-                val spacePerRatio = remainingFreeSpace / remainingStretchRatio
-
-                for (i in 0 until count) {
-                    val child = node.children[i]
-                    if (!child.visible || isSlotFrozen[i] || child.anchor.isEnabled) continue
-                    if (child.sizeFlag(orientation) != SizeFlag.FILL || child.stretchRatio <= 0f) continue
-
-                    val childMin = child.minSize(orientation)
-                    val childMax = child.maxSize(orientation)
-                    val tentative = childMin + spacePerRatio * child.stretchRatio
-
-                    if (tentative >= childMax) {
-                        isSlotFrozen[i] = true
-                        allocatedMainSlots[i] = childMax
-                        remainingFreeSpace = maxOf(0f, remainingFreeSpace - (childMax - childMin))
-                        remainingStretchRatio = maxOf(0f, remainingStretchRatio - child.stretchRatio)
-                        newlyClamped = true
-                        break
-                    }
-                }
-
-                // Nếu có node bị kẹp trần, lập tức tính toán lại từ đầu với không gian mới
-                if (newlyClamped) continue
-
-                // ── Remainder Absorption (khi không còn node nào bị kẹp) ────────
-                var unfrozenFillCount = 0
-                for (i in 0 until count) {
-                    val child = node.children[i]
-                    if (!child.visible || isSlotFrozen[i] || child.anchor.isEnabled) continue
-                    if (child.sizeFlag(orientation) != SizeFlag.FILL || child.stretchRatio <= 0f) continue
-
-                    unfrozenFillCount++
-                }
-
-                var distributedFreeSpace = 0f
-                var processedUnfrozen = 0
-                for (i in 0 until count) {
-                    val child = node.children[i]
-                    if (!child.visible || isSlotFrozen[i] || child.anchor.isEnabled) continue
-                    if (child.sizeFlag(orientation) != SizeFlag.FILL || child.stretchRatio <= 0f) continue
-
-                    processedUnfrozen++
-                    val childMin = child.minSize(orientation)
-                    val childMax = child.maxSize(orientation)
-
-                    val additional = if (processedUnfrozen == unfrozenFillCount) {
-                        maxOf(0f, remainingFreeSpace - distributedFreeSpace)
-                    } else {
-                        remainingFreeSpace * (child.stretchRatio / remainingStretchRatio)
-                    }
-
-                    allocatedMainSlots[i] = (childMin + additional).coerceIn(childMin, childMax)
-                    distributedFreeSpace += maxOf(0f, allocatedMainSlots[i] - childMin)
-                }
-                break
-            }
-        }
-
         if (freeSpace > 0f && totalStretchRatio > 0f) {
-            redistributeFreeSpace(freeSpace, totalStretchRatio)
+            redistributeFreeSpace(node, count, freeSpace, totalStretchRatio)
         }
 
         // ── Pass 2: Position children along main axis ─────────────────────────
@@ -236,7 +172,8 @@ class FlexLayoutPolicy(
 
             val availableCross = maxOf(0f, safeAvailableCross - marginTotalCross)
             val shouldFillCross = child.sizeFlag(cross) == SizeFlag.FILL && !isUnconstrainedCross
-            val childCross = (if (shouldFillCross) availableCross else childMinCross).coerceAtMost(childMaxCross)
+            val maxAllowedCross = if (!isUnconstrainedCross && safeAvailableCross > 0f) minOf(availableCross, childMaxCross) else childMaxCross
+            val childCross = (if (shouldFillCross) availableCross else childMinCross).coerceAtMost(maxAllowedCross)
 
             val crossSlot = if (isUnconstrainedCross) childCross else availableCross
             val alignOffsetCross = child.alignment(cross).computeOffset(crossSlot, childCross)
@@ -257,6 +194,75 @@ class FlexLayoutPolicy(
             val child = node.children[i]
             if (!child.visible || !child.anchor.isEnabled) continue
             child.resolveAnchors(innerX, innerY, innerWidth, innerHeight)
+        }
+    }
+
+    private fun redistributeFreeSpace(
+        node: LayoutNode,
+        count: Int,
+        initialFreeSpace: Float,
+        initialTotalRatio: Float
+    ) {
+        var remainingFreeSpace = initialFreeSpace
+        var remainingStretchRatio = initialTotalRatio
+
+        while (remainingStretchRatio > 1e-5f && remainingFreeSpace > 1e-4f) {
+            var newlyClamped = false
+            val spacePerRatio = remainingFreeSpace / remainingStretchRatio
+
+            for (i in 0 until count) {
+                val child = node.children[i]
+                if (!child.visible || isSlotFrozen[i] || child.anchor.isEnabled) continue
+                if (child.sizeFlag(orientation) != SizeFlag.FILL || child.stretchRatio <= 0f) continue
+
+                val childMin = child.minSize(orientation)
+                val childMax = child.maxSize(orientation)
+                val tentative = childMin + spacePerRatio * child.stretchRatio
+
+                if (tentative >= childMax) {
+                    isSlotFrozen[i] = true
+                    allocatedMainSlots[i] = childMax
+                    remainingFreeSpace = maxOf(0f, remainingFreeSpace - (childMax - childMin))
+                    remainingStretchRatio = maxOf(0f, remainingStretchRatio - child.stretchRatio)
+                    newlyClamped = true
+                    break
+                }
+            }
+
+            // Nếu có node bị kẹp trần, lập tức tính toán lại từ đầu với không gian mới
+            if (newlyClamped) continue
+
+            // ── Remainder Absorption (khi không còn node nào bị kẹp) ────────
+            var unfrozenFillCount = 0
+            for (i in 0 until count) {
+                val child = node.children[i]
+                if (!child.visible || isSlotFrozen[i] || child.anchor.isEnabled) continue
+                if (child.sizeFlag(orientation) != SizeFlag.FILL || child.stretchRatio <= 0f) continue
+
+                unfrozenFillCount++
+            }
+
+            var distributedFreeSpace = 0f
+            var processedUnfrozen = 0
+            for (i in 0 until count) {
+                val child = node.children[i]
+                if (!child.visible || isSlotFrozen[i] || child.anchor.isEnabled) continue
+                if (child.sizeFlag(orientation) != SizeFlag.FILL || child.stretchRatio <= 0f) continue
+
+                processedUnfrozen++
+                val childMin = child.minSize(orientation)
+                val childMax = child.maxSize(orientation)
+
+                val additional = if (processedUnfrozen == unfrozenFillCount) {
+                    maxOf(0f, remainingFreeSpace - distributedFreeSpace)
+                } else {
+                    remainingFreeSpace * (child.stretchRatio / remainingStretchRatio)
+                }
+
+                allocatedMainSlots[i] = (childMin + additional).coerceIn(childMin, childMax)
+                distributedFreeSpace += maxOf(0f, allocatedMainSlots[i] - childMin)
+            }
+            break
         }
     }
 }
