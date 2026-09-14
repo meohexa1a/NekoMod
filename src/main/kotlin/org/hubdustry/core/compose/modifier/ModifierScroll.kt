@@ -27,11 +27,12 @@ data class ScrollModifier(
     val enabled: Boolean = true
 ) : Modifier.Element {
     override fun applyTo(node: LayoutNode) {
-        node.clip = true
         if (isVertical) {
+            node.clipVertical = true
             node.isScrollableVertical = enabled
             node.verticalScrollState = if (enabled) state else null
         } else {
+            node.clipHorizontal = true
             node.isScrollableHorizontal = enabled
             node.horizontalScrollState = if (enabled) state else null
         }

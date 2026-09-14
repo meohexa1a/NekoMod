@@ -376,24 +376,64 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         node: LayoutNode,
         parentAbsX: Float,
         parentAbsY: Float,
+        clipMinX: Float = -100000f,
+        clipMinY: Float = -100000f,
+        clipMaxX: Float = 100000f,
+        clipMaxY: Float = 100000f,
         targetX: Float,
         targetY: Float,
         result: MutableList<LayoutNodeHit>
     ): Boolean {
         if (!node.visible) return false
+
+        // 1. Kiểm tra điểm tương tác có nằm trong vùng cắt gọt thừa kế từ tổ tiên không
+        if (targetX < clipMinX || targetX > clipMaxX || targetY < clipMinY || targetY > clipMaxY) {
+            return false
+        }
+
         val absX = parentAbsX + node.x + node.offsetX
         val absY = parentAbsY + node.y + node.offsetY
         val w = node.width
         val h = node.height
 
-        val isInBounds = targetX >= absX && targetX <= (absX + w) && targetY >= absY && targetY <= (absY + h)
-        if (node.clip && !isInBounds) return false
+        // 2. Kiểm tra hình chữ nhật AABB của chính node
+        val isInAabb = targetX >= absX && targetX <= (absX + w) && targetY >= absY && targetY <= (absY + h)
+
+        // 3. Nếu node có clip nhưng điểm chạm rơi ra ngoài AABB của trục được clip -> reject
+        if ((node.clipHorizontal && (targetX < absX || targetX > absX + w)) ||
+            (node.clipVertical && (targetY < absY || targetY > absY + h))) {
+            return false
+        }
+
+        // 4. Nếu điểm chạm nằm trong AABB nhưng node có bo góc, kiểm tra xem có bị xén ở 4 góc cong không
+        val isInShape = isInAabb && isInsideRoundedCorners(
+            localX = targetX - absX,
+            localY = targetY - absY,
+            width = w,
+            height = h,
+            rTopStart = if (node.hasClipCorners) node.clipRadiusTopStart else node.cornerRadiusTopStart,
+            rTopEnd = if (node.hasClipCorners) node.clipRadiusTopEnd else node.cornerRadiusTopEnd,
+            rBottomEnd = if (node.hasClipCorners) node.clipRadiusBottomEnd else node.cornerRadiusBottomEnd,
+            rBottomStart = if (node.hasClipCorners) node.clipRadiusBottomStart else node.cornerRadiusBottomStart
+        )
+
+        // Nếu node có clip bo góc và điểm chạm rơi vào góc bị xén -> reject
+        if (node.hasClipCorners && !isInShape) {
+            return false
+        }
 
         val initialSize = result.size
 
-        if (isInBounds && node.pointerInputFilters.isNotEmpty()) {
+        // Node nhận hit nếu điểm nằm trong hình dạng thực tế và có bộ lọc cử chỉ
+        if (isInShape && node.pointerInputFilters.isNotEmpty()) {
             result.add(obtainHit(node, absX, absY))
         }
+
+        // 5. Tính toán vùng clip lũy tiến cho các node con
+        val nextClipMinX = if (node.clipHorizontal) maxOf(clipMinX, absX) else clipMinX
+        val nextClipMaxX = if (node.clipHorizontal) minOf(clipMaxX, absX + w) else clipMaxX
+        val nextClipMinY = if (node.clipVertical) maxOf(clipMinY, absY) else clipMinY
+        val nextClipMaxY = if (node.clipVertical) minOf(clipMaxY, absY + h) else clipMaxY
 
         val childParentAbsX = absX - node.scrollX
         val childParentAbsY = absY - node.scrollY
@@ -401,12 +441,80 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         val children = node.children
         val count = children.size
         for (i in count - 1 downTo 0) {
-            if (hitTestChain(children[i], childParentAbsX, childParentAbsY, targetX, targetY, result)) {
+            if (hitTestChain(
+                    node = children[i],
+                    parentAbsX = childParentAbsX,
+                    parentAbsY = childParentAbsY,
+                    clipMinX = nextClipMinX,
+                    clipMinY = nextClipMinY,
+                    clipMaxX = nextClipMaxX,
+                    clipMaxY = nextClipMaxY,
+                    targetX = targetX,
+                    targetY = targetY,
+                    result = result
+                )
+            ) {
                 break
             }
         }
 
         return result.size > initialSize
+    }
+
+    /**
+     * Kiểm tra điểm [localX], [localY] có nằm trong hình chữ nhật bo góc không (Top-Left Y-down).
+     * Áp dụng khoảng cách bình phương (Rule 3.3 Zero-GC, không gọi sqrt).
+     */
+    private fun isInsideRoundedCorners(
+        localX: Float,
+        localY: Float,
+        width: Float,
+        height: Float,
+        rTopStart: Float,
+        rTopEnd: Float,
+        rBottomEnd: Float,
+        rBottomStart: Float
+    ): Boolean {
+        if (rTopStart <= 0.001f && rTopEnd <= 0.001f && rBottomEnd <= 0.001f && rBottomStart <= 0.001f) {
+            return true
+        }
+
+        val halfW = width * 0.5f
+        val halfH = height * 0.5f
+
+        // Góc Top-Left
+        val rTs = minOf(rTopStart, halfW, halfH)
+        if (rTs > 0.001f && localX < rTs && localY < rTs) {
+            val dx = localX - rTs
+            val dy = localY - rTs
+            if (dx * dx + dy * dy > rTs * rTs) return false
+        }
+
+        // Góc Top-Right
+        val rTe = minOf(rTopEnd, halfW, halfH)
+        if (rTe > 0.001f && localX > width - rTe && localY < rTe) {
+            val dx = localX - (width - rTe)
+            val dy = localY - rTe
+            if (dx * dx + dy * dy > rTe * rTe) return false
+        }
+
+        // Góc Bottom-Right
+        val rBe = minOf(rBottomEnd, halfW, halfH)
+        if (rBe > 0.001f && localX > width - rBe && localY > height - rBe) {
+            val dx = localX - (width - rBe)
+            val dy = localY - (height - rBe)
+            if (dx * dx + dy * dy > rBe * rBe) return false
+        }
+
+        // Góc Bottom-Left
+        val rBs = minOf(rBottomStart, halfW, halfH)
+        if (rBs > 0.001f && localX < rBs && localY > height - rBs) {
+            val dx = localX - rBs
+            val dy = localY - (height - rBs)
+            if (dx * dx + dy * dy > rBs * rBs) return false
+        }
+
+        return true
     }
 
     private fun dispatch3Pass(

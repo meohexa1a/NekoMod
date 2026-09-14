@@ -8,6 +8,7 @@ varying vec4 v_style;         // x = cornerRadius, y = borderWidth, z = mode (0 
 varying vec4 v_cornerRadii;  // x = topStart, y = topEnd, z = bottomEnd, w = bottomStart
 varying vec4 v_borderColor;
 varying vec4 v_clipRect;      // Analytical Scissor Clip: xy = min(x,y), zw = max(x,y)
+varying vec4 v_clipRadii;     // Clip Corner Radii: x = topStart, y = topEnd, z = bottomEnd, w = bottomStart
 varying vec2 v_screenCoord;   // Logical Screen Position (DPI-independent)
 
 // Modes:
@@ -40,9 +41,26 @@ void main() {
         discard;
     }
 
+    // 2. Analytical SDF Rounded Box Clip
+    float clipAlpha = 1.0;
+    if (max(max(v_clipRadii.x, v_clipRadii.y), max(v_clipRadii.z, v_clipRadii.w)) > 0.001) {
+        vec2 clipSize = v_clipRect.zw - v_clipRect.xy;
+        vec2 clipPoint = v_screenCoord.xy - v_clipRect.xy;
+        float clipDistance = computeRoundedBoxSDF(clipPoint, clipSize, v_clipRadii);
+        clipAlpha = clamp(0.5 - clipDistance, 0.0, 1.0);
+        if (clipAlpha <= 0.001) {
+            discard;
+        }
+    }
+
     // --- MODE 0: BMFont Text Glyph ---
     if (v_style.z < 0.5) {
-        gl_FragColor = v_color * texture2D(u_atlas, v_texCoords);
+        vec4 glyphColor = v_color * texture2D(u_atlas, v_texCoords);
+        glyphColor.a *= clipAlpha;
+        if (glyphColor.a <= 0.001) {
+            discard;
+        }
+        gl_FragColor = glyphColor;
         return;
     }
 
@@ -80,7 +98,7 @@ void main() {
         }
     }
 
-    float finalAlpha = baseFillColor.a * boxAlpha;
+    float finalAlpha = baseFillColor.a * boxAlpha * clipAlpha;
     if (finalAlpha <= 0.001) {
         discard;
     }

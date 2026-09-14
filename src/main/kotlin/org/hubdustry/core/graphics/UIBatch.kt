@@ -37,7 +37,7 @@ object UIBatch : Disposable {
     const val MODE_BOX = 1.0f
 
     const val MAX_QUADS = 4096
-    const val FLOATS_PER_VERTEX = 22
+    const val FLOATS_PER_VERTEX = 26
     const val FLOATS_PER_QUAD = FLOATS_PER_VERTEX * 4
     const val MAX_VERTICES = MAX_QUADS * 4
     const val MAX_INDICES = MAX_QUADS * 6
@@ -53,8 +53,8 @@ object UIBatch : Disposable {
     private var isMeshInitialized = false
     private var isDrawing = false
 
-    // Analytical Scissor Clip Stack (4 primitives per depth level)
-    private val clipStackBuffer = FloatArray(MAX_CLIP_DEPTH * 4)
+    // Analytical Scissor & SDF Clip Stack (8 primitives per depth level: minX, minY, maxX, maxY, rTS, rTE, rBE, rBS)
+    private val clipStackBuffer = FloatArray(MAX_CLIP_DEPTH * 8)
     var clipDepth: Int = 0
         internal set
 
@@ -65,6 +65,14 @@ object UIBatch : Disposable {
     var clipMaxX: Float = 100000.0f
         internal set
     var clipMaxY: Float = 100000.0f
+        internal set
+    var clipRadiusTopStart: Float = 0f
+        internal set
+    var clipRadiusTopEnd: Float = 0f
+        internal set
+    var clipRadiusBottomEnd: Float = 0f
+        internal set
+    var clipRadiusBottomStart: Float = 0f
         internal set
 
     private var activeAtlasTexture: Texture? = null
@@ -89,7 +97,8 @@ object UIBatch : Disposable {
                 VertexAttribute(4, "a_style"),                              // x = radius, y = borderWidth, z = mode, w = unused
                 VertexAttribute(4, "a_cornerRadii"),                        // x = topStart, y = topEnd, z = bottomEnd, w = bottomStart
                 VertexAttribute(4, Gl.unsignedByte, true, "a_borderColor"), // rgba = packed ABGR border color
-                VertexAttribute(4, "a_clipRect")                            // xy = min(x,y), zw = max(x,y) analytical scissor clip
+                VertexAttribute(4, "a_clipRect"),                           // xy = min(x,y), zw = max(x,y) analytical scissor clip
+                VertexAttribute(4, "a_clipRadii")                           // x = topStart, y = topEnd, z = bottomEnd, w = bottomStart (clip corner radii)
             )
 
             val indices = ShortArray(MAX_INDICES)
@@ -133,6 +142,10 @@ object UIBatch : Disposable {
         clipMinY = -100000.0f
         clipMaxX = 100000.0f
         clipMaxY = 100000.0f
+        clipRadiusTopStart = 0f
+        clipRadiusTopEnd = 0f
+        clipRadiusBottomEnd = 0f
+        clipRadiusBottomStart = 0f
     }
 
     private fun setupGpuPipeline() {
@@ -173,15 +186,26 @@ object UIBatch : Disposable {
         isDrawing = false
     }
 
-    // --- ANALYTICAL SCISSOR CLIPPING ---
+    // --- ANALYTICAL SCISSOR & SDF CLIPPING ---
 
     /**
-     * Đẩy một vùng cắt gọt mới lên ngăn xếp và giao với vùng cắt hiện tại.
-     * Hoàn toàn thuần toán học, không gọi lệnh OpenGL nào làm đứt batch.
+     * Đẩy một vùng cắt gọt mới lên ngăn xếp và giao cắt với vùng cắt hiện tại.
+     * Hỗ trợ độc lập trục ngang [clipHorizontal], trục dọc [clipVertical] và bo góc SDF [radiusTopStart]..[radiusBottomStart].
      */
-    fun pushClip(x: Float, y: Float, width: Float, height: Float) {
-        val offset = clipDepth * 4
-        if (offset + 4 > clipStackBuffer.size) {
+    fun pushClip(
+        x: Float,
+        y: Float,
+        width: Float,
+        height: Float,
+        clipHorizontal: Boolean = true,
+        clipVertical: Boolean = true,
+        radiusTopStart: Float = 0f,
+        radiusTopEnd: Float = 0f,
+        radiusBottomEnd: Float = 0f,
+        radiusBottomStart: Float = 0f
+    ) {
+        val offset = clipDepth * 8
+        if (offset + 8 > clipStackBuffer.size) {
             arc.util.Log.err("[UIBatch] Clip stack overflow! Maximum depth $MAX_CLIP_DEPTH exceeded.")
             clipDepth++
             return
@@ -191,18 +215,40 @@ object UIBatch : Disposable {
         clipStackBuffer[offset + 1] = clipMinY
         clipStackBuffer[offset + 2] = clipMaxX
         clipStackBuffer[offset + 3] = clipMaxY
+        clipStackBuffer[offset + 4] = clipRadiusTopStart
+        clipStackBuffer[offset + 5] = clipRadiusTopEnd
+        clipStackBuffer[offset + 6] = clipRadiusBottomEnd
+        clipStackBuffer[offset + 7] = clipRadiusBottomStart
 
-        val minX = maxOf(clipMinX, x)
-        val minY = maxOf(clipMinY, y)
-        val maxX = minOf(clipMaxX, x + width)
-        val maxY = minOf(clipMaxY, y + height)
+        if (clipHorizontal) {
+            val minX = maxOf(clipMinX, x)
+            val maxX = minOf(clipMaxX, x + width)
+            clipMinX = minX
+            clipMaxX = maxOf(minX, maxX)
+        }
 
-        clipMinX = minX
-        clipMinY = minY
-        clipMaxX = maxOf(minX, maxX)
-        clipMaxY = maxOf(minY, maxY)
+        if (clipVertical) {
+            val minY = maxOf(clipMinY, y)
+            val maxY = minOf(clipMaxY, y + height)
+            clipMinY = minY
+            clipMaxY = maxOf(minY, maxY)
+        }
+
+        if (radiusTopStart > 0.001f || radiusTopEnd > 0.001f || radiusBottomEnd > 0.001f || radiusBottomStart > 0.001f) {
+            clipRadiusTopStart = radiusTopStart
+            clipRadiusTopEnd = radiusTopEnd
+            clipRadiusBottomEnd = radiusBottomEnd
+            clipRadiusBottomStart = radiusBottomStart
+        }
+
         clipDepth++
     }
+
+    /**
+     * Overload tiện lợi cắt gọt AABB truyền thống.
+     */
+    fun pushClip(x: Float, y: Float, width: Float, height: Float) =
+        pushClip(x, y, width, height, clipHorizontal = true, clipVertical = true)
 
     /**
      * Khôi phục vùng cắt gọt của container cha từ ngăn xếp.
@@ -213,17 +259,25 @@ object UIBatch : Disposable {
             clipMinY = -100000.0f
             clipMaxX = 100000.0f
             clipMaxY = 100000.0f
+            clipRadiusTopStart = 0f
+            clipRadiusTopEnd = 0f
+            clipRadiusBottomEnd = 0f
+            clipRadiusBottomStart = 0f
             return
         }
 
         clipDepth--
         if (clipDepth >= MAX_CLIP_DEPTH) return
 
-        val offset = clipDepth * 4
+        val offset = clipDepth * 8
         clipMinX = clipStackBuffer[offset]
         clipMinY = clipStackBuffer[offset + 1]
         clipMaxX = clipStackBuffer[offset + 2]
         clipMaxY = clipStackBuffer[offset + 3]
+        clipRadiusTopStart = clipStackBuffer[offset + 4]
+        clipRadiusTopEnd = clipStackBuffer[offset + 5]
+        clipRadiusBottomEnd = clipStackBuffer[offset + 6]
+        clipRadiusBottomStart = clipStackBuffer[offset + 7]
     }
 
     // --- DRAWING PRIMITIVES ---
@@ -290,6 +344,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = radiusTopEnd; vertexBuffer[offset++] = radiusBottomEnd; vertexBuffer[offset++] = radiusBottomStart
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
+        vertexBuffer[offset++] = clipRadiusTopStart; vertexBuffer[offset++] = clipRadiusTopEnd; vertexBuffer[offset++] = clipRadiusBottomEnd; vertexBuffer[offset++] = clipRadiusBottomStart
 
         // Vertex 1: Top-Left (leftX, topY)
         vertexBuffer[offset++] = leftX; vertexBuffer[offset++] = topY; vertexBuffer[offset++] = uvMinU; vertexBuffer[offset++] = uvMaxV
@@ -299,6 +354,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = radiusTopEnd; vertexBuffer[offset++] = radiusBottomEnd; vertexBuffer[offset++] = radiusBottomStart
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
+        vertexBuffer[offset++] = clipRadiusTopStart; vertexBuffer[offset++] = clipRadiusTopEnd; vertexBuffer[offset++] = clipRadiusBottomEnd; vertexBuffer[offset++] = clipRadiusBottomStart
 
         // Vertex 2: Top-Right (rightX, topY)
         vertexBuffer[offset++] = rightX; vertexBuffer[offset++] = topY; vertexBuffer[offset++] = uvMaxU; vertexBuffer[offset++] = uvMaxV
@@ -308,6 +364,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = radiusTopEnd; vertexBuffer[offset++] = radiusBottomEnd; vertexBuffer[offset++] = radiusBottomStart
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
+        vertexBuffer[offset++] = clipRadiusTopStart; vertexBuffer[offset++] = clipRadiusTopEnd; vertexBuffer[offset++] = clipRadiusBottomEnd; vertexBuffer[offset++] = clipRadiusBottomStart
 
         // Vertex 3: Bottom-Right (rightX, bottomY)
         vertexBuffer[offset++] = rightX; vertexBuffer[offset++] = bottomY; vertexBuffer[offset++] = uvMaxU; vertexBuffer[offset++] = uvMinV
@@ -317,6 +374,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = radiusTopEnd; vertexBuffer[offset++] = radiusBottomEnd; vertexBuffer[offset++] = radiusBottomStart
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
+        vertexBuffer[offset++] = clipRadiusTopStart; vertexBuffer[offset++] = clipRadiusTopEnd; vertexBuffer[offset++] = clipRadiusBottomEnd; vertexBuffer[offset++] = clipRadiusBottomStart
 
         vertexIndex = offset
         queuedQuadCount++
@@ -402,6 +460,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
+        vertexBuffer[offset++] = clipRadiusTopStart; vertexBuffer[offset++] = clipRadiusTopEnd; vertexBuffer[offset++] = clipRadiusBottomEnd; vertexBuffer[offset++] = clipRadiusBottomStart
 
         // Vertex 1: Top-Left (leftX, topY)
         vertexBuffer[offset++] = leftX; vertexBuffer[offset++] = topY; vertexBuffer[offset++] = uvMinU; vertexBuffer[offset++] = uvMaxV
@@ -411,6 +470,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
+        vertexBuffer[offset++] = clipRadiusTopStart; vertexBuffer[offset++] = clipRadiusTopEnd; vertexBuffer[offset++] = clipRadiusBottomEnd; vertexBuffer[offset++] = clipRadiusBottomStart
 
         // Vertex 2: Top-Right (rightX, topY)
         vertexBuffer[offset++] = rightX; vertexBuffer[offset++] = topY; vertexBuffer[offset++] = uvMaxU; vertexBuffer[offset++] = uvMaxV
@@ -420,6 +480,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
+        vertexBuffer[offset++] = clipRadiusTopStart; vertexBuffer[offset++] = clipRadiusTopEnd; vertexBuffer[offset++] = clipRadiusBottomEnd; vertexBuffer[offset++] = clipRadiusBottomStart
 
         // Vertex 3: Bottom-Right (rightX, bottomY)
         vertexBuffer[offset++] = rightX; vertexBuffer[offset++] = bottomY; vertexBuffer[offset++] = uvMaxU; vertexBuffer[offset++] = uvMinV
@@ -429,6 +490,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
+        vertexBuffer[offset++] = clipRadiusTopStart; vertexBuffer[offset++] = clipRadiusTopEnd; vertexBuffer[offset++] = clipRadiusBottomEnd; vertexBuffer[offset++] = clipRadiusBottomStart
 
         vertexIndex = offset
         queuedQuadCount++

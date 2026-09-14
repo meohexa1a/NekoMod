@@ -228,15 +228,16 @@ class FlexLayoutPolicy(
             val childMaxCross = child.maxSize(cross)
 
             val childMain = when (child.sizeFlag(orientation)) {
-                SizeFlag.FILL -> slotMain
-                SizeFlag.SHRINK -> childMinMain
-            }.coerceIn(childMinMain, childMaxMain)
+                SizeFlag.FILL -> slotMain.coerceAtMost(childMaxMain)
+                SizeFlag.SHRINK -> childMinMain.coerceIn(childMinMain, childMaxMain)
+            }
 
             val alignOffsetMain = child.alignment(orientation).computeOffset(slotMain, childMain)
 
             val availableCross = maxOf(0f, safeAvailableCross - marginTotalCross)
             val shouldFillCross = child.sizeFlag(cross) == SizeFlag.FILL && !isUnconstrainedCross
-            val childCross = (if (shouldFillCross) availableCross else childMinCross).coerceAtMost(childMaxCross)
+            val maxAllowedCross = if (!isUnconstrainedCross && safeAvailableCross > 0f) minOf(availableCross, childMaxCross) else childMaxCross
+            val childCross = (if (shouldFillCross) availableCross else childMinCross).coerceAtMost(maxAllowedCross)
 
             val crossSlot = if (isUnconstrainedCross) childCross else availableCross
             val alignOffsetCross = child.alignment(cross).computeOffset(crossSlot, childCross)

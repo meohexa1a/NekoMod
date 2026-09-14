@@ -40,6 +40,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
             Column(
                 modifier = Modifier
                     .background(Color.darkGray, RoundedCorners(12f))
+                    .clip(12f)
                     .padding(12f),
                 gap = 10f
             ) {

@@ -63,7 +63,20 @@ object NodeRenderer {
         val arcX = viewX + nodeLocalX
         val arcY = viewY + viewH - (nodeLocalY + nodeH)
 
-        if (node.clip) UIBatch.pushClip(arcX, arcY, nodeW, nodeH)
+        if (node.clip) {
+            UIBatch.pushClip(
+                x = arcX,
+                y = arcY,
+                width = nodeW,
+                height = nodeH,
+                clipHorizontal = node.clipHorizontal,
+                clipVertical = node.clipVertical,
+                radiusTopStart = node.clipRadiusTopStart,
+                radiusTopEnd = node.clipRadiusTopEnd,
+                radiusBottomEnd = node.clipRadiusBottomEnd,
+                radiusBottomStart = node.clipRadiusBottomStart
+            )
+        }
 
         renderBackgroundAndBorder(node, arcX, arcY, nodeW, nodeH, effectiveAlpha)
         renderText(node, arcX, arcY, nodeW, nodeH, effectiveAlpha)
@@ -146,8 +159,14 @@ object NodeRenderer {
             val capHeight = font.data.capHeight
             val innerH = maxOf(0f, nodeH - node.paddingTop - node.paddingBottom)
             val innerW = maxOf(0f, nodeW - node.paddingLeft - node.paddingRight)
+            if (innerW <= 0.001f || innerH <= 0.001f) return
             val drawX = arcX + node.paddingLeft
             val drawY = if (innerH > capHeight) (arcY + node.paddingBottom) + (innerH + capHeight) * 0.5f else arcY + nodeH - node.paddingTop
+
+            // Tự động cắt gọt (auto-clip) nội dung văn bản theo khung đệm nội tại của node
+            val textClipX = arcX + node.paddingLeft
+            val textClipY = arcY + node.paddingBottom
+            UIBatch.pushClip(textClipX, textClipY, innerW, innerH)
 
             UIBatch.drawText(
                 font = font,
@@ -157,6 +176,8 @@ object NodeRenderer {
                 targetWidth = innerW,
                 color = textColor
             )
+
+            UIBatch.popClip()
         } catch (_: Throwable) {
             // Headless test environment fallback
         }
