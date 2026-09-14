@@ -1,8 +1,8 @@
 package org.hubdustry.core.graphics
 
 import arc.graphics.Color
-import org.hubdustry.core.compose.Modifier
-import org.hubdustry.core.compose.applyTo
+import org.hubdustry.core.compose.modifier.Modifier
+import org.hubdustry.core.compose.modifier.applyTo
 import org.hubdustry.core.compose.modifier.*
 import org.hubdustry.core.layout.LayoutNode
 import org.junit.jupiter.api.AfterEach
@@ -413,7 +413,7 @@ class UIBatchTest {
     }
 
     @Test
-    fun testHeadlessResilienceAndDispose() {
+    fun testHeadlessResilience() {
         // In headless testing environment (Core.gl == null), UIBatch must never throw!
         assertFalse(UIBatch.isSupported, "In headless test environment, isSupported should be false")
 
@@ -421,7 +421,6 @@ class UIBatchTest {
         UIBatch.drawBox(0f, 0f, 100f, 100f)
         UIBatch.flush()
         UIBatch.end()
-        UIBatch.dispose()
 
         assertEquals(0, UIBatch.queuedQuadCount)
         assertEquals(0, UIBatch.vertexIndex)

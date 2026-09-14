@@ -1,12 +1,9 @@
 package org.hubdustry.core.compose.foundation
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
-import org.hubdustry.core.compose.CompositionManager
-import org.hubdustry.core.compose.Modifier
+import org.hubdustry.core.compose.runtime.CompositionManager
+import org.hubdustry.core.compose.modifier.Modifier
 import org.hubdustry.core.compose.input.Offset
 import org.hubdustry.core.compose.input.PointerEventType
 import org.hubdustry.core.compose.input.clickable
@@ -16,7 +13,6 @@ import org.hubdustry.core.compose.modifier.verticalScroll
 import org.hubdustry.core.compose.modifier.ScrollModifier
 import org.hubdustry.core.compose.primitive.Box
 import org.hubdustry.core.compose.primitive.Column
-import org.hubdustry.core.compose.primitive.Row
 import org.hubdustry.core.compose.view.ComposeView
 import org.hubdustry.core.layout.LayoutNode
 import org.junit.jupiter.api.Test

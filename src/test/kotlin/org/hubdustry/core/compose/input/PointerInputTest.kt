@@ -10,9 +10,9 @@ import kotlinx.coroutines.test.runTest
 import org.hubdustry.core.compose.primitive.Box
 import org.hubdustry.ui.components.Button
 import org.hubdustry.core.compose.primitive.Column
-import org.hubdustry.core.compose.CompositionManager
+import org.hubdustry.core.compose.runtime.CompositionManager
 import org.hubdustry.core.compose.view.ComposeView
-import org.hubdustry.core.compose.Modifier
+import org.hubdustry.core.compose.modifier.Modifier
 import org.hubdustry.core.compose.primitive.Row
 import org.hubdustry.core.compose.primitive.Text
 import org.hubdustry.core.compose.input.gestures.awaitAllPointersUp

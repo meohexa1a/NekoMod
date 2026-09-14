@@ -6,7 +6,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.hubdustry.core.compose.Modifier
 import org.hubdustry.core.compose.foundation.ScrollState
 import org.hubdustry.core.compose.input.Offset
 import org.hubdustry.core.compose.input.PointerEventPass

@@ -5,7 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.hubdustry.core.compose.Modifier
+import org.hubdustry.core.compose.modifier.Modifier
 import org.hubdustry.core.compose.input.gestures.detectTapGestures
 import org.hubdustry.core.layout.LayoutNode
 

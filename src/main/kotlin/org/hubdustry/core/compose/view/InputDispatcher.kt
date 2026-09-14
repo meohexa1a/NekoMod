@@ -29,7 +29,7 @@ interface KeyboardInputHandler {
 /**
  * Ghi lại thông tin node trúng hit-test và tọa độ tuyệt đối của node trong ComposeView.
  */
-data class LayoutNodeHit(
+internal data class LayoutNodeHit(
     var node: LayoutNode,
     var absX: Float,
     var absY: Float
@@ -396,26 +396,18 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         val w = node.width
         val h = node.height
 
-        // 2. Kiểm tra hình chữ nhật AABB của chính node
-        val isInAabb = targetX >= absX && targetX <= (absX + w) && targetY >= absY && targetY <= (absY + h)
+        // 2. Tọa độ cục bộ trong node
+        val localX = targetX - absX
+        val localY = targetY - absY
 
         // 3. Nếu node có clip nhưng điểm chạm rơi ra ngoài AABB của trục được clip -> reject
-        if ((node.clipHorizontal && (targetX < absX || targetX > absX + w)) ||
-            (node.clipVertical && (targetY < absY || targetY > absY + h))) {
+        if ((node.clipHorizontal && (localX < 0f || localX > w)) ||
+            (node.clipVertical && (localY < 0f || localY > h))) {
             return false
         }
 
-        // 4. Nếu điểm chạm nằm trong AABB nhưng node có bo góc, kiểm tra xem có bị xén ở 4 góc cong không
-        val isInShape = isInAabb && isInsideRoundedCorners(
-            localX = targetX - absX,
-            localY = targetY - absY,
-            width = w,
-            height = h,
-            rTopStart = if (node.hasClipCorners) node.clipRadiusTopStart else node.cornerRadiusTopStart,
-            rTopEnd = if (node.hasClipCorners) node.clipRadiusTopEnd else node.cornerRadiusTopEnd,
-            rBottomEnd = if (node.hasClipCorners) node.clipRadiusBottomEnd else node.cornerRadiusBottomEnd,
-            rBottomStart = if (node.hasClipCorners) node.clipRadiusBottomStart else node.cornerRadiusBottomStart
-        )
+        // 4. Kiểm tra điểm có nằm trong hình học thực tế của node (AABB & bo góc) qua Pure Math của chính Node
+        val isInShape = node.containsPoint(localX, localY)
 
         // Nếu node có clip bo góc và điểm chạm rơi vào góc bị xén -> reject
         if (node.hasClipCorners && !isInShape) {
@@ -459,62 +451,6 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         }
 
         return result.size > initialSize
-    }
-
-    /**
-     * Kiểm tra điểm [localX], [localY] có nằm trong hình chữ nhật bo góc không (Top-Left Y-down).
-     * Áp dụng khoảng cách bình phương (Rule 3.3 Zero-GC, không gọi sqrt).
-     */
-    private fun isInsideRoundedCorners(
-        localX: Float,
-        localY: Float,
-        width: Float,
-        height: Float,
-        rTopStart: Float,
-        rTopEnd: Float,
-        rBottomEnd: Float,
-        rBottomStart: Float
-    ): Boolean {
-        if (rTopStart <= 0.001f && rTopEnd <= 0.001f && rBottomEnd <= 0.001f && rBottomStart <= 0.001f) {
-            return true
-        }
-
-        val halfW = width * 0.5f
-        val halfH = height * 0.5f
-
-        // Góc Top-Left
-        val rTs = minOf(rTopStart, halfW, halfH)
-        if (rTs > 0.001f && localX < rTs && localY < rTs) {
-            val dx = localX - rTs
-            val dy = localY - rTs
-            if (dx * dx + dy * dy > rTs * rTs) return false
-        }
-
-        // Góc Top-Right
-        val rTe = minOf(rTopEnd, halfW, halfH)
-        if (rTe > 0.001f && localX > width - rTe && localY < rTe) {
-            val dx = localX - (width - rTe)
-            val dy = localY - rTe
-            if (dx * dx + dy * dy > rTe * rTe) return false
-        }
-
-        // Góc Bottom-Right
-        val rBe = minOf(rBottomEnd, halfW, halfH)
-        if (rBe > 0.001f && localX > width - rBe && localY > height - rBe) {
-            val dx = localX - (width - rBe)
-            val dy = localY - (height - rBe)
-            if (dx * dx + dy * dy > rBe * rBe) return false
-        }
-
-        // Góc Bottom-Left
-        val rBs = minOf(rBottomStart, halfW, halfH)
-        if (rBs > 0.001f && localX < rBs && localY > height - rBs) {
-            val dx = localX - rBs
-            val dy = localY - (height - rBs)
-            if (dx * dx + dy * dy > rBs * rBs) return false
-        }
-
-        return true
     }
 
     private fun dispatch3Pass(

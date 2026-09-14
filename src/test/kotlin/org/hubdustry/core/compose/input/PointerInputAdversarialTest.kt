@@ -1,14 +1,13 @@
 package org.hubdustry.core.compose.input
 
-import androidx.compose.runtime.getValue
 import arc.graphics.Color
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.hubdustry.core.compose.CompositionManager
-import org.hubdustry.core.compose.Modifier
+import org.hubdustry.core.compose.runtime.CompositionManager
+import org.hubdustry.core.compose.modifier.Modifier
 import org.hubdustry.core.compose.input.gestures.detectTapGestures
 import org.hubdustry.core.compose.modifier.*
 import org.hubdustry.core.compose.primitive.Box
@@ -21,7 +20,6 @@ import org.junit.jupiter.api.Test
 import kotlin.random.Random
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**

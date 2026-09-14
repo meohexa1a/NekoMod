@@ -37,30 +37,30 @@ class UberShader(
         private var instance: UberShader? = null
 
         /**
-         * Lấy hoặc khởi tạo instance [UberShader] duy nhất (Singleton).
-         * An toàn tuyệt đối trong môi trường Headless Unit Test (trả về null nếu không có OpenGL).
+         * Lấy hoặc khởi tạo instance [UberShader] duy nhất (Singleton toàn cục).
+         * - Trong môi trường Headless Unit Test (không có OpenGL / Core.gl == null): trả về null.
+         * - Trong runtime đồ họa thực tế: BẮT BUỘC shader phải nạp và biên dịch thành công.
+         *   Nếu thiếu file shader hoặc biên dịch thất bại -> SẬP NGAY (Fail-Fast) thay vì nuốt lỗi.
          */
         fun getOrCreate(): UberShader? {
             instance?.let { return it }
             if (Core.gl == null || Core.graphics == null) return null
 
-            return try {
-                val vert = loadResourceString("/shaders/uber_ui.vert") ?: return null
-                val frag = loadResourceString("/shaders/uber_ui.frag") ?: return null
-
-                val shader = UberShader(vert, frag)
-                if (shader.isCompiled) {
-                    instance = shader
-                    Log.info("[NekoMod] UberShader compiled successfully.")
-                    shader
-                } else {
-                    Log.err("[NekoMod] Failed to compile UberShader:\n" + shader.log)
-                    null
-                }
-            } catch (t: Throwable) {
-                Log.err("[NekoMod] Exception creating UberShader", t)
-                null
+            val vert = checkNotNull(loadResourceString("/shaders/uber_ui.vert")) {
+                "🛑 [CRITICAL SHADER ERROR] Không tìm thấy file tài nguyên shader: /shaders/uber_ui.vert"
             }
+            val frag = checkNotNull(loadResourceString("/shaders/uber_ui.frag")) {
+                "🛑 [CRITICAL SHADER ERROR] Không tìm thấy file tài nguyên shader: /shaders/uber_ui.frag"
+            }
+
+            val shader = UberShader(vert, frag)
+            check(shader.isCompiled) {
+                "🛑 [CRITICAL SHADER ERROR] Biên dịch UberShader thất bại!\n${shader.log}"
+            }
+
+            instance = shader
+            Log.info("[NekoMod] UberShader compiled successfully.")
+            return shader
         }
 
         private fun loadResourceString(path: String): String? {
@@ -68,17 +68,6 @@ class UberShader(
             val stream = UberShader::class.java.getResourceAsStream(normalized)
                 ?: Thread.currentThread().contextClassLoader?.getResourceAsStream(normalized.removePrefix("/"))
             return stream?.use { it.readBytes().decodeToString().replace("\uFEFF", "").trim() }
-        }
-
-        /**
-         * Giải phóng tài nguyên GPU của shader.
-         */
-        fun dispose() {
-            try {
-                instance?.dispose()
-            } catch (_: Throwable) {
-            }
-            instance = null
         }
     }
 }

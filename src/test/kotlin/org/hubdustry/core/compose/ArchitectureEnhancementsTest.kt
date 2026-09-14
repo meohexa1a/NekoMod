@@ -12,6 +12,7 @@ import org.hubdustry.core.compose.primitive.Column
 import org.hubdustry.core.compose.primitive.Row
 import org.hubdustry.core.compose.primitive.Text
 import org.hubdustry.core.compose.primitive.TextMeasurer
+import org.hubdustry.core.compose.runtime.CompositionManager
 import org.hubdustry.core.compose.view.ComposeView
 import org.hubdustry.core.layout.SizeFlag
 import org.hubdustry.ui.components.Button

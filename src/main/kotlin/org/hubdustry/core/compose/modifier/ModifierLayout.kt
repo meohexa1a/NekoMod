@@ -1,6 +1,5 @@
 package org.hubdustry.core.compose.modifier
 
-import org.hubdustry.core.compose.Modifier
 import org.hubdustry.core.layout.Alignment
 import org.hubdustry.core.layout.AnchorPreset
 import org.hubdustry.core.layout.LayoutNode

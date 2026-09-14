@@ -14,6 +14,7 @@ fi
 PROTECTED_PATHS="
 src/main/kotlin/org/hubdustry/core/layout/
 src/main/kotlin/org/hubdustry/core/graphics/
+src/main/kotlin/org/hubdustry/core/compose/
 "
 
 # Lấy danh sách tệp đang nằm trong Git Staging Area (chỉ các file được thêm/sửa/đổi tên)

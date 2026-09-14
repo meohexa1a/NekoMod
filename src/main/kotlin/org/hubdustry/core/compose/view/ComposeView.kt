@@ -14,8 +14,8 @@ import arc.scene.Scene
 import arc.scene.event.InputEvent
 import arc.scene.event.InputListener
 import arc.util.Log
-import org.hubdustry.core.compose.CompositionManager
-import org.hubdustry.core.compose.LayoutNodeApplier
+import org.hubdustry.core.compose.runtime.CompositionManager
+import org.hubdustry.core.compose.runtime.LayoutNodeApplier
 import org.hubdustry.core.compose.input.ime.SdlReflectionImeBridge
 import org.hubdustry.core.compose.input.Offset
 import org.hubdustry.core.compose.input.PointerButton
@@ -44,8 +44,8 @@ val LocalComposeView = staticCompositionLocalOf<ComposeView?> { null }
 
 open class ComposeView : Element() {
 
-    val rootLayoutNode: LayoutNode = LayoutNode()
-    val inputDispatcher: InputDispatcher = InputDispatcher(rootLayoutNode)
+    internal val rootLayoutNode: LayoutNode = LayoutNode()
+    internal val inputDispatcher: InputDispatcher = InputDispatcher(rootLayoutNode)
 
     private var composition: Composition? = null
     private var composableContent: (@Composable () -> Unit)? = null

@@ -305,6 +305,66 @@ class LayoutNode {
         get() = clipRadiusTopStart > 0.001f || clipRadiusTopEnd > 0.001f ||
                 clipRadiusBottomEnd > 0.001f || clipRadiusBottomStart > 0.001f
 
+    /**
+     * Kiểm tra xem một điểm trong hệ tọa độ cục bộ ([localX], [localY]) của node
+     * có nằm trong vùng hình học thực tế (bao gồm khung AABB và 4 góc bo) hay không.
+     * Thuần toán học (Pure Math), khoảng cách bình phương (Zero-GC Rule 3.3, không gọi sqrt).
+     */
+    fun containsPoint(localX: Float, localY: Float): Boolean {
+        if (localX < 0f || localX > width || localY < 0f || localY > height) {
+            return false
+        }
+        if (!hasRoundedCorners && !hasClipCorners) {
+            return true
+        }
+
+        val rTopStart = if (hasClipCorners) clipRadiusTopStart else cornerRadiusTopStart
+        val rTopEnd = if (hasClipCorners) clipRadiusTopEnd else cornerRadiusTopEnd
+        val rBottomEnd = if (hasClipCorners) clipRadiusBottomEnd else cornerRadiusBottomEnd
+        val rBottomStart = if (hasClipCorners) clipRadiusBottomStart else cornerRadiusBottomStart
+
+        if (rTopStart <= 0.001f && rTopEnd <= 0.001f && rBottomEnd <= 0.001f && rBottomStart <= 0.001f) {
+            return true
+        }
+
+        val halfW = width * 0.5f
+        val halfH = height * 0.5f
+
+        // Góc Top-Start
+        val rTs = minOf(rTopStart, halfW, halfH)
+        if (rTs > 0.001f && localX < rTs && localY < rTs) {
+            val dx = localX - rTs
+            val dy = localY - rTs
+            if (dx * dx + dy * dy > rTs * rTs) return false
+        }
+
+        // Góc Top-End
+        val rTe = minOf(rTopEnd, halfW, halfH)
+        if (rTe > 0.001f && localX > width - rTe && localY < rTe) {
+            val dx = localX - (width - rTe)
+            val dy = localY - rTe
+            if (dx * dx + dy * dy > rTe * rTe) return false
+        }
+
+        // Góc Bottom-End
+        val rBe = minOf(rBottomEnd, halfW, halfH)
+        if (rBe > 0.001f && localX > width - rBe && localY > height - rBe) {
+            val dx = localX - (width - rBe)
+            val dy = localY - (height - rBe)
+            if (dx * dx + dy * dy > rBe * rBe) return false
+        }
+
+        // Góc Bottom-Start
+        val rBs = minOf(rBottomStart, halfW, halfH)
+        if (rBs > 0.001f && localX < rBs && localY > height - rBs) {
+            val dx = localX - rBs
+            val dy = localY - (height - rBs)
+            if (dx * dx + dy * dy > rBs * rBs) return false
+        }
+
+        return true
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // 6. POINTER INTERACTION & GESTURE FILTER CHAIN
     // ─────────────────────────────────────────────────────────────────────────

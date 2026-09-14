@@ -17,6 +17,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.hubdustry.core.compose.input.clickable
+import org.hubdustry.core.compose.runtime.CompositionManager
+import org.hubdustry.core.compose.runtime.LayoutNodeApplier
 
 class ComposeLifecycleTest {
 

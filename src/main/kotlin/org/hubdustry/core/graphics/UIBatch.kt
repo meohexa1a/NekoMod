@@ -11,7 +11,6 @@ import arc.graphics.g2d.Font
 import arc.graphics.g2d.GlyphLayout
 import arc.graphics.g2d.TextureRegion
 import arc.util.Align
-import arc.util.Disposable
 
 /**
  * ## UIBatch
@@ -20,18 +19,31 @@ import arc.util.Disposable
  *
  * TÍNH NĂNG CỐT LÕI:
  * 1. **2 Chế Độ Tinh Gọn (MODE_TEXT & MODE_BOX)**:
- *    - `MODE_TEXT` (0.0f): Vẽ ký tự BMFont siêu nhẹ từ `u_atlas`.
- *    - `MODE_BOX` (1.0f): Vẽ toàn bộ các loại hộp (Nền trơn, Nút bấm, Thẻ bo góc, Ảnh/Icon bo góc, Viền).
- * 2. **Cắt Gọt Giải Tích Trên Từng Đỉnh (Analytical Scissor Clipping `a_clipRect`)**:
- *    Mỗi đỉnh mang theo hình chữ nhật cắt [minX, minY, maxX, maxY]. Fragment shader tự động discard
- *    pixel ngoài biên mà không cần gọi `Gl.scissor`, không gây vỡ batch khi lồng container/scrollpane.
- * 3. **Hot-Path Zero-GC**:
- *    Bộ đệm mảng phẳng, quản lý clip qua 4 trường primitive không cấp phát Heap, cú pháp Kotlin idiomatic.
+ * Master GPU Batcher chuyên biệt cho giao diện Declarative UI NekoMod v3.
+ *
+ * KIẾN TRÚC V3 (Sau tái cấu trúc):
+ * 1. **Zero-GC Hot-Path**:
+ *    - Toàn bộ dữ liệu đỉnh được ghi trực tiếp vào Bộ nhớ đệm NIO Off-Heap (`directByteBuffer`).
+ *    - Triệt tiêu hoàn toàn việc cấp phát đối tượng `FloatArray` trung gian trong vòng lặp render.
+ * 2. **Vertex Layout 26 Floats Chuẩn Mực**:
+ *    - Tọa độ 2D: `a_position` (2 floats).
+ *    - Màu đỉnh: `a_color` (1 packed float).
+ *    - Tọa độ UV: `a_texCoord` (2 floats).
+ *    - Thuộc tính SDF: `a_quadParams` (4 floats: width, height, mode, clipActive).
+ *    - Bo 4 góc động: `a_cornerRadii` (4 floats: rTL, rTR, rBR, rBL).
+ *    - Viền ngoài: `a_border` (2 floats: width, packed color).
+ *    - Scissor Scissor Stack 2 tầng: `a_clipRect` (4 floats), `a_parentClipRect` (4 floats).
+ *    - Bo góc cắt gọt: `a_clipCornerRadii` (3 floats: rTL, rTR, rBR).
+ * 3. **Cắt Gọt Phân Cấp Phổ Quát (Analytical Scissor Stack)**:
+ *    - Sử dụng giải thuật cắt gọt giải tích trực tiếp trên GPU Shader thay vì gọi `glScissor` liên tục.
+ *    - Hỗ trợ lồng nhau 16 cấp độ (`MAX_CLIP_DEPTH`) mà không làm gãy (break) draw call batching.
  * 4. **An Toàn Tuyệt Đối Trong Headless Testing**:
- *    Khi `Core.gl == null`, renderer tự động ghi nhận quads vào buffer để phục vụ kiểm thử đơn vị
- *    mà không quăng lỗi hay gọi OpenGL native.
+ *    - Khi `Core.gl == null`, renderer tự động ghi nhận quads vào buffer để phục vụ kiểm thử đơn vị
+ *    - mà không quăng lỗi hay gọi OpenGL native.
+ * 5. **Singleton Vĩnh Viễn (Rule 0.5)**:
+ *    - UIBatch là GPU Batcher toàn cục cấp tiến trình, không chứa hàm dispose() để tránh bị hủy từ View con.
  */
-object UIBatch : Disposable {
+object UIBatch {
 
     /** Chế độ vẽ văn bản BMFont Glyph từ `u_atlas`. */
     const val MODE_TEXT = 0.0f
@@ -640,16 +652,5 @@ object UIBatch : Disposable {
 
         vertexIndex = 0
         queuedQuadCount = 0
-    }
-
-    override fun dispose() {
-        end()
-        try {
-            mesh?.dispose()
-        } catch (_: Throwable) {
-        }
-        mesh = null
-        isMeshInitialized = false
-        UberShader.dispose()
     }
 }

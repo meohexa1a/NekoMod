@@ -2,7 +2,6 @@ package org.hubdustry.core.compose.modifier
 
 import arc.graphics.Color
 import arc.graphics.g2d.Font
-import org.hubdustry.core.compose.Modifier
 import org.hubdustry.core.layout.LayoutNode
 
 data class TextColorModifier(

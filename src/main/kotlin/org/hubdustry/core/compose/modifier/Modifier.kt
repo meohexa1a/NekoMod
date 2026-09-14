@@ -1,4 +1,4 @@
-package org.hubdustry.core.compose
+package org.hubdustry.core.compose.modifier
 
 import org.hubdustry.core.layout.LayoutNode
 

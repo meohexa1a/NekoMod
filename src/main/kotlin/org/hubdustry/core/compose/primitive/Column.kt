@@ -2,9 +2,9 @@ package org.hubdustry.core.compose.primitive
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
-import org.hubdustry.core.compose.LayoutNodeApplier
-import org.hubdustry.core.compose.Modifier
-import org.hubdustry.core.compose.applyTo
+import org.hubdustry.core.compose.runtime.LayoutNodeApplier
+import org.hubdustry.core.compose.modifier.Modifier
+import org.hubdustry.core.compose.modifier.applyTo
 import org.hubdustry.core.compose.modifier.ColumnScope
 import org.hubdustry.core.compose.modifier.ColumnScopeInstance
 import org.hubdustry.core.layout.LayoutNode
