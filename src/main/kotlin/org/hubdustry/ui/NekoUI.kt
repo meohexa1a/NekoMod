@@ -18,6 +18,7 @@ import org.hubdustry.core.compose.input.hoverable
 import org.hubdustry.core.compose.input.pointerInput
 import org.hubdustry.core.compose.modifier.*
 import org.hubdustry.core.compose.view.ComposeView
+import org.hubdustry.core.compose.view.compose as coreCompose
 import org.hubdustry.core.graphics.RoundedCorners
 import org.hubdustry.core.layout.Alignment
 import org.hubdustry.core.layout.AnchorPreset
@@ -50,13 +51,10 @@ typealias ColumnScope = org.hubdustry.core.compose.modifier.ColumnScope
 
 /**
  * Cú pháp DSL thuận tiện để nhúng trực tiếp [ComposeView] vào bất kỳ [Table] nào của Arc Scene2D.
+ * Ủy quyền trực tiếp đến implementation chuẩn duy nhất trong [ComposeView.kt].
  */
-fun Table.compose(content: @Composable () -> Unit): Cell<ComposeView> {
-    val view = ComposeView().apply {
-        setContent(content)
-    }
-    return this.add(view)
-}
+fun Table.compose(content: @Composable () -> Unit): Cell<ComposeView> =
+    this.coreCompose(content)
 
 /**
  * Container Box (FrameLayout) tự do theo chuẩn Jetpack Compose.
@@ -174,6 +172,46 @@ fun Switch(
     trackCheckedColor = trackCheckedColor,
     trackUncheckedColor = trackUncheckedColor,
     thumbColor = thumbColor
+)
+
+/**
+ * Ô soạn thảo văn bản (TextField) chuẩn của NekoMod UI:
+ * - Hỗ trợ đầy đủ bộ gõ tiếng Việt (Telex, VNI) và IME tiền soạn thảo CJK.
+ * - Quản lý con trỏ nhấp nháy, lựa chọn vùng văn bản, Clipboard và phím điều hướng.
+ */
+@Composable
+fun TextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    placeholder: String = "",
+    singleLine: Boolean = true,
+    interactionSource: MutableInteractionSource? = null,
+    shape: RoundedCorners = org.hubdustry.ui.components.DefaultTextFieldShape,
+    backgroundColor: Color = org.hubdustry.ui.components.DefaultTextFieldBgColor,
+    borderColor: Color = org.hubdustry.ui.components.DefaultTextFieldBorderColor,
+    focusedBorderColor: Color = org.hubdustry.ui.components.DefaultTextFieldFocusBorderColor,
+    textColor: Color = Color.white,
+    placeholderColor: Color = Color.gray,
+    cursorColor: Color = Color.royal,
+    selectionColor: Color = org.hubdustry.ui.components.DefaultTextFieldSelectionColor,
+) = org.hubdustry.ui.components.TextField(
+    value = value,
+    onValueChange = onValueChange,
+    modifier = modifier,
+    enabled = enabled,
+    placeholder = placeholder,
+    singleLine = singleLine,
+    interactionSource = interactionSource,
+    shape = shape,
+    backgroundColor = backgroundColor,
+    borderColor = borderColor,
+    focusedBorderColor = focusedBorderColor,
+    textColor = textColor,
+    placeholderColor = placeholderColor,
+    cursorColor = cursorColor,
+    selectionColor = selectionColor,
 )
 
 /**

@@ -28,6 +28,7 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
             val count by remember { countState }
             var autoMiningEnabled by remember { mutableStateOf(false) }
             var soundFxEnabled by remember { mutableStateOf(true) }
+            var inputText by remember { mutableStateOf("") }
             val dynamicColor = when (count % 4) {
                 0 -> Color.royal
                 1 -> Color.forest
@@ -184,7 +185,22 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                     }
                 }
 
-                // 5. Footer Info
+                // 5. Interactive TextField với IME Support (Tiếng Việt Telex / VNI)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 36f),
+                    gap = 8f
+                ) {
+                    TextField(
+                        value = inputText,
+                        onValueChange = { inputText = it },
+                        placeholder = "Nhập tiếng Việt Telex/VNI...",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                // 6. Footer Info
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -192,12 +208,12 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                     gap = 8f
                 ) {
                     Text(
-                        text = "Zero-GC Engine * SDF Shader * Berlin Wall Y-Down * AOSP Pointer Input",
+                        text = "Zero-GC Engine * SDF Shader * Berlin Wall Y-Down * IME Reflection",
                         textColor = Color.gray
                     )
                 }
             }
-        }.size(560f, 320f).pad(10f).row()
+        }.size(560f, 380f).pad(10f).row()
 
         addCloseButton()
     }
