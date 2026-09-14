@@ -35,6 +35,7 @@ object CompositionManager {
 
     internal val recomposer = Recomposer(scope.coroutineContext)
     private var isStarted = false
+    private var lastFrameId = -1L
 
     /**
      * Khởi động bộ máy Recomposer (được gọi tự động khi mở ComposeView đầu tiên).
@@ -54,9 +55,26 @@ object CompositionManager {
 
     /**
      * Đập nhịp khung hình đồng bộ từ Game Loop của Mindustry (mỗi frame gọi 1 lần).
+     *
+     * Cơ chế phòng vệ chống trùng lặp (Frame De-duplication):
+     * Nếu [arc.Core.graphics] khả dụng (môi trường game runtime thực tế), kiểm tra [frameId] để đảm bảo
+     * chỉ bơm nhịp 1 lần duy nhất cho mỗi khung hình GPU, dù có nhiều [ComposeView] cùng gọi
+     * trong cùng 1 game tick.
+     * Trong môi trường Headless Unit Test ([arc.Core.graphics] == null), bỏ qua de-duplication để
+     * cho phép test harness tự do tua nhịp.
      */
     fun frame() {
         if (!isStarted) return
+
+        val graphics = try { arc.Core.graphics } catch (_: Throwable) { null }
+        val isRealApp = try { arc.Core.app != null } catch (_: Throwable) { false }
+        val isMock = try { graphics is arc.mock.MockGraphics } catch (_: Throwable) { false }
+        if (isRealApp && !isMock && graphics != null) {
+            val currentFrameId = graphics.frameId
+            if (currentFrameId > 0 && currentFrameId == lastFrameId) return
+            lastFrameId = currentFrameId
+        }
+
         Snapshot.sendApplyNotifications()
         clock.sendFrame(System.nanoTime())
     }

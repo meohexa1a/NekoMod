@@ -369,6 +369,42 @@ class UIBatchTest {
     }
 
     @Test
+    fun testTextGlyphSharpScissorClipping() {
+        UIBatch.begin()
+
+        // 1. Đẩy clip container với bo góc SDF 16px
+        UIBatch.pushClip(
+            x = 10f, y = 10f, width = 200f, height = 100f,
+            radiusTopStart = 16f, radiusTopEnd = 16f, radiusBottomEnd = 16f, radiusBottomStart = 16f
+        )
+        assertEquals(16f, UIBatch.clipRadiusTopStart, "Container clip phải nhận bo góc 16px")
+
+        // 2. Dựng hình ký tự văn bản BMFont bên trong container bo góc
+        UIBatch.drawGlyph(
+            x = 20f, y = 20f, width = 12f, height = 18f,
+            uvMinU = 0f, uvMinV = 0f, uvMaxU = 0.1f, uvMaxV = 0.1f,
+            color = Color.white
+        )
+
+        val buf = UIBatch.vertexBuffer
+
+        // 3. Kiểm chứng bất biến Text Sharp Scissor: toàn bộ 4 đỉnh của glyph
+        // phải có clipActive = CLIP_ON nhưng 4 bán kính bo góc clip (a_clipRadii) BẮT BUỘC bằng 0f
+        for (v in 0 until 4) {
+            val offset = v * 26
+            assertEquals(UIBatch.CLIP_ON, buf[offset + 12], "Vertex $v phải bật cờ CLIP_ON")
+            assertEquals(UIBatch.MODE_TEXT, buf[offset + 11], "Vertex $v phải là MODE_TEXT")
+            assertEquals(0f, buf[offset + 22], "Vertex $v clipRadiusTopStart phải luôn là 0f (Sharp Scissor)")
+            assertEquals(0f, buf[offset + 23], "Vertex $v clipRadiusTopEnd phải luôn là 0f (Sharp Scissor)")
+            assertEquals(0f, buf[offset + 24], "Vertex $v clipRadiusBottomEnd phải luôn là 0f (Sharp Scissor)")
+            assertEquals(0f, buf[offset + 25], "Vertex $v clipRadiusBottomStart phải luôn là 0f (Sharp Scissor)")
+        }
+
+        UIBatch.popClip()
+        UIBatch.end()
+    }
+
+    @Test
     fun testTexturedBoxWithCornerRadiusAndBorder() {
         UIBatch.begin()
 

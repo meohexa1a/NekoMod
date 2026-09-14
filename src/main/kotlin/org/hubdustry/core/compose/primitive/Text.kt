@@ -6,9 +6,9 @@ import arc.graphics.Color
 import arc.graphics.g2d.Font
 import arc.graphics.g2d.GlyphLayout
 import mindustry.ui.Fonts
-import org.hubdustry.core.compose.runtime.LayoutNodeApplier
 import org.hubdustry.core.compose.modifier.Modifier
 import org.hubdustry.core.compose.modifier.applyTo
+import org.hubdustry.core.compose.runtime.LayoutNodeApplier
 import org.hubdustry.core.layout.LayoutNode
 import org.hubdustry.core.layout.SizeFlag
 

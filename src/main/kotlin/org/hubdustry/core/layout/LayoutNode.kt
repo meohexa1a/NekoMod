@@ -249,7 +249,7 @@ class LayoutNode {
 
     val hasRoundedCorners: Boolean
         get() = cornerRadiusTopStart > 0.001f || cornerRadiusTopEnd > 0.001f ||
-                cornerRadiusBottomEnd > 0.001f || cornerRadiusBottomStart > 0.001f
+            cornerRadiusBottomEnd > 0.001f || cornerRadiusBottomStart > 0.001f
 
     // Viền (Border) cho SDF Shader - Gateway Sanitization
     var borderWidth: Float = 0f
@@ -303,7 +303,7 @@ class LayoutNode {
 
     val hasClipCorners: Boolean
         get() = clipRadiusTopStart > 0.001f || clipRadiusTopEnd > 0.001f ||
-                clipRadiusBottomEnd > 0.001f || clipRadiusBottomStart > 0.001f
+            clipRadiusBottomEnd > 0.001f || clipRadiusBottomStart > 0.001f
 
     /**
      * Kiểm tra xem một điểm trong hệ tọa độ cục bộ ([localX], [localY]) của node
@@ -311,7 +311,7 @@ class LayoutNode {
      * Thuần toán học (Pure Math), khoảng cách bình phương (Zero-GC Rule 3.3, không gọi sqrt).
      */
     fun containsPoint(localX: Float, localY: Float): Boolean {
-        if (localX < 0f || localX > width || localY < 0f || localY > height) {
+        if (localX !in 0f..width || localY < 0f || localY > height) {
             return false
         }
         if (!hasRoundedCorners && !hasClipCorners) {
@@ -395,14 +395,16 @@ class LayoutNode {
     var horizontalScrollState: org.hubdustry.core.compose.foundation.ScrollState? = null
 
     var scrollX: Float = 0f
-        get() = horizontalScrollState?.let { if (maxScrollX > 0f) it.value.coerceIn(0f, maxScrollX) else it.value } ?: field
+        get() = horizontalScrollState?.let { if (maxScrollX > 0f) it.value.coerceIn(0f, maxScrollX) else it.value }
+            ?: field
         set(value) {
             val safe = if (value.isNaN() || value < 0f) 0f else value
             field = safe
             horizontalScrollState?.let { it.dispatchRawDelta(safe - it.value) }
         }
     var scrollY: Float = 0f
-        get() = verticalScrollState?.let { if (maxScrollY > 0f) it.value.coerceIn(0f, maxScrollY) else it.value } ?: field
+        get() = verticalScrollState?.let { if (maxScrollY > 0f) it.value.coerceIn(0f, maxScrollY) else it.value }
+            ?: field
         set(value) {
             val safe = if (value.isNaN() || value < 0f) 0f else value
             field = safe
@@ -431,44 +433,44 @@ class LayoutNode {
      */
     fun resetModifierState(
         defaultSizeFlagH: SizeFlag = SizeFlag.FILL,
-        defaultSizeFlagV: SizeFlag = SizeFlag.FILL
+        defaultSizeFlagV: SizeFlag = SizeFlag.FILL,
     ) {
         // Intrinsic size constraints
-        minWidth = 0f;  minHeight = 0f
-        maxWidth = Float.MAX_VALUE;  maxHeight = Float.MAX_VALUE
+        minWidth = 0f; minHeight = 0f
+        maxWidth = Float.MAX_VALUE; maxHeight = Float.MAX_VALUE
 
         // Insets
-        paddingLeft = 0f;  paddingTop = 0f;  paddingRight = 0f;  paddingBottom = 0f
-        marginLeft = 0f;   marginTop = 0f;   marginRight = 0f;   marginBottom = 0f
+        paddingLeft = 0f; paddingTop = 0f; paddingRight = 0f; paddingBottom = 0f
+        marginLeft = 0f; marginTop = 0f; marginRight = 0f; marginBottom = 0f
 
         // Layout policy & alignment
-        sizeFlagHorizontal = defaultSizeFlagH;  sizeFlagVertical = defaultSizeFlagV
+        sizeFlagHorizontal = defaultSizeFlagH; sizeFlagVertical = defaultSizeFlagV
         stretchRatio = 0f
-        alignHorizontal = Alignment.START;  alignVertical = Alignment.START
-        offsetX = 0f;  offsetY = 0f
+        alignHorizontal = Alignment.START; alignVertical = Alignment.START
+        offsetX = 0f; offsetY = 0f
 
         // Visual tokens
         backgroundColor = null
-        textColor = Color.white;  font = null;  text = null;  alpha = 1f
+        textColor = Color.white; font = null; text = null; alpha = 1f
 
         // Shape, border & clip
-        cornerRadiusTopStart = 0f;  cornerRadiusTopEnd = 0f
-        cornerRadiusBottomEnd = 0f;  cornerRadiusBottomStart = 0f
-        borderWidth = 0f;  borderColor = Color.clear
-        clipHorizontal = false;  clipVertical = false
-        clipRadiusTopStart = 0f;  clipRadiusTopEnd = 0f
-        clipRadiusBottomEnd = 0f;  clipRadiusBottomStart = 0f
+        cornerRadiusTopStart = 0f; cornerRadiusTopEnd = 0f
+        cornerRadiusBottomEnd = 0f; cornerRadiusBottomStart = 0f
+        borderWidth = 0f; borderColor = Color.clear
+        clipHorizontal = false; clipVertical = false
+        clipRadiusTopStart = 0f; clipRadiusTopEnd = 0f
+        clipRadiusBottomEnd = 0f; clipRadiusBottomStart = 0f
 
         // Pointer interaction
         _pointerInputFilters.clear()
         anchor.reset()
 
         // Scroll state
-        isScrollableVertical = false;  isScrollableHorizontal = false
-        maxScrollX = 0f;  maxScrollY = 0f
-        scrollX = 0f;  scrollY = 0f
-        contentWidth = 0f;  contentHeight = 0f
-        verticalScrollState = null;  horizontalScrollState = null
+        isScrollableVertical = false; isScrollableHorizontal = false
+        maxScrollX = 0f; maxScrollY = 0f
+        scrollX = 0f; scrollY = 0f
+        contentWidth = 0f; contentHeight = 0f
+        verticalScrollState = null; horizontalScrollState = null
     }
 
     fun isAncestorOf(node: LayoutNode): Boolean {
@@ -604,6 +606,7 @@ class LayoutNode {
                 minWidth = maxOf(minWidth, main)
                 minHeight = maxOf(minHeight, cross)
             }
+
             Orientation.VERTICAL -> {
                 minWidth = maxOf(minWidth, cross)
                 minHeight = maxOf(minHeight, main)
@@ -613,8 +616,15 @@ class LayoutNode {
 
     fun setContentSize(orientation: Orientation, main: Float, cross: Float) {
         when (orientation) {
-            Orientation.HORIZONTAL -> { contentWidth = main;  contentHeight = cross }
-            Orientation.VERTICAL   -> { contentWidth = cross; contentHeight = main  }
+            Orientation.HORIZONTAL -> {
+                contentWidth = main
+                contentHeight = cross
+            }
+
+            Orientation.VERTICAL -> {
+                contentWidth = cross
+                contentHeight = main
+            }
         }
     }
 
@@ -640,11 +650,11 @@ class LayoutNode {
         mainPos: Float,
         crossPos: Float,
         mainSize: Float,
-        crossSize: Float
+        crossSize: Float,
     ) {
         when (orientation) {
             Orientation.HORIZONTAL -> arrange(mainPos, crossPos, mainSize, crossSize)
-            Orientation.VERTICAL   -> arrange(crossPos, mainPos, crossSize, mainSize)
+            Orientation.VERTICAL -> arrange(crossPos, mainPos, crossSize, mainSize)
         }
     }
 
@@ -684,22 +694,22 @@ class LayoutNode {
      */
     fun resolveAnchors(innerX: Float, innerY: Float, innerWidth: Float, innerHeight: Float) {
         // Horizontal axis
-        val targetLeft  = anchor.resolveLeft(innerX, innerWidth)
+        val targetLeft = anchor.resolveLeft(innerX, innerWidth)
         val targetRight = anchor.resolveRight(innerX, innerWidth)
         val finalW = when {
             anchor.hasExplicitWidth -> maxOf(minWidth, targetRight - targetLeft)
-            width > 0f              -> width
-            else                    -> minWidth
+            width > 0f -> width
+            else -> minWidth
         }.coerceIn(minWidth, maxWidth)
         val finalX = if (anchor.hasExplicitWidth) targetLeft else targetLeft - finalW * anchor.anchorLeft
 
         // Vertical axis
-        val targetTop    = anchor.resolveTop(innerY, innerHeight)
+        val targetTop = anchor.resolveTop(innerY, innerHeight)
         val targetBottom = anchor.resolveBottom(innerY, innerHeight)
         val finalH = when {
             anchor.hasExplicitHeight -> maxOf(minHeight, targetBottom - targetTop)
-            height > 0f              -> height
-            else                     -> minHeight
+            height > 0f -> height
+            else -> minHeight
         }.coerceIn(minHeight, maxHeight)
         val finalY = if (anchor.hasExplicitHeight) targetTop else targetTop - finalH * anchor.anchorTop
 

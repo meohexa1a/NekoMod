@@ -312,6 +312,49 @@ Bất kỳ thuật toán nào cần >10 dòng để giải thích bằng văn xu
 - 🟡 WARNING: Thuật toán multi-pass hoặc state machine không có diagram minh họa
 - 🟢 GOOD: Diagram chính xác, phản ánh đúng implementation
 
+// ─────────────────────────────────────────────────────────────────────────
+### Quy Tắc 9 — Công Thái Học Đọc Mã & Cấu Trúc Báo Chí (Reading Ergonomics & Newspaper Structure)
+
+Mã nguồn phải được đọc xuôi như một bài báo (Newspaper Metaphor):
+1. **Từ Khái Quát đến Chi Tiết (High-level to Low-level)**:
+   - Public API / Composable entry point nằm ở đỉnh file.
+   - Các hàm helper, private logic, và chi tiết giải thuật nằm tuần tự ở bên dưới.
+   - Người đọc nắm được ý định và bức tranh toàn cảnh ngay trong 50 dòng đầu tiên mà không phải cuộn nhảy cóc (no vertical jumping).
+2. **Thứ Tự Chuẩn Của Một Class / Entity**:
+   - `Companion object / Constants` (nếu có)
+   - `Properties / Public Fields`
+   - `Internal / Private Fields & Scratchpads`
+   - `Constructor / Init blocks`
+   - `Public API Methods`
+   - `Internal / Protected Methods`
+   - `Private Helper Methods`
+3. **Phẳng Hóa Luồng Đọc (Cognitive Flatness)**:
+   - Giữ độ sâu lồng khối tối đa $\le 2$ cấp thụt lề.
+   - Cấm các chuỗi toán tử hoặc lời gọi lồng nhau >3 tầng mà không tách biến trung gian mang tên rõ nghĩa.
+
+**Chấm điểm:**
+- 🟡 WARNING: Hàm private/helper bị đặt xen kẽ hoặc nằm trước public API chính
+- 🟡 WARNING: Cấu trúc file nhảy cóc khiến người đọc phải cuộn lên cuộn xuống để hiểu flow chính
+
+---
+
+### Quy Tắc 10 — Bài Trừ Đặt Tên Quái Dị & Viết Tắt Tối Nghĩa (Anti-Cryptic & Bizarre Naming)
+
+Tên biến, hàm, tham số phải có khả năng tự giải thích mà không cần đọc code xung quanh:
+1. **Cấm Biến 1-2 Ký Tự Tối Nghĩa**:
+   - ❌ **CẤM**: `val t = ...`, `val c = ...`, `val d = ...`, `val s = ...`, `val e = ...`, `val v = ...`, `val h = ...`, `val fCount = ...` (trừ biến chỉ mục vòng lặp truyền thống `i`, `j`, `k`).
+   - ✅ **BẮT BUỘC**: `val targetNode = ...`, `val childCount = ...`, `val deltaX = ...`, `val startIndex = ...`, `val endIndex = ...`, `val vertexCount = ...`, `val filterCount = ...`.
+2. **Cấm Viết Tắt Tùy Tiện (Cryptic Abbreviations)**:
+   - ❌ **CẤM**: `availCrossInLine`, `padCross`, `posChange`, `diffSz`, `btnCol`.
+   - ✅ **BẮT BUỘC**: `availableCrossSpace`, `crossAxisPadding`, `positionDelta`, `sizeDifference`, `buttonColor`.
+3. **Cấm Tên Quái Dị / Lai Tạp (No Bizarre or Hybrid Naming)**:
+   - Cấm trộn lẫn thuật ngữ cũ của framework khác (ví dụ: vừa dùng `actor` của Scene2D vừa dùng `node` của Compose trong cùng 1 hàm).
+   - Cấm các tiền tố/hậu tố mơ hồ (`DoActionNow`, `ProcessThingy`, `MyCustomHandler`).
+
+**Chấm điểm:**
+- 🔴 CRITICAL: Biến/tham số 1-2 ký tự (ngoài `i, j`) xuất hiện trong public API hoặc domain logic quan trọng
+- 🟡 WARNING: Viết tắt tùy tiện hoặc pha trộn thuật ngữ khó hiểu
+
 ---
 
 ## II. Quy Trình Rà Soát (Aesthetics Review Runbook)

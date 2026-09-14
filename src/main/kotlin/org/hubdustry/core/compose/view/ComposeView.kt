@@ -14,13 +14,14 @@ import arc.scene.Scene
 import arc.scene.event.InputEvent
 import arc.scene.event.InputListener
 import arc.util.Log
-import org.hubdustry.core.compose.runtime.CompositionManager
-import org.hubdustry.core.compose.runtime.LayoutNodeApplier
-import org.hubdustry.core.compose.input.ime.SdlReflectionImeBridge
+import org.hubdustry.core.compose.input.KeyboardInputHandler
 import org.hubdustry.core.compose.input.Offset
 import org.hubdustry.core.compose.input.PointerButton
 import org.hubdustry.core.compose.input.PointerEventType
 import org.hubdustry.core.compose.input.PointerType
+import org.hubdustry.core.compose.input.ime.SdlReflectionImeBridge
+import org.hubdustry.core.compose.runtime.CompositionManager
+import org.hubdustry.core.compose.runtime.LayoutNodeApplier
 import org.hubdustry.core.graphics.UIBatch
 import org.hubdustry.core.layout.LayoutNode
 
@@ -62,60 +63,14 @@ open class ComposeView : Element() {
             rootLayoutNode.backgroundColor = value
         }
 
-    private fun toComposeY(arcY: Float): Float =
-        (if (height > 0f) height else rootLayoutNode.height) - arcY
-
-    private fun KeyCode?.toPointerButton(): PointerButton = when (this) {
-        KeyCode.mouseLeft -> PointerButton.Primary
-        KeyCode.mouseRight -> PointerButton.Secondary
-        KeyCode.mouseMiddle -> PointerButton.Tertiary
-        else -> PointerButton.Primary
-    }
-
-    private fun KeyCode?.toPointerType(): PointerType =
-        if (this != null) PointerType.Mouse else PointerType.Touch
+    private val inputAdapter = ArcInputAdapter(this, inputDispatcher)
 
     init {
         // Khởi động bộ máy CompositionManager nếu chưa chạy
         CompositionManager.start()
 
-        // Gắn InputListener thuần của Arc để đón bắt sự kiện con trỏ thô mà không dùng ClickListener
-        addListener(object : InputListener() {
-            override fun touchDown(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?): Boolean =
-                inputDispatcher.touchDown(x, toComposeY(y), pointer, System.currentTimeMillis(), button.toPointerButton(), button.toPointerType())
-
-            override fun touchDragged(event: InputEvent?, x: Float, y: Float, pointer: Int) {
-                inputDispatcher.touchMove(x, toComposeY(y), pointer, System.currentTimeMillis())
-            }
-
-            override fun touchUp(event: InputEvent?, x: Float, y: Float, pointer: Int, button: KeyCode?) {
-                inputDispatcher.touchUp(x, toComposeY(y), pointer, System.currentTimeMillis(), button.toPointerButton(), button.toPointerType())
-            }
-
-            override fun mouseMoved(event: InputEvent?, x: Float, y: Float): Boolean =
-                inputDispatcher.mouseMove(x, toComposeY(y), System.currentTimeMillis())
-
-            override fun scrolled(event: InputEvent?, x: Float, y: Float, amountX: Float, amountY: Float): Boolean {
-                val isShift = try { arc.Core.input?.shift() == true } catch (_: Throwable) { false }
-                val delta = if (isShift) Offset(amountY, 0f) else Offset(amountX, amountY)
-                return inputDispatcher.scroll(x, toComposeY(y), delta, System.currentTimeMillis())
-            }
-
-            override fun exit(event: InputEvent?, x: Float, y: Float, pointer: Int, toActor: Element?) {
-                if (pointer == -1) {
-                    inputDispatcher.mouseExit(System.currentTimeMillis())
-                }
-            }
-
-            override fun keyDown(event: InputEvent?, keycode: KeyCode?): Boolean =
-                inputDispatcher.keyDown(keycode)
-
-            override fun keyUp(event: InputEvent?, keycode: KeyCode?): Boolean =
-                inputDispatcher.keyUp(keycode)
-
-            override fun keyTyped(event: InputEvent?, character: Char): Boolean =
-                inputDispatcher.keyTyped(character)
-        })
+        // Gắn ArcInputAdapter đón bắt sự kiện thô và quản lý scrollFocus
+        addListener(inputAdapter)
     }
 
     fun setContent(content: @Composable () -> Unit) {
@@ -137,15 +92,12 @@ open class ComposeView : Element() {
         super.setScene(stage)
 
         if (stage != null && oldScene == null) {
-            // GẮN VÀO SCENE: Khởi động composition nếu có nội dung
-            ensureCompositionStarted()
-            composableContent?.let { content ->
-                composition?.setContent {
-                    CompositionLocalProvider(LocalComposeView provides this) {
-                        content()
-                    }
-                }
+            // GẮN VÀO SCENE: Khởi động composition nếu chưa được khởi động từ trước
+            if (composition == null) {
+                ensureCompositionStarted()
             }
+            requestLayout()
+            invalidateHierarchy()
         } else if (stage == null && oldScene != null) {
             // GỠ KHỎI SCENE: Giải phóng composition và node
             dispose()
@@ -187,6 +139,7 @@ open class ComposeView : Element() {
 
     open fun dispose() {
         // Phase 1: Cancel active interactions before tearing down
+        inputAdapter.releaseScrollFocus()
         SdlReflectionImeBridge.stopSession()
         clearKeyboardFocus()
         inputDispatcher.cancelAllActivePointers(System.currentTimeMillis())

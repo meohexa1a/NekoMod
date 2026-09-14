@@ -64,6 +64,10 @@ suspend fun PointerInputScope.detectDragGestures(
 
             previousPos = currentPos
         }
+
+        if (currentEvent.hasPressed) {
+            awaitAllPointersUp()
+        }
     }
 }
 
@@ -111,10 +115,6 @@ suspend fun PointerInputScope.detectVerticalDragGestures(
                 totalDy += deltaY
                 val distYSquared = totalDy * totalDy
                 val distXSquared = totalDx * totalDx
-                if (distXSquared > slopSquared && distXSquared > distYSquared) {
-                    // Cử chỉ rõ ràng là vuốt ngang -> hủy kéo dọc, nhường cho detector khác
-                    break
-                }
                 if (distYSquared > slopSquared && distYSquared >= distXSquared) {
                     dragStarted = true
                     onDragStart?.invoke(currentPos)
@@ -127,6 +127,10 @@ suspend fun PointerInputScope.detectVerticalDragGestures(
             }
 
             previousPos = currentPos
+        }
+
+        if (currentEvent.hasPressed) {
+            awaitAllPointersUp()
         }
     }
 }
@@ -175,10 +179,6 @@ suspend fun PointerInputScope.detectHorizontalDragGestures(
                 totalDy += deltaY
                 val distYSquared = totalDy * totalDy
                 val distXSquared = totalDx * totalDx
-                if (distYSquared > slopSquared && distYSquared > distXSquared) {
-                    // Cử chỉ rõ ràng là vuốt dọc -> hủy kéo ngang, nhường cho detector khác
-                    break
-                }
                 if (distXSquared > slopSquared && distXSquared >= distYSquared) {
                     dragStarted = true
                     onDragStart?.invoke(currentPos)
@@ -191,6 +191,10 @@ suspend fun PointerInputScope.detectHorizontalDragGestures(
             }
 
             previousPos = currentPos
+        }
+
+        if (currentEvent.hasPressed) {
+            awaitAllPointersUp()
         }
     }
 }

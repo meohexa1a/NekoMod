@@ -1,5 +1,7 @@
 package org.hubdustry.core.compose.modifier
 
+import org.hubdustry.core.compose.unit.Dp
+import org.hubdustry.core.compose.unit.dp
 import org.hubdustry.core.layout.Alignment
 import org.hubdustry.core.layout.AnchorPreset
 import org.hubdustry.core.layout.LayoutNode
@@ -170,6 +172,9 @@ object FlowColumnScopeInstance : FlowColumnScope {
  */
 fun Modifier.offset(x: Float = 0f, y: Float = 0f): Modifier =
     this.then(OffsetModifier(x = x, y = y))
+
+fun Modifier.offset(x: Dp = 0.dp, y: Dp = 0.dp): Modifier =
+    this.offset(x.toPx, y.toPx)
 
 /**
  * Đặt chế độ neo định vị tuyệt đối theo mô hình Godot Control ([AnchorPreset]).

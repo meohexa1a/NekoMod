@@ -92,6 +92,13 @@ Trước khi viết bất kỳ cấu trúc dữ liệu, enum, modifier, hoặc h
    - Các bộ đệm sự kiện và hit-test trong `ComposeView` (`hitScratch`, `hitPool`, `hoverPool`, `eventsScratch`, `boundsScratch`) phải được tái sử dụng qua index/pool, tuyệt đối không cấp phát `ArrayList` hay đối tượng mới trên mỗi frame `mouseMoved`, `touchDragged`, hoặc `draw`.
 6. **Cold-Path (DSL, Config, Setup, State, Navigation)**:
    - Khuyến khích tối đa functional style: `map`, `filter`, `let`, `apply`, `takeIf`, `data class`.
+7. **Bất Biến State Cho Value Classes (Zero-Boxing State Invariant)**:
+   - **CẤM TUYỆT ĐỐI**: Khai báo `mutableStateOf<T>` với bất kỳ `@JvmInline value class` nào (`Dp`, `Offset`, `IntSize`). Do generic `mutableStateOf<T>` nhận `Any?`, JVM bị buộc phải đóng gói (`box`) value class thành `java.lang.Object` trên heap mỗi khi đọc/ghi state trong frame loop.
+   - **BẮT BUỘC**: Sử dụng các hàm state nguyên thủy tương ứng kèm inline property delegates:
+     - `Dp` $\rightarrow$ `mutableDpStateOf()` (ủy quyền trên `MutableFloatState`).
+     - `Offset` $\rightarrow$ `mutableOffsetStateOf()` (ủy quyền trên `MutableLongState`).
+     - `IntSize` $\rightarrow$ `mutableIntSizeStateOf()` (ủy quyền trên `MutableLongState`).
+   - Đảm bảo Zero-GC tuyệt đối khi animation hoặc touch gestures chạy ở tần số quét 60–120 FPS.
 
 ---
 
@@ -258,6 +265,18 @@ Mỗi skill trả về: Score X/10 + Findings (🔴 CRITICAL / 🟡 WARNING / �
 1. **Không Phản Xạ Hấp Tấp (No Reactive Coding)**: Tuyệt đối không vội vã cào phím làm bừa khi nghe thúc giục ("sửa đi", "nhanh lên"). Luôn giữ nhịp điềm tĩnh, đánh giá rủi ro và lập kế hoạch trước khi chạm vào mã nguồn.
 2. **Điều Phối Khách Quan Thay Vì Ôm Đồm**: Phân tách rạch ròi giữa PM (định hướng, giữ cổng) và Worker/Reviewer (thi công, thẩm định độc lập). Triệt tiêu ảo tưởng "tự làm rồi tự khen hoàn hảo".
 3. **Trung Thực, Công Tâm & Dám Phản Biện**: Không làm "Yes-man". Luôn phân tích rõ ràng hai mặt đúng/sai, cảnh báo các đánh đổi (trade-offs) kỹ thuật và bảo vệ nghiêm ngặt các bất biến kiến trúc.
+
+---
+
+## 16. Phân Định Ranh Giới Tầng UI Components (Pragmatic Sandbox & shadcn-Ready)
+
+1. **Độc Lập Tầng Trình Diễn (Presentation vs Core)**:
+   - Các tiêu chuẩn nghiêm ngặt về Zero-GC, Gateway Sanitization, và khóa băng kiến trúc chỉ áp dụng bắt buộc cho **Lõi Engine** (`core/layout`, `core/graphics`, `core/compose`).
+   - Tầng `src/main/kotlin/org/hubdustry/ui/components/` là **Presentation / Component Layer**. Tầng này được nới lỏng tiêu chuẩn, ưu tiên sự đơn giản, trực quan, dễ đọc và dễ viết unit test trước.
+2. **Sẵn Sàng Cho Chuẩn Thiết Kế shadcn**:
+   - Tầng `ui/components` đóng vai trò là sandbox linh hoạt để dựng preview UI và chuẩn bị chuyển đổi sang hệ thống chuẩn **shadcn** (tách biệt primitives nguyên thủy, token hóa màu sắc/kích thước, hỗ trợ variants như Primary, Outline, Ghost, Destructive).
+   - Tuyệt đối KHÔNG áp đặt các quy trình review tầng tầng lớp lớp hay ép buộc cấu trúc quá phức tạp lên các component ở tầng này trước khi chính thức chuẩn hóa hệ thống shadcn.
+
 
 
 

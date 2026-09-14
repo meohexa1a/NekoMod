@@ -168,16 +168,15 @@ ComposeView (Arc Scene2D Element, Berlin Wall Y-flip)
 - `core/compose/primitive/Text.kt` — `@Composable fun Text(text, modifier, textColor, font)`
 - `ui/components/Button.kt` — `@Composable fun Button(onClick, modifier, enabled, corners, ...)`
 - `ui/components/Checkbox.kt` — `@Composable fun Checkbox(checked, onCheckedChange, modifier, enabled, ...)`
-- `ui/components/Switch.kt` — `@Composable fun Switch(checked, onCheckedChange, modifier, enabled, ...)`
+- `ui/components/TextField.kt` — `@Composable fun TextField(value, onValueChange, modifier, enabled, ...)`
 
 ---
 
-### 9. UI Facade, Entry Point & Samples — 🟢 Stable
+### 9. Entry Point & Samples — 🟢 Stable
 
 **Files:**
-- `ui/NekoUI.kt` — Facade tổng hợp: re-export toàn bộ Composable primitives, Components (`Button`, `Checkbox`, `Switch`), Types, và cú pháp `Table.compose`
 - `NekoMod.kt` — Mod entry point, khởi tạo `SampleComposeDialog().show()` khi game load
-- `sample/SampleComposeDialog.kt` — Showcase dialog mẫu: trình diễn Flexbox stretch ratio, bo góc SDF, counter button, Reactive Checkbox và Switch
+- `sample/SampleComposeDialog.kt` — Showcase dialog mẫu: trình diễn Flexbox stretch ratio, bo góc SDF, counter button, Reactive Checkbox và TextField
 
 ---
 
@@ -282,9 +281,8 @@ src/main/kotlin/org/hubdustry/
 ├── sample/
 │   └── SampleComposeDialog.kt
 └── ui/
-    ├── NekoUI.kt
     └── components/
         ├── Button.kt
         ├── Checkbox.kt
-        └── Switch.kt
+        └── TextField.kt
 ```

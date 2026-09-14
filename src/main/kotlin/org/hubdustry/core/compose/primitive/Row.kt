@@ -2,11 +2,12 @@ package org.hubdustry.core.compose.primitive
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ComposeNode
-import org.hubdustry.core.compose.runtime.LayoutNodeApplier
 import org.hubdustry.core.compose.modifier.Modifier
-import org.hubdustry.core.compose.modifier.applyTo
 import org.hubdustry.core.compose.modifier.RowScope
 import org.hubdustry.core.compose.modifier.RowScopeInstance
+import org.hubdustry.core.compose.modifier.applyTo
+import org.hubdustry.core.compose.runtime.LayoutNodeApplier
+import org.hubdustry.core.compose.unit.Dp
 import org.hubdustry.core.layout.LayoutNode
 import org.hubdustry.core.layout.SizeFlag
 import org.hubdustry.core.layout.policies.RowPolicy
@@ -32,3 +33,10 @@ inline fun Row(
         content = { RowScopeInstance.content() }
     )
 }
+
+@Composable
+inline fun Row(
+    modifier: Modifier = Modifier.Companion,
+    gap: Dp,
+    crossinline content: @Composable RowScope.() -> Unit = {}
+) = Row(modifier, gap.toPx, content)

@@ -75,6 +75,7 @@ Mọi review skill phải trả về báo cáo theo format sau:
 | `semantic-clarity-reviewer` | `.agents/skills/semantic-clarity-reviewer/` | Tên nói dối, API phantom, suspend giả, code đọc có hiểu không |
 | `code-aesthetics-reviewer` | `.agents/skills/code-aesthetics-reviewer/` | Expression body, blank line phân đoạn, named args, naming, local functions, section banners, ASCII diagrams |
 | `architecture-guardian` | `.agents/skills/architecture-guardian/` | Tự động thanh tra, siết chặt đóng gói, phủ KDoc 100%, và đóng băng kiến trúc |
+| `architecture-boundary-reviewer` | `.agents/skills/architecture-boundary-reviewer/` | Ranh giới package, hướng phụ thuộc 1 chiều, package cohesion, cấm import vòng |
 | `change-reporter` | `.agents/skills/change-reporter/` | Tạo báo cáo thay đổi có cấu trúc (không chấm điểm) |
 
 ---
@@ -98,6 +99,5 @@ Mọi review skill phải trả về báo cáo theo format sau:
 | Skill | Chấm cái gì | Khi nào cần |
 |:---|:---|:---|
 | `compose-idioms-reviewer` | Composable signature, State hoisting, Modifier.Element contract, side-effects | Khi có >10 composables |
-| `architecture-boundary-reviewer` | Module coupling, dependency direction, import violations | Khi có >5 packages |
 | `performance-reviewer` | Boxing value class, hot-path allocation, scratchpad hygiene | Khi có input/render bugs |
 | `test-coverage-reporter` | Liệt kê code paths chưa có test | Khi test suite >30 files |

@@ -6,7 +6,7 @@ import org.hubdustry.core.compose.runtime.CompositionManager
 import org.hubdustry.core.compose.modifier.Modifier
 import org.hubdustry.core.compose.input.Offset
 import org.hubdustry.core.compose.input.PointerEventType
-import org.hubdustry.core.compose.input.clickable
+import org.hubdustry.core.compose.modifier.clickable
 import org.hubdustry.core.compose.modifier.horizontalScroll
 import org.hubdustry.core.compose.modifier.size
 import org.hubdustry.core.compose.modifier.verticalScroll
@@ -18,6 +18,7 @@ import org.hubdustry.core.layout.LayoutNode
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -33,6 +34,8 @@ class ScrollTest {
         vMod.applyTo(node)
 
         assertTrue(node.clip, "ScrollModifier phải kích hoạt clipping trên node")
+        assertTrue(node.clipVertical, "ScrollModifier dọc phải bật clipVertical")
+        assertFalse(node.clipHorizontal, "ScrollModifier dọc không được bật clipHorizontal")
         assertTrue(node.isScrollableVertical)
         assertFalse(node.isScrollableHorizontal)
         assertEquals(vState, node.verticalScrollState)
@@ -41,11 +44,15 @@ class ScrollTest {
         val hMod = ScrollModifier(hState, isVertical = false, enabled = true)
         hMod.applyTo(node)
 
+        assertTrue(node.clipHorizontal, "ScrollModifier ngang phải bật clipHorizontal")
         assertTrue(node.isScrollableHorizontal)
         assertEquals(hState, node.horizontalScrollState)
         assertEquals(25f, node.scrollX)
 
         node.resetModifierState()
+        assertFalse(node.clip, "resetModifierState phải tắt toàn bộ clip")
+        assertFalse(node.clipVertical, "resetModifierState phải tắt clipVertical")
+        assertFalse(node.clipHorizontal, "resetModifierState phải tắt clipHorizontal")
         assertFalse(node.isScrollableVertical)
         assertFalse(node.isScrollableHorizontal)
         assertEquals(null, node.verticalScrollState)
@@ -431,5 +438,135 @@ class ScrollTest {
         val stoppedValue = state.value
 
         assertEquals(flungValue, stoppedValue, "Chạm ngón tay phải dừng lập tức quán tính cuộn")
+    }
+
+    @Test
+    fun testMouseWheelScrollAndScrollFocusLifecycle() {
+        val view = ComposeView()
+        val state = ScrollState()
+
+        view.setContent {
+            Column(
+                modifier = Modifier
+                    .size(200f, 200f)
+                    .verticalScroll(state)
+            ) {
+                Box(modifier = Modifier.size(200f, 1000f))
+            }
+        }
+        CompositionManager.frame()
+        view.setSize(200f, 200f)
+        view.layout()
+
+        // 1. Khởi tạo MockGraphics và MockGL20 cho headless test môi trường Arc
+        val prevGraphics = arc.Core.graphics
+        val prevGl = arc.Core.gl
+        val prevGl20 = arc.Core.gl20
+        try {
+            if (arc.Core.graphics == null) {
+                arc.Core.graphics = arc.mock.MockGraphics()
+            }
+            if (arc.Core.gl == null && runCatching { Class.forName("arc.mock.MockGL20") }.isSuccess) {
+                arc.Core.gl = Class.forName("arc.mock.MockGL20").getDeclaredConstructor().newInstance() as arc.graphics.GL20
+                arc.Core.gl20 = arc.Core.gl
+            }
+            val scene = arc.scene.Scene()
+            scene.add(view)
+
+            // Chuột di chuyển vào -> phải tự động xin scrollFocus từ Scene
+            val inputAdapter = view.listeners.find { it is org.hubdustry.core.compose.view.ArcInputAdapter }
+                as? org.hubdustry.core.compose.view.ArcInputAdapter
+            kotlin.test.assertNotNull(inputAdapter, "ComposeView phải sở hữu ArcInputAdapter")
+
+            inputAdapter.enter(null, 50f, 50f, -1, null)
+            assertEquals(view, scene.scrollFocus, "Rê chuột vào phải xin quyền scrollFocus từ Scene")
+
+            // 2. Con lăn chuột quay -> cuộn nội dung
+            val scrolled = inputAdapter.scrolled(null, 50f, 50f, 0f, 2f)
+            assertTrue(scrolled, "scrolled() phải trả về true khi có bộ cuộn tiêu thụ")
+            assertTrue(state.value > 0f, "Con lăn chuột phải làm tăng ScrollState")
+
+            // 3. Chuột rời khỏi -> giải phóng scrollFocus
+            inputAdapter.exit(null, -10f, -10f, -1, null)
+            assertNull(scene.scrollFocus, "Chuột rời khỏi phải giải phóng scrollFocus của Scene")
+        } finally {
+            view.dispose()
+            arc.Core.graphics = prevGraphics
+            arc.Core.gl = prevGl
+            arc.Core.gl20 = prevGl20
+        }
+    }
+
+    @Test
+    fun testDiagonalSwipeDoesNotFreezeDragDetector() {
+        val view = ComposeView()
+        val state = ScrollState()
+
+        view.setContent {
+            Column(
+                modifier = Modifier
+                    .size(200f, 200f)
+                    .verticalScroll(state)
+            ) {
+                Box(modifier = Modifier.size(200f, 1000f))
+            }
+        }
+        CompositionManager.frame()
+        view.setSize(200f, 200f)
+        view.layout()
+
+        // Giả lập vuốt chéo: dx = 30px, dy = 10px trong vài frame đầu (lệch ngang > dọc)
+        val t0 = 20000L
+        view.sendPointerInput(PointerEventType.Press, 100f, 100f, uptimeMillis = t0)
+        view.sendPointerInput(PointerEventType.Move, 130f, 90f, uptimeMillis = t0 + 16L)
+
+        // Sau đó người dùng tiếp tục vuốt mạnh theo chiều dọc (dy = 60px)
+        view.sendPointerInput(PointerEventType.Move, 135f, 40f, uptimeMillis = t0 + 32L)
+
+        // Bộ nhận diện không bị freeze, khi dy vượt touch slop thì vertical drag vẫn hoạt động!
+        assertTrue(state.value > 0f, "Vuốt chéo không được làm tê liệt bộ nhận diện kéo dọc")
+
+        // Nhả ngón tay
+        view.sendPointerInput(PointerEventType.Release, 135f, 40f, uptimeMillis = t0 + 48L)
+
+        // Lần vuốt tiếp theo phải bắt đầu sạch sẽ ngay lập tức (không bị kẹt trong awaitFirstDown)
+        val prevVal = state.value
+        view.sendPointerInput(PointerEventType.Press, 100f, 100f, uptimeMillis = t0 + 100L)
+        view.sendPointerInput(PointerEventType.Move, 100f, 60f, uptimeMillis = t0 + 120L)
+        assertTrue(state.value > prevVal, "Cú vuốt tiếp theo phải hoạt động bình thường ngay sau khi nhả ngón")
+
+        view.dispose()
+    }
+
+    @Test
+    fun testDraggingPastBoundaryKeepsTrackingAndReversesFluidly() {
+        val view = ComposeView()
+        val state = ScrollState(0f)
+
+        view.setContent {
+            Column(
+                modifier = Modifier
+                    .size(200f, 200f)
+                    .verticalScroll(state)
+            ) {
+                Box(modifier = Modifier.size(200f, 1000f))
+            }
+        }
+        CompositionManager.frame()
+        view.setSize(200f, 200f)
+        view.layout()
+
+        val t0 = 30000L
+        // 1. Đang ở đỉnh (0px), cố kéo xuống dưới (delta < 0, vượt biên âm)
+        view.sendPointerInput(PointerEventType.Press, 100f, 50f, uptimeMillis = t0)
+        view.sendPointerInput(PointerEventType.Move, 100f, 90f, uptimeMillis = t0 + 20L)
+        assertEquals(0f, state.value, "Kéo vượt biên âm phải được kẹp tại 0")
+
+        // 2. Không nhả tay, đảo chiều kéo ngược lên trên (delta > 0)
+        view.sendPointerInput(PointerEventType.Move, 100f, 10f, uptimeMillis = t0 + 40L)
+        assertTrue(state.value > 0f, "Đảo chiều kéo sau khi vượt biên phải cuộn mượt mà không bị kẹt hay giật cục")
+
+        view.sendPointerInput(PointerEventType.Release, 100f, 10f, uptimeMillis = t0 + 50L)
+        view.dispose()
     }
 }

@@ -6,6 +6,7 @@ import androidx.compose.ui.util.fastForEachIndexed
 import arc.input.KeyCode
 import org.hubdustry.core.compose.input.ConsumedData
 import org.hubdustry.core.compose.input.IntSize
+import org.hubdustry.core.compose.input.KeyboardInputHandler
 import org.hubdustry.core.compose.input.Offset
 import org.hubdustry.core.compose.input.PointerButton
 import org.hubdustry.core.compose.input.PointerEvent
@@ -17,41 +18,13 @@ import org.hubdustry.core.compose.input.PointerType
 import org.hubdustry.core.layout.LayoutNode
 
 /**
- * Interface đón nhận các sự kiện bàn phím từ [InputDispatcher].
- */
-interface KeyboardInputHandler {
-    fun onKeyTyped(character: Char): Boolean
-    fun onKeyDown(keycode: KeyCode?): Boolean
-    fun onKeyUp(keycode: KeyCode?): Boolean = false
-    fun onFocusLost() {}
-}
-
-/**
- * Ghi lại thông tin node trúng hit-test và tọa độ tuyệt đối của node trong ComposeView.
- */
-internal data class LayoutNodeHit(
-    var node: LayoutNode,
-    var absX: Float,
-    var absY: Float
-)
-
-internal class PointerHitRecord(
-    val chain: List<LayoutNodeHit>,
-    var lastComposeX: Float,
-    var lastComposeY: Float,
-    var lastUptime: Long,
-    val button: PointerButton? = PointerButton.Primary,
-    val pointerType: PointerType = PointerType.Touch
-)
-
-/**
- * Bộ điều phối sự kiện con trỏ và cử chỉ độc lập cho [ComposeView].
+ * [InputDispatcher] — Bộ điều phối sự kiện con trỏ và bàn phím cấp cao cho [ComposeView].
  *
- * TÁCH BIỆT TRÁCH NHIỆM (Đợt 2 Refactor):
- * 1. Chịu trách nhiệm Hit-Testing duyệt cây tìm chuỗi node nhận tương tác.
- * 2. Phân phối sự kiện 3-pass (Initial -> Main -> Final) theo chuẩn Jetpack Compose AOSP.
- * 3. Theo dõi vòng đời con trỏ (Touch/Mouse/Hover Tracking) và giải phóng sạch sẽ.
- * 4. Tái sử dụng scratchpads và object pools để triệt tiêu cấp phát heap trong hot-path (Zero-GC).
+ * PHÂN TẦNG KIẾN TRÚC (Đợt 3 Refactor):
+ * 1. Ủy quyền duyệt cây hit-testing và quản lý object pools cho [HitTestManager].
+ * 2. Tập trung vào thuật toán phân phối 3-Pass (Tunneling -> Bubbling) theo chuẩn Jetpack Compose AOSP.
+ * 3. Theo dõi vòng đời con trỏ nhấn giữ ([trackedPointers]) và phím bấm ([focusedKeyHandler]).
+ * 4. Kỷ luật Zero-GC trong hot-paths (Move, Touch, Scroll).
  *
  * Sơ đồ phân phối sự kiện 3-pass (chuỗi Root → Leaf, 3 node ví dụ):
  *
@@ -68,40 +41,14 @@ internal class PointerHitRecord(
  *
  *  ConsumedData.isConsumed được chia sẻ qua toàn bộ 3 pass.
  */
-class InputDispatcher(private val rootLayoutNode: LayoutNode) {
+class InputDispatcher(rootLayoutNode: LayoutNode) {
 
-    // Bộ theo dõi con trỏ đang hoạt động (Pointer Tracking)
+    internal val hitTestManager = HitTestManager(rootLayoutNode)
     private val trackedPointers = HashMap<Int, PointerHitRecord>()
-    private val hitScratch = ArrayList<LayoutNodeHit>()
-    private val hitPool = ArrayList<LayoutNodeHit>()
-    private var hitPoolIndex = 0
-
-    // Scratchpad tái sử dụng trong dispatch3Pass để triệt tiêu cấp phát collection trong hot-path
     private val eventsScratch = ArrayList<PointerEvent>()
-    private val previousHoverChain = ArrayList<LayoutNodeHit>()
-    private val exitedHoverScratch = ArrayList<LayoutNodeHit>()
-    private val hoverPool = ArrayList<LayoutNodeHit>()
 
-    private fun obtainHit(node: LayoutNode, absX: Float, absY: Float): LayoutNodeHit {
-        val hit = if (hitPoolIndex < hitPool.size) {
-            val existing = hitPool[hitPoolIndex]
-            existing.node = node
-            existing.absX = absX
-            existing.absY = absY
-            existing
-        } else {
-            val newHit = LayoutNodeHit(node, absX, absY)
-            hitPool.add(newHit)
-            newHit
-        }
-        hitPoolIndex++
-        return hit
-    }
+    // ── POINTER EVENT ENTRY POINTS ───────────────────────────────────────────
 
-    /**
-     * Entry point nhận sự kiện con trỏ tổng quát (sử dụng trong kiểm thử và tích hợp mở rộng).
-     * Tọa độ [x], [y] là tọa độ Top-Left (Y-down) nội bộ của NekoMod Compose.
-     */
     fun sendPointerInput(
         type: PointerEventType,
         x: Float,
@@ -111,29 +58,27 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         button: PointerButton? = PointerButton.Primary,
         pointerType: PointerType = PointerType.Touch,
         scrollDelta: Offset = Offset.Zero
-    ): Boolean {
-        return when (type) {
-            PointerEventType.Press -> touchDown(x, y, pointer, uptimeMillis, button, pointerType)
-            PointerEventType.Move -> {
-                if (trackedPointers.containsKey(pointer)) {
-                    touchMove(x, y, pointer, uptimeMillis)
-                    true
-                } else {
-                    mouseMove(x, y, uptimeMillis)
-                }
-            }
-            PointerEventType.Release -> {
-                touchUp(x, y, pointer, uptimeMillis, button, pointerType)
+    ): Boolean = when (type) {
+        PointerEventType.Press -> touchDown(x, y, pointer, uptimeMillis, button, pointerType)
+        PointerEventType.Move -> {
+            if (trackedPointers.containsKey(pointer)) {
+                touchMove(x, y, pointer, uptimeMillis)
                 true
+            } else {
+                mouseMove(x, y, uptimeMillis)
             }
-            PointerEventType.Scroll -> scroll(x, y, scrollDelta, uptimeMillis)
-            PointerEventType.Exit -> {
-                mouseExit(uptimeMillis)
-                cancelAllActivePointers(uptimeMillis)
-                true
-            }
-            PointerEventType.Enter, PointerEventType.Unknown -> false
         }
+        PointerEventType.Release -> {
+            touchUp(x, y, pointer, uptimeMillis, button, pointerType)
+            true
+        }
+        PointerEventType.Scroll -> scroll(x, y, scrollDelta, uptimeMillis)
+        PointerEventType.Exit -> {
+            mouseExit(uptimeMillis)
+            cancelAllActivePointers(uptimeMillis)
+            true
+        }
+        PointerEventType.Enter, PointerEventType.Unknown -> false
     }
 
     fun touchDown(
@@ -144,14 +89,11 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         button: PointerButton? = PointerButton.Primary,
         pointerType: PointerType = PointerType.Touch
     ): Boolean {
-        hitPoolIndex = 0
-        hitScratch.clear()
-        hitTestChain(rootLayoutNode, parentAbsX = 0f, parentAbsY = 0f, targetX = composeX, targetY = composeY, result = hitScratch)
+        val hits = hitTestManager.findHitChain(composeX, composeY)
+        if (hits.isEmpty()) return false
 
-        if (hitScratch.isEmpty()) return false
-
-        val chain = ArrayList<LayoutNodeHit>(hitScratch.size)
-        hitScratch.fastForEach { h ->
+        val chain = ArrayList<LayoutNodeHit>(hits.size)
+        hits.fastForEach { h ->
             chain.add(LayoutNodeHit(h.node, h.absX, h.absY))
         }
         trackedPointers[pointer] = PointerHitRecord(chain, composeX, composeY, uptime, button, pointerType)
@@ -209,12 +151,7 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         pointerType: PointerType = PointerType.Touch
     ) {
         val record = trackedPointers.remove(pointer)
-        val chain = record?.chain ?: run {
-            hitPoolIndex = 0
-            hitScratch.clear()
-            hitTestChain(rootLayoutNode, parentAbsX = 0f, parentAbsY = 0f, targetX = composeX, targetY = composeY, result = hitScratch)
-            hitScratch
-        }
+        val chain = record?.chain ?: hitTestManager.findHitChain(composeX, composeY)
         val prevX = record?.lastComposeX ?: composeX
         val prevY = record?.lastComposeY ?: composeY
         val prevUptime = record?.lastUptime ?: uptime
@@ -238,23 +175,17 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         )
     }
 
-    /**
-     * Điều phối sự kiện con lăn chuột (Mouse Wheel / Scroll) qua chuỗi 3-pass theo chuẩn Compose.
-     */
     fun scroll(
         composeX: Float,
         composeY: Float,
         scrollDelta: Offset,
         uptime: Long = System.currentTimeMillis()
     ): Boolean {
-        hitPoolIndex = 0
-        hitScratch.clear()
-        hitTestChain(rootLayoutNode, parentAbsX = 0f, parentAbsY = 0f, targetX = composeX, targetY = composeY, result = hitScratch)
-
-        if (hitScratch.isEmpty()) return false
+        val hits = hitTestManager.findHitChain(composeX, composeY)
+        if (hits.isEmpty()) return false
 
         return dispatch3Pass(
-            chain = hitScratch,
+            chain = hits,
             composeX = composeX,
             composeY = composeY,
             pointer = 0,
@@ -272,22 +203,13 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
     }
 
     fun mouseMove(composeX: Float, composeY: Float, uptime: Long): Boolean {
-        hitPoolIndex = 0
-        hitScratch.clear()
-        hitTestChain(rootLayoutNode, parentAbsX = 0f, parentAbsY = 0f, targetX = composeX, targetY = composeY, result = hitScratch)
+        val hits = hitTestManager.findHitChain(composeX, composeY)
 
-        // 1. Tìm các node đã rời khỏi tầm chuột (Exited nodes)
-        exitedHoverScratch.clear()
-        previousHoverChain.fastForEach { prevHit ->
-            if (!hitScratch.fastAny { it.node === prevHit.node }) {
-                exitedHoverScratch.add(prevHit)
-            }
-        }
-
-        // Dispatch sự kiện ra ngoài bounds cho các node đã rời đi
-        if (exitedHoverScratch.isNotEmpty()) {
+        // 1. Dispatch Exit cho các node chuột vừa rời khỏi
+        val exited = hitTestManager.findExitedHoverNodes(hits)
+        if (exited.isNotEmpty()) {
             dispatch3Pass(
-                chain = exitedHoverScratch,
+                chain = exited,
                 composeX = composeX,
                 composeY = composeY,
                 pointer = 0,
@@ -301,13 +223,12 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
                 pointerType = PointerType.Mouse,
                 button = null
             )
-            exitedHoverScratch.clear()
         }
 
-        // 2. Dispatch sự kiện Move cho các node đang trúng chuột
-        if (hitScratch.isNotEmpty()) {
+        // 2. Dispatch Move cho các node đang trúng chuột
+        if (hits.isNotEmpty()) {
             dispatch3Pass(
-                chain = hitScratch,
+                chain = hits,
                 composeX = composeX,
                 composeY = composeY,
                 pointer = 0,
@@ -323,21 +244,17 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
             )
         }
 
-        // 3. Cập nhật previousHoverChain mà không cấp phát mới (Zero-GC)
-        updatePreviousHoverChain(hitScratch)
-
-        return hitScratch.isNotEmpty()
+        // 3. Cập nhật chuỗi hover
+        hitTestManager.updatePreviousHoverChain(hits)
+        return hits.isNotEmpty()
     }
 
-    /**
-     * Thông báo con trỏ chuột đã rời khỏi phạm vi View.
-     * Chỉ giải phóng chuỗi hover, KHÔNG làm gián đoạn thao tác drag của các con trỏ đang nhấn (Fix N17).
-     */
     fun mouseExit(uptime: Long = System.currentTimeMillis()) {
-        if (previousHoverChain.isEmpty()) return
+        val previous = hitTestManager.takePreviousHoverChain()
+        if (previous.isEmpty()) return
 
         dispatch3Pass(
-            chain = previousHoverChain,
+            chain = previous,
             composeX = -1000f,
             composeY = -1000f,
             pointer = 0,
@@ -351,107 +268,9 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
             pointerType = PointerType.Mouse,
             button = null
         )
-        previousHoverChain.clear()
     }
 
-    private fun updatePreviousHoverChain(currentHits: List<LayoutNodeHit>) {
-        previousHoverChain.clear()
-        currentHits.fastForEachIndexed { i, src ->
-            val hit = if (i < hoverPool.size) {
-                val existing = hoverPool[i]
-                existing.node = src.node
-                existing.absX = src.absX
-                existing.absY = src.absY
-                existing
-            } else {
-                val newHit = LayoutNodeHit(src.node, src.absX, src.absY)
-                hoverPool.add(newHit)
-                newHit
-            }
-            previousHoverChain.add(hit)
-        }
-    }
-
-    private fun hitTestChain(
-        node: LayoutNode,
-        parentAbsX: Float,
-        parentAbsY: Float,
-        clipMinX: Float = -100000f,
-        clipMinY: Float = -100000f,
-        clipMaxX: Float = 100000f,
-        clipMaxY: Float = 100000f,
-        targetX: Float,
-        targetY: Float,
-        result: MutableList<LayoutNodeHit>
-    ): Boolean {
-        if (!node.visible) return false
-
-        // 1. Kiểm tra điểm tương tác có nằm trong vùng cắt gọt thừa kế từ tổ tiên không
-        if (targetX < clipMinX || targetX > clipMaxX || targetY < clipMinY || targetY > clipMaxY) {
-            return false
-        }
-
-        val absX = parentAbsX + node.x + node.offsetX
-        val absY = parentAbsY + node.y + node.offsetY
-        val w = node.width
-        val h = node.height
-
-        // 2. Tọa độ cục bộ trong node
-        val localX = targetX - absX
-        val localY = targetY - absY
-
-        // 3. Nếu node có clip nhưng điểm chạm rơi ra ngoài AABB của trục được clip -> reject
-        if ((node.clipHorizontal && (localX < 0f || localX > w)) ||
-            (node.clipVertical && (localY < 0f || localY > h))) {
-            return false
-        }
-
-        // 4. Kiểm tra điểm có nằm trong hình học thực tế của node (AABB & bo góc) qua Pure Math của chính Node
-        val isInShape = node.containsPoint(localX, localY)
-
-        // Nếu node có clip bo góc và điểm chạm rơi vào góc bị xén -> reject
-        if (node.hasClipCorners && !isInShape) {
-            return false
-        }
-
-        val initialSize = result.size
-
-        // Node nhận hit nếu điểm nằm trong hình dạng thực tế và có bộ lọc cử chỉ
-        if (isInShape && node.pointerInputFilters.isNotEmpty()) {
-            result.add(obtainHit(node, absX, absY))
-        }
-
-        // 5. Tính toán vùng clip lũy tiến cho các node con
-        val nextClipMinX = if (node.clipHorizontal) maxOf(clipMinX, absX) else clipMinX
-        val nextClipMaxX = if (node.clipHorizontal) minOf(clipMaxX, absX + w) else clipMaxX
-        val nextClipMinY = if (node.clipVertical) maxOf(clipMinY, absY) else clipMinY
-        val nextClipMaxY = if (node.clipVertical) minOf(clipMaxY, absY + h) else clipMaxY
-
-        val childParentAbsX = absX - node.scrollX
-        val childParentAbsY = absY - node.scrollY
-
-        val children = node.children
-        val count = children.size
-        for (i in count - 1 downTo 0) {
-            if (hitTestChain(
-                    node = children[i],
-                    parentAbsX = childParentAbsX,
-                    parentAbsY = childParentAbsY,
-                    clipMinX = nextClipMinX,
-                    clipMinY = nextClipMinY,
-                    clipMaxX = nextClipMaxX,
-                    clipMaxY = nextClipMaxY,
-                    targetX = targetX,
-                    targetY = targetY,
-                    result = result
-                )
-            ) {
-                break
-            }
-        }
-
-        return result.size > initialSize
-    }
+    // ── 3-PASS DISPATCH ALGORITHM ────────────────────────────────────────────
 
     private fun dispatch3Pass(
         chain: List<LayoutNodeHit>,
@@ -476,11 +295,13 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         val pointerId = PointerId(pointer.toLong())
         val consumed = ConsumedData(isConsumed)
 
+        // Tối ưu hóa cho node đơn lẻ (Single Hit Fast-Path)
         if (count == 1) {
             val hit = chain[0]
             val filters = hit.node.pointerInputFilters
             val fCount = filters.size
             if (fCount == 0) return false
+
             val pos = Offset(composeX - hit.absX, composeY - hit.absY)
             val prevPos = Offset(previousComposeX - hit.absX, previousComposeY - hit.absY)
             val change = PointerInputChange(
@@ -503,14 +324,12 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
             )
 
             // Initial Pass: outer to inner
-            filters.fastForEach { filter ->
-                filter.dispatchPointerEvent(event, PointerEventPass.Initial, bounds)
-            }
-            // Main Pass: inner to outer (fCount - 1 downTo 0)
+            filters.fastForEach { it.dispatchPointerEvent(event, PointerEventPass.Initial, bounds) }
+            // Main Pass: inner to outer
             for (f in fCount - 1 downTo 0) {
                 filters[f].dispatchPointerEvent(event, PointerEventPass.Main, bounds)
             }
-            // Final Pass: inner to outer (fCount - 1 downTo 0)
+            // Final Pass: inner to outer
             for (f in fCount - 1 downTo 0) {
                 filters[f].dispatchPointerEvent(event, PointerEventPass.Final, bounds)
             }
@@ -518,7 +337,6 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         }
 
         eventsScratch.clear()
-
         for (i in 0 until count) {
             val hit = chain[i]
             val pos = Offset(composeX - hit.absX, composeY - hit.absY)
@@ -582,6 +400,8 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         return consumed.isConsumed
     }
 
+    // ── POINTER CANCELLATION & CLEANUP ───────────────────────────────────────
+
     fun cancelPointer(pointer: Int, uptime: Long = System.currentTimeMillis()) {
         val record = trackedPointers.remove(pointer) ?: return
         dispatch3Pass(
@@ -602,20 +422,14 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
         )
     }
 
-    /**
-     * Giải phóng dứt điểm tất cả con trỏ đang nhấn khi ComposeView bị hủy hoặc reset.
-     */
     fun cancelAllActivePointers(uptime: Long = System.currentTimeMillis()) {
         if (trackedPointers.isEmpty()) return
         val pointers = ArrayList(trackedPointers.keys)
         pointers.fastForEach { cancelPointer(it, uptime) }
     }
 
-    /**
-     * Dọn dẹp triệt để các tham chiếu tới node khi node bị gỡ khỏi cây Virtual DOM (Fix O2 Ghost Node).
-     */
     fun onNodeRemoved(node: LayoutNode) {
-        previousHoverChain.removeAll { it.node === node }
+        hitTestManager.onNodeRemoved(node)
         if (trackedPointers.isEmpty()) return
 
         val pointersToCancel = ArrayList<Int>()
@@ -650,16 +464,8 @@ class InputDispatcher(private val rootLayoutNode: LayoutNode) {
     fun dispose() {
         cancelAllActivePointers()
         trackedPointers.clear()
-
-        hitScratch.clear()
-        hitPool.clear()
-        hitPoolIndex = 0
-
+        hitTestManager.dispose()
         eventsScratch.clear()
-        previousHoverChain.clear()
-        exitedHoverScratch.clear()
-        hoverPool.clear()
-
         focusedKeyHandler = null
     }
 }

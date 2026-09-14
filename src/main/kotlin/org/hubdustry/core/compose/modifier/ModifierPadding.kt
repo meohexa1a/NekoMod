@@ -1,5 +1,7 @@
 package org.hubdustry.core.compose.modifier
 
+import org.hubdustry.core.compose.unit.Dp
+import org.hubdustry.core.compose.unit.dp
 import org.hubdustry.core.layout.LayoutNode
 
 private data class PaddingModifier(
@@ -23,11 +25,16 @@ private data class PaddingModifier(
 fun Modifier.padding(all: Float): Modifier =
     this.then(PaddingModifier(start = all, top = all, end = all, bottom = all))
 
+fun Modifier.padding(all: Dp): Modifier = this.padding(all.toPx)
+
 /**
  * Thêm vùng đệm theo phương ngang [horizontal] và phương dọc [vertical].
  */
 fun Modifier.padding(horizontal: Float = 0f, vertical: Float = 0f): Modifier =
     this.then(PaddingModifier(start = horizontal, top = vertical, end = horizontal, bottom = vertical))
+
+fun Modifier.padding(horizontal: Dp = 0.dp, vertical: Dp = 0.dp): Modifier =
+    this.padding(horizontal.toPx, vertical.toPx)
 
 /**
  * Thêm vùng đệm độc lập cho từng cạnh (chuẩn LTR: start = left, end = right).
@@ -38,3 +45,10 @@ fun Modifier.padding(
     end: Float = 0f,
     bottom: Float = 0f
 ): Modifier = this.then(PaddingModifier(start = start, top = top, end = end, bottom = bottom))
+
+fun Modifier.padding(
+    start: Dp = 0.dp,
+    top: Dp = 0.dp,
+    end: Dp = 0.dp,
+    bottom: Dp = 0.dp
+): Modifier = this.padding(start.toPx, top.toPx, end.toPx, bottom.toPx)

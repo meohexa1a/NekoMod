@@ -16,7 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import org.hubdustry.core.compose.input.clickable
+import org.hubdustry.core.compose.modifier.clickable
 import org.hubdustry.core.compose.runtime.CompositionManager
 import org.hubdustry.core.compose.runtime.LayoutNodeApplier
 
@@ -246,20 +246,20 @@ class ComposeLifecycleTest {
         view.setSize(200f, 200f)
         view.layout()
 
-        // 1. Nhn chutt xunng trAn item (Press) -> Bt u track pointer vA hover
+        // 1. Nhấn chuột xuống trên item (Press) -> Bắt đầu track pointer và hover
         val hitDown = view.sendPointerInput(org.hubdustry.core.compose.input.PointerEventType.Press, 20f, 20f)
         assertTrue(hitDown, "Press must hit removable item")
 
-        // 2. XA3a item kh?i cAy bng cAch thay Tic reactive state
+        // 2. Xóa item khỏi cây bằng cách thay đổi reactive state
         showItem.value = false
         CompositionManager.frame()
         view.layout()
 
-        // XAc nhn item `A b< g- kh?i Virtual Tree
+        // Xác nhận item đã bị gỡ khỏi Virtual Tree
         val column = view.rootLayoutNode.children[0]
         assertEquals(0, column.children.size, "Removable item must be detached from tree")
 
-        // 3. G-i s ki?n tip theo (Move hoc Release) - khAng `c nAm ngoi l? vA khAng cAn dA-nh ti node c
+        // 3. Gửi sự kiện tiếp theo (Move hoặc Release) - không được ném ngoại lệ và không còn dính tới node cũ
         view.sendPointerInput(org.hubdustry.core.compose.input.PointerEventType.Release, 20f, 20f)
         assertFalse(itemClicked, "Removed item must not trigger click after being detached")
 

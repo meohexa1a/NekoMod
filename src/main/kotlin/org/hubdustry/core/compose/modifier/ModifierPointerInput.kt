@@ -1,16 +1,21 @@
-package org.hubdustry.core.compose.input
+package org.hubdustry.core.compose.modifier
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import org.hubdustry.core.compose.modifier.Modifier
+import org.hubdustry.core.compose.input.HoverInteraction
+import org.hubdustry.core.compose.input.MutableInteractionSource
+import org.hubdustry.core.compose.input.PointerEventPass
+import org.hubdustry.core.compose.input.PointerInputScope
+import org.hubdustry.core.compose.input.PressInteraction
+import org.hubdustry.core.compose.input.SuspendingPointerInputFilter
 import org.hubdustry.core.compose.input.gestures.detectTapGestures
 import org.hubdustry.core.layout.LayoutNode
 
 /**
- * Modifier gắn bộ lọc [SuspendingPointerInputFilter] vào [LayoutNode].
+ * Modifier gắn bộ lọc [org.hubdustry.core.compose.input.SuspendingPointerInputFilter] vào [LayoutNode].
  */
 class PointerInputModifier(
     val filter: SuspendingPointerInputFilter,

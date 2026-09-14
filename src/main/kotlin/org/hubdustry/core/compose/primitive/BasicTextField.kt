@@ -12,23 +12,23 @@ import arc.graphics.Color
 import arc.graphics.g2d.Font
 import arc.graphics.g2d.GlyphLayout
 import arc.input.KeyCode
-import mindustry.ui.Fonts
 import kotlinx.coroutines.delay
-import org.hubdustry.core.compose.modifier.Modifier
+import mindustry.ui.Fonts
 import org.hubdustry.core.compose.foundation.text.TextFieldState
 import org.hubdustry.core.compose.input.FocusInteraction
 import org.hubdustry.core.compose.input.MutableInteractionSource
 import org.hubdustry.core.compose.input.collectIsFocusedAsState
 import org.hubdustry.core.compose.input.gestures.detectTapGestures
-import org.hubdustry.core.compose.input.hoverable
 import org.hubdustry.core.compose.input.ime.ImeCompositionListener
 import org.hubdustry.core.compose.input.ime.SdlReflectionImeBridge
-import org.hubdustry.core.compose.input.pointerInput
-import org.hubdustry.core.compose.modifier.alpha
+import org.hubdustry.core.compose.modifier.BoxScope
+import org.hubdustry.core.compose.modifier.Modifier
 import org.hubdustry.core.compose.modifier.background
+import org.hubdustry.core.compose.modifier.hoverable
 import org.hubdustry.core.compose.modifier.offset
+import org.hubdustry.core.compose.modifier.pointerInput
 import org.hubdustry.core.compose.modifier.size
-import org.hubdustry.core.compose.view.KeyboardInputHandler
+import org.hubdustry.core.compose.input.KeyboardInputHandler
 import org.hubdustry.core.compose.view.LocalComposeView
 import org.hubdustry.core.graphics.RoundedCorners
 import org.hubdustry.core.layout.Alignment
@@ -102,7 +102,7 @@ fun BasicTextField(
     font: Font? = null,
     cursorColor: Color = Color.royal,
     selectionColor: Color = DefaultSelectionColor,
-    decorationBox: @Composable (innerTextField: @Composable () -> Unit) -> Unit =
+    decorationBox: @Composable BoxScope.(innerTextField: @Composable () -> Unit) -> Unit =
         @Composable { innerTextField -> innerTextField() }
 ) {
     val source = interactionSource ?: remember { MutableInteractionSource() }
@@ -230,7 +230,6 @@ fun BasicTextField(
     // Container điều khiển tương tác văn bản - Thuần túy không nền, không viền, không padding
     val coreInputModifier = Modifier
         .then(modifier)
-        .then(if (!enabled) Modifier.alpha(0.5f) else Modifier)
         .hoverable(source, enabled)
         .pointerInput(enabled) {
             if (!enabled) return@pointerInput
@@ -257,7 +256,7 @@ fun BasicTextField(
         }
 
     val innerTextField: @Composable () -> Unit = {
-        Box(modifier = coreInputModifier) {
+        Box {
             // 1. Vẽ vùng bôi đen (Selection highlight) nếu có
             if (editState.hasSelection()) {
                 val selMin = editState.selection.min
@@ -292,12 +291,14 @@ fun BasicTextField(
             }
 
             // 3. Hiển thị chữ chính
-            Text(
-                text = displayText,
-                textColor = textColor,
-                font = activeFont,
-                modifier = Modifier.align(Alignment.START, Alignment.CENTER)
-            )
+            if (displayText.isNotEmpty()) {
+                Text(
+                    text = displayText,
+                    textColor = textColor,
+                    font = activeFont,
+                    modifier = Modifier.align(Alignment.START, Alignment.CENTER)
+                )
+            }
 
             // 4. Vẽ con trỏ chuột nhấp nháy (Blinking Cursor Bar)
             if (isFocused && editState.cursorVisible) {
@@ -315,5 +316,7 @@ fun BasicTextField(
         }
     }
 
-    decorationBox(innerTextField)
+    Box(modifier = coreInputModifier) {
+        decorationBox(innerTextField)
+    }
 }

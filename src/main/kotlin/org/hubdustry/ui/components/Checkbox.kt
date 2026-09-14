@@ -3,13 +3,13 @@ package org.hubdustry.ui.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import arc.graphics.Color
-import org.hubdustry.core.compose.Modifier
 import org.hubdustry.core.compose.input.MutableInteractionSource
-import org.hubdustry.core.compose.input.clickable
-import org.hubdustry.core.compose.input.hoverable
+import org.hubdustry.core.compose.modifier.Modifier
 import org.hubdustry.core.compose.modifier.alpha
 import org.hubdustry.core.compose.modifier.background
 import org.hubdustry.core.compose.modifier.border
+import org.hubdustry.core.compose.modifier.clickable
+import org.hubdustry.core.compose.modifier.hoverable
 import org.hubdustry.core.compose.modifier.size
 import org.hubdustry.core.compose.primitive.Box
 import org.hubdustry.core.compose.primitive.Text

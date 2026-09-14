@@ -1,6 +1,7 @@
 package org.hubdustry.core.compose.modifier
 
 import arc.graphics.Color
+import org.hubdustry.core.compose.unit.Dp
 import org.hubdustry.core.graphics.RoundedCorners
 import org.hubdustry.core.layout.LayoutNode
 
@@ -24,3 +25,6 @@ data class BorderModifier(
  */
 fun Modifier.border(width: Float, color: Color, corners: RoundedCorners? = null): Modifier =
     this.then(BorderModifier(width, color, corners))
+
+fun Modifier.border(width: Dp, color: Color, corners: RoundedCorners? = null): Modifier =
+    this.border(width.toPx, color, corners)

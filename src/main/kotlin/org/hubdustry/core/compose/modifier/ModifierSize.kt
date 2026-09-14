@@ -1,5 +1,7 @@
 package org.hubdustry.core.compose.modifier
 
+import org.hubdustry.core.compose.unit.Dp
+import org.hubdustry.core.compose.unit.dp
 import org.hubdustry.core.layout.Alignment
 import org.hubdustry.core.layout.LayoutNode
 import org.hubdustry.core.layout.SizeFlag
@@ -63,17 +65,24 @@ fun Modifier.size(width: Float, height: Float): Modifier =
  */
 fun Modifier.size(size: Float): Modifier = this.size(size, size)
 
+fun Modifier.size(width: Dp, height: Dp): Modifier = this.size(width.toPx, height.toPx)
+fun Modifier.size(size: Dp): Modifier = this.size(size.toPx, size.toPx)
+
 /**
  * Đặt chiều rộng chính xác [width] cho widget.
  */
 fun Modifier.width(width: Float): Modifier =
     this.then(WidthModifier(minWidth = width, maxWidth = width))
 
+fun Modifier.width(width: Dp): Modifier = this.width(width.toPx)
+
 /**
  * Đặt chiều cao chính xác [height] cho widget.
  */
 fun Modifier.height(height: Float): Modifier =
     this.then(HeightModifier(minHeight = height, maxHeight = height))
+
+fun Modifier.height(height: Dp): Modifier = this.height(height.toPx)
 
 /**
  * Kẹp biên kích thước trong khoảng cho phép.
@@ -85,15 +94,32 @@ fun Modifier.sizeIn(
     maxHeight: Float = Float.MAX_VALUE
 ): Modifier = this.then(SizeModifier(minWidth, minHeight, maxWidth, maxHeight))
 
+fun Modifier.sizeIn(
+    minWidth: Dp = 0.dp,
+    minHeight: Dp = 0.dp,
+    maxWidth: Dp = Dp.Infinity,
+    maxHeight: Dp = Dp.Infinity
+): Modifier = this.sizeIn(minWidth.toPx, minHeight.toPx, maxWidth.toPx, maxHeight.toPx)
+
 fun Modifier.widthIn(
     min: Float = 0f,
     max: Float = Float.MAX_VALUE
 ): Modifier = this.then(WidthModifier(minWidth = min, maxWidth = max))
 
+fun Modifier.widthIn(
+    min: Dp = 0.dp,
+    max: Dp = Dp.Infinity
+): Modifier = this.widthIn(min.toPx, max.toPx)
+
 fun Modifier.heightIn(
     min: Float = 0f,
     max: Float = Float.MAX_VALUE
 ): Modifier = this.then(HeightModifier(minHeight = min, maxHeight = max))
+
+fun Modifier.heightIn(
+    min: Dp = 0.dp,
+    max: Dp = Dp.Infinity
+): Modifier = this.heightIn(min.toPx, max.toPx)
 
 /**
  * Yêu cầu widget lấp đầy không gian khả dụng của container cha theo cả 2 chiều.

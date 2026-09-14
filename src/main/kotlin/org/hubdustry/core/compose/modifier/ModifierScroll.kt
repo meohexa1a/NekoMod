@@ -13,7 +13,6 @@ import org.hubdustry.core.compose.input.PointerEventType
 import org.hubdustry.core.compose.input.gestures.VelocityTracker1D
 import org.hubdustry.core.compose.input.gestures.detectHorizontalDragGestures
 import org.hubdustry.core.compose.input.gestures.detectVerticalDragGestures
-import org.hubdustry.core.compose.input.pointerInput
 import org.hubdustry.core.layout.LayoutNode
 import kotlin.math.abs
 
@@ -100,12 +99,10 @@ fun Modifier.verticalScroll(
                 },
                 onVerticalDrag = { change, dragAmount ->
                     if (change.isConsumed) return@detectVerticalDragGestures
+                    change.consume()
                     tracker.addPosition(change.uptimeMillis, change.position.y)
                     val delta = -dragAmount
-                    val consumed = state.dispatchRawDelta(delta)
-                    if (consumed != 0f) {
-                        change.consume()
-                    }
+                    state.dispatchRawDelta(delta)
                 },
                 onDragEnd = {
                     if (!fling) return@detectVerticalDragGestures
@@ -181,12 +178,10 @@ fun Modifier.horizontalScroll(
                 },
                 onHorizontalDrag = { change, dragAmount ->
                     if (change.isConsumed) return@detectHorizontalDragGestures
+                    change.consume()
                     tracker.addPosition(change.uptimeMillis, change.position.x)
                     val delta = -dragAmount
-                    val consumed = state.dispatchRawDelta(delta)
-                    if (consumed != 0f) {
-                        change.consume()
-                    }
+                    state.dispatchRawDelta(delta)
                 },
                 onDragEnd = {
                     if (!fling) return@detectHorizontalDragGestures
