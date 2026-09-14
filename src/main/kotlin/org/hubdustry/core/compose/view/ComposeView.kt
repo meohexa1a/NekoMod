@@ -276,6 +276,10 @@ open class ComposeView : Element() {
 
     override fun act(delta: Float) {
         super.act(delta)
+        // Đồng bộ mất keyboard focus hai chiều với Arc Scene2D Stage
+        if (inputDispatcher.focusedKeyHandler != null && Core.scene?.keyboardFocus !== this) {
+            inputDispatcher.focusedKeyHandler = null
+        }
         // Đập nhịp đồng bộ
         CompositionManager.frame()
         updateDimensionsAndLayout()

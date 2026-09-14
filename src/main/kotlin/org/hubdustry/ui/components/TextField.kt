@@ -51,14 +51,16 @@ private val measureGlyphLayout by lazy { GlyphLayout() }
 /**
  * Đo đạc chiều rộng của văn bản bằng font BMFont mà không cấp phát GlyphLayout mới (Zero-GC Rule 9.2).
  */
-internal fun calculateTextWidth(text: String, font: Font?): Float {
-    if (text.isEmpty()) return 0f
-    val f = font ?: Fonts.def ?: return text.length * 8f
+internal fun calculateTextWidth(text: String, font: Font?, start: Int = 0, end: Int = text.length): Float {
+    val s = start.coerceIn(0, text.length)
+    val e = end.coerceIn(s, text.length)
+    if (s >= e) return 0f
+    val f = font ?: Fonts.def ?: return (e - s) * 8f
     return try {
-        measureGlyphLayout.setText(f, text)
+        measureGlyphLayout.setText(f, text, s, e, f.color, 0f, arc.util.Align.left, false, null)
         measureGlyphLayout.width
     } catch (_: Throwable) {
-        text.length * 8f
+        (e - s) * 8f
     }
 }
 
@@ -75,7 +77,7 @@ internal fun calculateCharIndexAtX(text: String, localX: Float, font: Font?): In
 
     while (low <= high) {
         val mid = (low + high) ushr 1
-        val w = calculateTextWidth(text.substring(0, mid), f)
+        val w = calculateTextWidth(text, f, 0, mid)
         val diff = abs(localX - w)
         if (diff < minDiff) {
             minDiff = diff
@@ -290,8 +292,8 @@ fun TextField(
         if (editState.hasSelection()) {
             val selMin = editState.selection.min
             val selMax = editState.selection.max
-            val selStartX = calculateTextWidth(displayText.substring(0, selMin), font)
-            val selEndX = calculateTextWidth(displayText.substring(0, selMax), font)
+            val selStartX = calculateTextWidth(displayText, font, 0, selMin)
+            val selEndX = calculateTextWidth(displayText, font, 0, selMax)
             val selW = (selEndX - selStartX).coerceAtLeast(2f)
 
             Box(
@@ -306,8 +308,8 @@ fun TextField(
         // 2. Vẽ gạch chân candidate khi IME đang soạn thảo (Composition Indicator)
         val compRange = editState.getCompositionRange()
         if (compRange != null) {
-            val compStartX = calculateTextWidth(displayText.substring(0, compRange.start), font)
-            val compEndX = calculateTextWidth(displayText.substring(0, compRange.end), font)
+            val compStartX = calculateTextWidth(displayText, font, 0, compRange.start)
+            val compEndX = calculateTextWidth(displayText, font, 0, compRange.end)
             val compW = (compEndX - compStartX).coerceAtLeast(2f)
 
             Box(
@@ -337,8 +339,7 @@ fun TextField(
         // 4. Vẽ con trỏ chuột nhấp nháy (Blinking Cursor Bar)
         if (isFocused && editState.cursorVisible) {
             val cursorCharIndex = editState.getEffectiveCursor()
-            val textBeforeCursor = displayText.substring(0, cursorCharIndex.coerceIn(0, displayText.length))
-            val cursorX = calculateTextWidth(textBeforeCursor, font)
+            val cursorX = calculateTextWidth(displayText, font, 0, cursorCharIndex.coerceIn(0, displayText.length))
 
             Box(
                 modifier = Modifier

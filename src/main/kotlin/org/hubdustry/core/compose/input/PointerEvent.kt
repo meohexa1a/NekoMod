@@ -9,7 +9,11 @@ import kotlin.math.sqrt
  * triệt tiêu hoàn toàn việc cấp phát heap object (Zero-GC).
  */
 @JvmInline
-value class Offset internal constructor(val packedValue: Long) {
+value class Offset(val packedValue: Long) {
+    constructor(x: Float, y: Float) : this(
+        (x.toBits().toLong() shl 32) or (y.toBits().toLong() and 0xFFFFFFFFL)
+    )
+
     val x: Float
         get() = Float.fromBits((packedValue ushr 32).toInt())
 
@@ -39,19 +43,16 @@ value class Offset internal constructor(val packedValue: Long) {
     }
 }
 
-/** Factory function tạo [Offset] từ 2 số thực [x] và [y]. */
-fun Offset(x: Float, y: Float): Offset {
-    val xBits = x.toBits().toLong()
-    val yBits = y.toBits().toLong()
-    return Offset((xBits shl 32) or (yBits and 0xFFFFFFFFL))
-}
-
 /**
  * Kích thước nguyên tính theo pixel của một node hoặc viewport.
  * Đóng gói hai số nguyên 32-bit (width, height) vào một số nguyên 64-bit Long (Zero-GC).
  */
 @JvmInline
-value class IntSize internal constructor(val packedValue: Long) {
+value class IntSize(val packedValue: Long) {
+    constructor(width: Int, height: Int) : this(
+        (width.toLong() shl 32) or (height.toLong() and 0xFFFFFFFFL)
+    )
+
     val width: Int
         get() = (packedValue ushr 32).toInt()
 
@@ -68,13 +69,6 @@ value class IntSize internal constructor(val packedValue: Long) {
     companion object {
         val Zero = IntSize(0, 0)
     }
-}
-
-/** Factory function tạo [IntSize] từ 2 số nguyên [width] và [height]. */
-fun IntSize(width: Int, height: Int): IntSize {
-    val wBits = width.toLong()
-    val hBits = height.toLong()
-    return IntSize((wBits shl 32) or (hBits and 0xFFFFFFFFL))
 }
 
 /**

@@ -15,8 +15,15 @@ enum class Orientation {
         VERTICAL -> HORIZONTAL
     }
 
-    fun main(x: Float, y: Float): Float = if (this == HORIZONTAL) x else y
-    fun cross(x: Float, y: Float): Float = if (this == HORIZONTAL) y else x
+    fun main(x: Float, y: Float): Float = when (this) {
+        HORIZONTAL -> x
+        VERTICAL -> y
+    }
+
+    fun cross(x: Float, y: Float): Float = when (this) {
+        HORIZONTAL -> y
+        VERTICAL -> x
+    }
 }
 
 /**
@@ -26,7 +33,10 @@ enum class SizeFlag {
     /** Thu gọn kích thước về minWidth / minHeight (Hug / Wrap Content). */
     SHRINK,
 
-    /** Chiếm toàn bộ không gian khả dụng của container cha hoặc tranh chấp theo stretchRatio. */
+    /**
+     * Chiếm toàn bộ không gian khả dụng của container cha (trên trục phụ Cross Axis hoặc trong Box),
+     * hoặc phân bổ không gian còn trống theo stretchRatio (trên trục chính Main Axis của Row/Column).
+     */
     FILL
 }
 

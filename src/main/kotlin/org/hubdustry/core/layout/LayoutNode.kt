@@ -4,13 +4,14 @@ import androidx.compose.ui.util.fastForEach
 import arc.graphics.Color
 import org.hubdustry.core.compose.input.SuspendingPointerInputFilter
 import org.hubdustry.core.layout.policies.BoxLayoutPolicy
+import org.hubdustry.core.layout.policies.LayoutPolicy
 
 /**
  * Thực thể Virtual DOM tự trị (Unified Virtual Layout Node) của NekoMod.
  * Đóng gói toàn bộ hình học không gian, thuộc tính hiển thị (Visual Tokens)
  * và chuỗi bộ lọc cử chỉ (Pointer Input Filter Chain) trên các trường phẳng đạt chuẩn Zero-GC.
  */
-open class LayoutNode {
+class LayoutNode {
     // ─────────────────────────────────────────────────────────────────────────
     // 1. HIERARCHY & VIRTUAL DOM TREE
     // ─────────────────────────────────────────────────────────────────────────
@@ -28,27 +29,27 @@ open class LayoutNode {
     // ─────────────────────────────────────────────────────────────────────────
     // Tọa độ & Kích thước kết quả (Được tính toán bởi policy)
     var x: Float = 0f
-        set(value) {
+        internal set(value) {
             field = if (value.isNaN()) 0f else value
         }
     var y: Float = 0f
-        set(value) {
+        internal set(value) {
             field = if (value.isNaN()) 0f else value
         }
     var offsetX: Float = 0f
-        set(value) {
+        internal set(value) {
             field = if (value.isNaN()) 0f else value
         }
     var offsetY: Float = 0f
-        set(value) {
+        internal set(value) {
             field = if (value.isNaN()) 0f else value
         }
     var width: Float = 0f
-        set(value) {
+        internal set(value) {
             field = if (value.isNaN() || value < 0f) 0f else value
         }
     var height: Float = 0f
-        set(value) {
+        internal set(value) {
             field = if (value.isNaN() || value < 0f) 0f else value
         }
 
@@ -145,6 +146,15 @@ open class LayoutNode {
         marginRight = if (right.isNaN() || right < 0f) 0f else right
         marginBottom = if (bottom.isNaN() || bottom < 0f) 0f else bottom
     }
+
+    fun setPadding(left: Float, top: Float, right: Float, bottom: Float) {
+        paddingLeft = left
+        paddingTop = top
+        paddingRight = right
+        paddingBottom = bottom
+    }
+
+    fun setPadding(all: Float) = setPadding(all, all, all, all)
 
     // ─────────────────────────────────────────────────────────────────────────
     // 4. LAYOUT POLICY, ANCHORS & ALIGNMENT
@@ -353,8 +363,6 @@ open class LayoutNode {
         _children.add(safeIndex, child)
     }
 
-    fun addChild(index: Int, child: LayoutNode) = addChild(child, index)
-
     fun removeChild(child: LayoutNode): Boolean {
         if (_children.remove(child)) {
             child.parent = null
@@ -399,15 +407,6 @@ open class LayoutNode {
         action(this)
         _children.fastForEach { it.forEachInSubtree(action) }
     }
-
-    fun setPadding(left: Float, top: Float, right: Float, bottom: Float) {
-        paddingLeft = left
-        paddingTop = top
-        paddingRight = right
-        paddingBottom = bottom
-    }
-
-    fun setPadding(all: Float) = setPadding(all, all, all, all)
 
     // ─────────────────────────────────────────────────────────────────────────
     // 9. 1D AXIS PROJECTIONS & SYMMETRY

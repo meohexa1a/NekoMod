@@ -132,8 +132,7 @@ val jarAndroid = tasks.register("jarAndroid") {
             ?: throw GradleException("No android.jar found in Android SDK platforms directory.")
 
         val buildToolsDir = File(androidHome, "build-tools").listFiles()
-            ?.sortedDescending()
-            ?.firstOrNull()
+            ?.maxOrNull()
             ?: throw GradleException("No build-tools found in Android SDK directory.")
 
         val isWindows = System.getProperty("os.name").lowercase().contains("windows")
@@ -233,4 +232,19 @@ tasks.register<JavaExec>("runGameWithoutLoadMod") {
     standardInput = System.`in`
     classpath = mindustryRuntime
     mainClass.set("mindustry.desktop.DesktopLauncher")
+}
+
+tasks.register("installGitHooks") {
+    description = "Configures git core.hooksPath to .githooks for architecture lockdown"
+    group = "git"
+    doLast {
+        try {
+            val process = ProcessBuilder("git", "config", "core.hooksPath", ".githooks")
+                .directory(projectDir)
+                .start()
+            process.waitFor()
+        } catch (e: Exception) {
+            println("⚠ Unable to configure git hooks path: ${e.message}")
+        }
+    }
 }

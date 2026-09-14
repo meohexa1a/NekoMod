@@ -1,7 +1,6 @@
 package org.hubdustry.core.layout.policies
 
 import org.hubdustry.core.layout.LayoutNode
-import org.hubdustry.core.layout.LayoutPolicy
 import org.hubdustry.core.layout.Orientation
 import org.hubdustry.core.layout.SizeFlag
 import org.hubdustry.core.layout.computeOffset

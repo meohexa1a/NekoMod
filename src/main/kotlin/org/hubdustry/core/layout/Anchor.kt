@@ -32,14 +32,22 @@ class AnchorData {
     var isEnabled: Boolean = false
 
     var anchorLeft: Float = 0f
+        internal set(value) { field = if (value.isNaN()) 0f else value }
     var anchorTop: Float = 0f
+        internal set(value) { field = if (value.isNaN()) 0f else value }
     var anchorRight: Float = 0f
+        internal set(value) { field = if (value.isNaN()) 0f else value }
     var anchorBottom: Float = 0f
+        internal set(value) { field = if (value.isNaN()) 0f else value }
 
     var offsetLeft: Float = 0f
+        internal set(value) { field = if (value.isNaN()) 0f else value }
     var offsetTop: Float = 0f
+        internal set(value) { field = if (value.isNaN()) 0f else value }
     var offsetRight: Float = 0f
+        internal set(value) { field = if (value.isNaN()) 0f else value }
     var offsetBottom: Float = 0f
+        internal set(value) { field = if (value.isNaN()) 0f else value }
 
     /** Kiểm tra xem neo ngang có bị kéo giãn (anchorLeft < anchorRight). */
     val isStretchedHorizontal: Boolean get() = anchorLeft < anchorRight

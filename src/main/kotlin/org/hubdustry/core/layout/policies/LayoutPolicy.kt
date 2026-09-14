@@ -1,4 +1,6 @@
-package org.hubdustry.core.layout
+package org.hubdustry.core.layout.policies
+
+import org.hubdustry.core.layout.LayoutNode
 
 /**
  * Chiến lược bố cục (Layout Policy) theo mô hình 2 pha:
