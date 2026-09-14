@@ -5,7 +5,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     `java-library`
     kotlin("jvm") version "2.1.20"
-    kotlin("plugin.serialization") version "2.1.20"
+    // kotlin("plugin.serialization") version "2.1.20"
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.20"
     id("com.gradleup.shadow") version "9.2.2"
 }
@@ -95,6 +95,7 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    maxHeapSize = "1024m"
     testLogging {
         events("passed", "skipped", "failed")
     }
