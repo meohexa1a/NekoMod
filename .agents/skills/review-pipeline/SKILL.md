@@ -74,6 +74,7 @@ Mọi review skill phải trả về báo cáo theo format sau:
 | `kotlin-idioms-reviewer` | `.agents/skills/kotlin-idioms-reviewer/` | Java-thinking, Expression vs Statement, Zero-GC, Feature Envy |
 | `semantic-clarity-reviewer` | `.agents/skills/semantic-clarity-reviewer/` | Tên nói dối, API phantom, suspend giả, code đọc có hiểu không |
 | `code-aesthetics-reviewer` | `.agents/skills/code-aesthetics-reviewer/` | Expression body, blank line phân đoạn, named args, naming, local functions, section banners, ASCII diagrams |
+| `architecture-guardian` | `.agents/skills/architecture-guardian/` | Tự động thanh tra, siết chặt đóng gói, phủ KDoc 100%, và đóng băng kiến trúc |
 | `change-reporter` | `.agents/skills/change-reporter/` | Tạo báo cáo thay đổi có cấu trúc (không chấm điểm) |
 
 ---

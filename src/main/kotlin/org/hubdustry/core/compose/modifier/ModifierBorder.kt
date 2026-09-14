@@ -14,7 +14,7 @@ data class BorderModifier(
         node.borderWidth = width
         node.borderColor = color
         if (corners != null) {
-            node.setCornerRadius(corners.topStart, corners.topEnd, corners.bottomEnd, corners.bottomStart)
+            node.setCornerRadius(corners)
         }
     }
 }

@@ -12,7 +12,7 @@ data class BackgroundModifier(
     override fun applyTo(node: LayoutNode) {
         node.backgroundColor = color
         if (corners != null) {
-            node.setCornerRadius(corners.topStart, corners.topEnd, corners.bottomEnd, corners.bottomStart)
+            node.setCornerRadius(corners)
         }
     }
 }

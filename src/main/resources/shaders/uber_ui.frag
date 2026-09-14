@@ -33,17 +33,32 @@ float computeRoundedBoxSDF(vec2 point, vec2 size, vec4 radii) {
 
 void main() {
     // 1. Fast Analytical Scissor Clip (DPI-independent in logical screen coordinates)
-    if (v_clipRect.x >= v_clipRect.z || v_clipRect.y >= v_clipRect.w) {
-        discard;
-    }
-    vec2 clipInside = step(v_clipRect.xy, v_screenCoord.xy) * step(v_screenCoord.xy, v_clipRect.zw);
-    if (clipInside.x * clipInside.y < 0.5) {
-        discard;
+    // Tối ưu phần cứng GPU (Coherent Branching): Khi v_style.w <= 0.5 (Quad không nằm trong container cắt gọt),
+    // GPU skip 100% toàn bộ bước kiểm tra scissor bên dưới, tiết kiệm chu kỳ ALU cho các widget thông thường.
+    if (v_style.w > 0.5) {
+        if (v_clipRect.x >= v_clipRect.z || v_clipRect.y >= v_clipRect.w) {
+            discard;
+        }
+        vec2 clipInside = step(v_clipRect.xy, v_screenCoord.xy) * step(v_screenCoord.xy, v_clipRect.zw);
+        if (clipInside.x * clipInside.y < 0.5) {
+            discard;
+        }
     }
 
-    // 2. Analytical SDF Rounded Box Clip
+    // --- MODE 0: BMFont Text Glyph ---
+    // Văn bản luôn luôn chỉ cắt giải tích hình chữ nhật (AABB Scissor Clip), không bo tròn góc
+    if (v_style.z < 0.5) {
+        vec4 glyphColor = v_color * texture2D(u_atlas, v_texCoords);
+        if (glyphColor.a <= 0.001) {
+            discard;
+        }
+        gl_FragColor = glyphColor;
+        return;
+    }
+
+    // 2. Analytical SDF Rounded Box Clip (Chỉ áp dụng cho Hộp/Cards/Avatars/Borders khi có clip)
     float clipAlpha = 1.0;
-    if (max(max(v_clipRadii.x, v_clipRadii.y), max(v_clipRadii.z, v_clipRadii.w)) > 0.001) {
+    if (v_style.w > 0.5 && max(max(v_clipRadii.x, v_clipRadii.y), max(v_clipRadii.z, v_clipRadii.w)) > 0.001) {
         vec2 clipSize = v_clipRect.zw - v_clipRect.xy;
         vec2 clipPoint = v_screenCoord.xy - v_clipRect.xy;
         float clipDistance = computeRoundedBoxSDF(clipPoint, clipSize, v_clipRadii);
@@ -51,17 +66,6 @@ void main() {
         if (clipAlpha <= 0.001) {
             discard;
         }
-    }
-
-    // --- MODE 0: BMFont Text Glyph ---
-    if (v_style.z < 0.5) {
-        vec4 glyphColor = v_color * texture2D(u_atlas, v_texCoords);
-        glyphColor.a *= clipAlpha;
-        if (glyphColor.a <= 0.001) {
-            discard;
-        }
-        gl_FragColor = glyphColor;
-        return;
     }
 
     // --- MODE 1: All Boxes (Solid fill, Rounded card, Avatar, Textured Icon, Border) ---

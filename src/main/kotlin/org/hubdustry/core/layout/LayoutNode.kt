@@ -3,6 +3,7 @@ package org.hubdustry.core.layout
 import androidx.compose.ui.util.fastForEach
 import arc.graphics.Color
 import org.hubdustry.core.compose.input.SuspendingPointerInputFilter
+import org.hubdustry.core.graphics.RoundedCorners
 import org.hubdustry.core.layout.policies.BoxLayoutPolicy
 import org.hubdustry.core.layout.policies.LayoutPolicy
 
@@ -164,6 +165,15 @@ class LayoutNode {
 
     fun setPadding(all: Float) = setPadding(all, all, all, all)
 
+    fun setPadding(horizontal: Float, vertical: Float) {
+        val safeH = if (horizontal.isNaN() || horizontal < 0f) 0f else horizontal
+        val safeV = if (vertical.isNaN() || vertical < 0f) 0f else vertical
+        paddingLeft = safeH
+        paddingTop = safeV
+        paddingRight = safeH
+        paddingBottom = safeV
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // 4. LAYOUT POLICY, ANCHORS & ALIGNMENT
     // ─────────────────────────────────────────────────────────────────────────
@@ -223,6 +233,13 @@ class LayoutNode {
         cornerRadiusBottomStart = safe
     }
 
+    fun setCornerRadius(shape: RoundedCorners) {
+        cornerRadiusTopStart = shape.safeTopStart
+        cornerRadiusTopEnd = shape.safeTopEnd
+        cornerRadiusBottomEnd = shape.safeBottomEnd
+        cornerRadiusBottomStart = shape.safeBottomStart
+    }
+
     fun setCornerRadius(topStart: Float, topEnd: Float, bottomEnd: Float, bottomStart: Float) {
         cornerRadiusTopStart = if (topStart.isNaN() || topStart < 0f) 0f else topStart
         cornerRadiusTopEnd = if (topEnd.isNaN() || topEnd < 0f) 0f else topEnd
@@ -268,6 +285,13 @@ class LayoutNode {
         clipRadiusTopEnd = safe
         clipRadiusBottomEnd = safe
         clipRadiusBottomStart = safe
+    }
+
+    fun setClipCornerRadius(shape: RoundedCorners) {
+        clipRadiusTopStart = shape.safeTopStart
+        clipRadiusTopEnd = shape.safeTopEnd
+        clipRadiusBottomEnd = shape.safeBottomEnd
+        clipRadiusBottomStart = shape.safeBottomStart
     }
 
     fun setClipCornerRadius(topStart: Float, topEnd: Float, bottomEnd: Float, bottomStart: Float) {

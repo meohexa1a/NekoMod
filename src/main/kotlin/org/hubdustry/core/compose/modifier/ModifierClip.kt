@@ -16,10 +16,10 @@ data class ClipModifier(
     override fun applyTo(node: LayoutNode) {
         node.clipHorizontal = clipHorizontal
         node.clipVertical = clipVertical
-        node.setClipCornerRadius(corners.topStart, corners.topEnd, corners.bottomEnd, corners.bottomStart)
+        node.setClipCornerRadius(corners)
         // Đồng bộ hình dạng visual tự thân nếu node chưa có bo góc riêng
         if (!node.hasRoundedCorners) {
-            node.setCornerRadius(corners.topStart, corners.topEnd, corners.bottomEnd, corners.bottomStart)
+            node.setCornerRadius(corners)
         }
     }
 }

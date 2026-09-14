@@ -41,11 +41,9 @@ object TextMeasurer {
             measuredH = 16f
         }
 
-        // Intrinsic measurement tôn trọng giới hạn maxWidth / maxHeight đã ấn định tường minh.
-        // Khi node được gắn Modifier.fillMaxWidth() (SizeFlag.FILL), minWidth không bị cưỡng chế bằng độ dài chuỗi
-        // để cho phép container cha phân bổ kích thước khả dụng và kích hoạt scissor clip chính xác.
-        val targetMinW = if (node.sizeFlagHorizontal == SizeFlag.FILL) node.minWidth else maxOf(node.minWidth, measuredW)
-        val targetMinH = if (node.sizeFlagVertical == SizeFlag.FILL) node.minHeight else maxOf(node.minHeight, measuredH)
+        // Intrinsic measurement tôn trọng giới hạn maxWidth / maxHeight đã ấn định tường minh
+        val targetMinW = maxOf(node.minWidth, measuredW)
+        val targetMinH = maxOf(node.minHeight, measuredH)
 
         node.minWidth = targetMinW.coerceAtMost(node.maxWidth)
         node.minHeight = targetMinH.coerceAtMost(node.maxHeight)

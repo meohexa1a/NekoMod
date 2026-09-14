@@ -137,6 +137,36 @@ object BoxScopeInstance : BoxScope {
 }
 
 /**
+ * Scope cung cấp các modifier chuyên biệt cho các thành phần con bên trong [org.hubdustry.core.compose.primitive.FlowRow].
+ */
+interface FlowRowScope {
+    /**
+     * Căn chỉnh vị trí theo trục dọc (cross axis) của phần tử trong từng dòng của FlowRow.
+     */
+    fun Modifier.align(alignment: Alignment): Modifier
+}
+
+/**
+ * Scope cung cấp các modifier chuyên biệt cho các thành phần con bên trong [org.hubdustry.core.compose.primitive.FlowColumn].
+ */
+interface FlowColumnScope {
+    /**
+     * Căn chỉnh vị trí theo trục ngang (cross axis) của phần tử trong từng cột của FlowColumn.
+     */
+    fun Modifier.align(alignment: Alignment): Modifier
+}
+
+object FlowRowScopeInstance : FlowRowScope {
+    override fun Modifier.align(alignment: Alignment): Modifier =
+        this.then(CrossAlignModifier(alignment, isHorizontal = false))
+}
+
+object FlowColumnScopeInstance : FlowColumnScope {
+    override fun Modifier.align(alignment: Alignment): Modifier =
+        this.then(CrossAlignModifier(alignment, isHorizontal = true))
+}
+
+/**
  * Dịch chuyển vị trí của widget thêm một khoảng [x] và [y] pixel so với vị trí được sắp xếp bởi layout cha.
  */
 fun Modifier.offset(x: Float = 0f, y: Float = 0f): Modifier =

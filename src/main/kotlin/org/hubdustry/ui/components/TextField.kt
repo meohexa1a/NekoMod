@@ -152,7 +152,7 @@ fun TextField(
             override fun onKeyDown(keycode: KeyCode?): Boolean {
                 if (keycode == KeyCode.escape) {
                     editState.isFocused = false
-                    composeView?.inputDispatcher?.focusedKeyHandler = null
+                    composeView?.clearKeyboardFocus(this)
                     currentFocusInteraction?.let { focus ->
                         source.tryEmit(FocusInteraction.Unfocus(focus))
                         currentFocusInteraction = null
@@ -178,9 +178,7 @@ fun TextField(
     LaunchedEffect(enabled) {
         if (!enabled && editState.isFocused) {
             editState.isFocused = false
-            if (composeView?.inputDispatcher?.focusedKeyHandler === keyHandler) {
-                composeView.inputDispatcher.focusedKeyHandler = null
-            }
+            composeView?.clearKeyboardFocus(keyHandler)
             currentFocusInteraction?.let { focus ->
                 source.tryEmit(FocusInteraction.Unfocus(focus))
                 currentFocusInteraction = null
@@ -202,10 +200,7 @@ fun TextField(
     // Đăng ký bàn phím và IME session khi nhận / mất focus
     DisposableEffect(isFocused, composeView) {
         if (isFocused && composeView != null) {
-            composeView.inputDispatcher.focusedKeyHandler = keyHandler
-
-            // Kích hoạt keyboard focus Scene2D trên ComposeView
-            Core.scene?.keyboardFocus = composeView
+            composeView.requestKeyboardFocus(keyHandler)
 
             // Tính toán tọa độ màn hình chuẩn (Y-down) cho SDL IME Candidate Rect
             val screenH = Core.graphics?.height?.toFloat() ?: 1080f
@@ -230,9 +225,7 @@ fun TextField(
             )
 
             onDispose {
-                if (composeView.inputDispatcher.focusedKeyHandler === keyHandler) {
-                    composeView.inputDispatcher.focusedKeyHandler = null
-                }
+                composeView.clearKeyboardFocus(keyHandler)
                 currentFocusInteraction?.let { focus ->
                     source.tryEmit(FocusInteraction.Unfocus(focus))
                     currentFocusInteraction = null
@@ -278,7 +271,7 @@ fun TextField(
 
                         if (!editState.isFocused) {
                             editState.isFocused = true
-                            composeView?.inputDispatcher?.focusedKeyHandler = keyHandler
+                            composeView?.requestKeyboardFocus(keyHandler)
                             val focus = FocusInteraction.Focus()
                             currentFocusInteraction = focus
                             source.tryEmit(focus)

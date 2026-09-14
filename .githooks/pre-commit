@@ -13,8 +13,7 @@ fi
 # Danh sách các đường dẫn được ĐÓNG BĂNG (🟢 Stable / Architectural Lockdown)
 PROTECTED_PATHS="
 src/main/kotlin/org/hubdustry/core/layout/
-src/main/kotlin/org/hubdustry/core/graphics/UIBatch.kt
-src/main/kotlin/org/hubdustry/core/graphics/RoundedCorners.kt
+src/main/kotlin/org/hubdustry/core/graphics/
 "
 
 # Lấy danh sách tệp đang nằm trong Git Staging Area (chỉ các file được thêm/sửa/đổi tên)

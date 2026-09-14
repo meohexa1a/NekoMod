@@ -33,19 +33,47 @@ import arc.util.Disposable
  */
 object UIBatch : Disposable {
 
+    /** Chế độ vẽ văn bản BMFont Glyph từ `u_atlas`. */
     const val MODE_TEXT = 0.0f
+
+    /** Chế độ vẽ hình hộp SDF đa năng (nền trơn, bo góc, viền, ảnh/icon). */
     const val MODE_BOX = 1.0f
 
+    /** Cờ báo hiệu Quad này không bị cắt gọt (GPU Shader sẽ bỏ qua hoàn toàn bước kiểm tra scissor). */
+    const val CLIP_OFF = 0.0f
+
+    /** Cờ báo hiệu Quad này nằm trong container cắt gọt (GPU Shader sẽ kích hoạt kiểm tra scissor). */
+    const val CLIP_ON = 1.0f
+
+    /** Giới hạn vô cực thực tế cho phép giao cắt hình chữ nhật AABB khi chưa bị giới hạn trục. */
+    const val UNCLIPPED_BOUND = 100000.0f
+
+    /** Số lượng quads tối đa trong một batch trước khi tự động flush tới GPU. */
     const val MAX_QUADS = 4096
+
+    /** Số lượng floats cấu thành 1 đỉnh GPU (26 floats). */
     const val FLOATS_PER_VERTEX = 26
+
+    /** Số lượng floats cho một hình chữ nhật quad (4 đỉnh * 26 = 104 floats). */
     const val FLOATS_PER_QUAD = FLOATS_PER_VERTEX * 4
+
+    /** Số lượng đỉnh tối đa cho [MAX_QUADS]. */
     const val MAX_VERTICES = MAX_QUADS * 4
+
+    /** Số lượng chỉ mục tam giác tối đa (6 indices per quad). */
     const val MAX_INDICES = MAX_QUADS * 6
+
+    /** Độ sâu tối đa của ngăn xếp cắt gọt giải tích phân cấp. */
     const val MAX_CLIP_DEPTH = 64
 
-    val vertexBuffer = FloatArray(MAX_QUADS * FLOATS_PER_QUAD)
+    /** Bộ đệm đỉnh mảng phẳng tĩnh đạt chuẩn Zero-GC Hot-Path (104 floats per quad). */
+    internal val vertexBuffer = FloatArray(MAX_QUADS * FLOATS_PER_QUAD)
+
+    /** Chỉ mục float hiện tại trong [vertexBuffer]. */
     var vertexIndex: Int = 0
         internal set
+
+    /** Số lượng quads đang xếp hàng chờ flush tới GPU. */
     var queuedQuadCount: Int = 0
         internal set
 
@@ -55,29 +83,50 @@ object UIBatch : Disposable {
 
     // Analytical Scissor & SDF Clip Stack (8 primitives per depth level: minX, minY, maxX, maxY, rTS, rTE, rBE, rBS)
     private val clipStackBuffer = FloatArray(MAX_CLIP_DEPTH * 8)
+
+    /** Độ sâu ngăn xếp cắt gọt hiện tại. */
     var clipDepth: Int = 0
         internal set
 
-    var clipMinX: Float = -100000.0f
+    /** Tọa độ X nhỏ nhất của vùng cắt giải tích hiện tại. */
+    var clipMinX: Float = -UNCLIPPED_BOUND
         internal set
-    var clipMinY: Float = -100000.0f
+
+    /** Tọa độ Y nhỏ nhất của vùng cắt giải tích hiện tại. */
+    var clipMinY: Float = -UNCLIPPED_BOUND
         internal set
-    var clipMaxX: Float = 100000.0f
+
+    /** Tọa độ X lớn nhất của vùng cắt giải tích hiện tại. */
+    var clipMaxX: Float = UNCLIPPED_BOUND
         internal set
-    var clipMaxY: Float = 100000.0f
+
+    /** Tọa độ Y lớn nhất của vùng cắt giải tích hiện tại. */
+    var clipMaxY: Float = UNCLIPPED_BOUND
         internal set
+
+    /** Bán kính bo góc Top-Start của vùng cắt SDF hiện tại. */
     var clipRadiusTopStart: Float = 0f
         internal set
+
+    /** Bán kính bo góc Top-End của vùng cắt SDF hiện tại. */
     var clipRadiusTopEnd: Float = 0f
         internal set
+
+    /** Bán kính bo góc Bottom-End của vùng cắt SDF hiện tại. */
     var clipRadiusBottomEnd: Float = 0f
         internal set
+
+    /** Bán kính bo góc Bottom-Start của vùng cắt SDF hiện tại. */
     var clipRadiusBottomStart: Float = 0f
         internal set
 
     private var activeAtlasTexture: Texture? = null
     private val textLayoutHelper by lazy(LazyThreadSafetyMode.NONE) { GlyphLayout() }
 
+    /**
+     * Kiểm tra xem môi trường hiện tại có hỗ trợ GPU OpenGL và UberShader đầy đủ không.
+     * Trả về false trong môi trường Headless Unit Test mà không ném lỗi.
+     */
     val isSupported: Boolean
         get() = try {
             Core.gl != null && Core.graphics != null && Core.atlas != null && UberShader.getOrCreate() != null
@@ -94,7 +143,7 @@ object UIBatch : Disposable {
                 VertexAttribute(4, "a_position"),                           // xy = screen pos, zw = uv coords
                 VertexAttribute(4, Gl.unsignedByte, true, "a_color"),       // rgba = packed ABGR color
                 VertexAttribute(4, "a_boxData"),                            // xy = local pos, zw = box dimensions
-                VertexAttribute(4, "a_style"),                              // x = radius, y = borderWidth, z = mode, w = unused
+                VertexAttribute(4, "a_style"),                              // x = radius, y = borderWidth, z = mode, w = clipActive
                 VertexAttribute(4, "a_cornerRadii"),                        // x = topStart, y = topEnd, z = bottomEnd, w = bottomStart
                 VertexAttribute(4, Gl.unsignedByte, true, "a_borderColor"), // rgba = packed ABGR border color
                 VertexAttribute(4, "a_clipRect"),                           // xy = min(x,y), zw = max(x,y) analytical scissor clip
@@ -130,7 +179,9 @@ object UIBatch : Disposable {
      * Cấu hình shader, ma trận biến đổi và khởi tạo trạng thái scissor clipping.
      */
     fun begin() {
-        if (isDrawing) return
+        if (isDrawing) {
+            end()
+        }
         isDrawing = true
 
         setupGpuPipeline()
@@ -138,10 +189,10 @@ object UIBatch : Disposable {
         vertexIndex = 0
         queuedQuadCount = 0
         clipDepth = 0
-        clipMinX = -100000.0f
-        clipMinY = -100000.0f
-        clipMaxX = 100000.0f
-        clipMaxY = 100000.0f
+        clipMinX = -UNCLIPPED_BOUND
+        clipMinY = -UNCLIPPED_BOUND
+        clipMaxX = UNCLIPPED_BOUND
+        clipMaxY = UNCLIPPED_BOUND
         clipRadiusTopStart = 0f
         clipRadiusTopEnd = 0f
         clipRadiusBottomEnd = 0f
@@ -176,14 +227,26 @@ object UIBatch : Disposable {
      */
     fun end() {
         if (!isDrawing) return
-        flush()
-        if (isSupported) {
-            try {
-                Gl.activeTexture(Gl.texture0)
-            } catch (_: Throwable) {
+        try {
+            flush()
+            if (isSupported) {
+                try {
+                    Gl.activeTexture(Gl.texture0)
+                } catch (_: Throwable) {
+                }
             }
+        } finally {
+            isDrawing = false
+            clipDepth = 0
+            clipMinX = -UNCLIPPED_BOUND
+            clipMinY = -UNCLIPPED_BOUND
+            clipMaxX = UNCLIPPED_BOUND
+            clipMaxY = UNCLIPPED_BOUND
+            clipRadiusTopStart = 0f
+            clipRadiusTopEnd = 0f
+            clipRadiusBottomEnd = 0f
+            clipRadiusBottomStart = 0f
         }
-        isDrawing = false
     }
 
     // --- ANALYTICAL SCISSOR & SDF CLIPPING ---
@@ -245,20 +308,14 @@ object UIBatch : Disposable {
     }
 
     /**
-     * Overload tiện lợi cắt gọt AABB truyền thống.
-     */
-    fun pushClip(x: Float, y: Float, width: Float, height: Float) =
-        pushClip(x, y, width, height, clipHorizontal = true, clipVertical = true)
-
-    /**
      * Khôi phục vùng cắt gọt của container cha từ ngăn xếp.
      */
     fun popClip() {
         if (clipDepth <= 0) {
-            clipMinX = -100000.0f
-            clipMinY = -100000.0f
-            clipMaxX = 100000.0f
-            clipMaxY = 100000.0f
+            clipMinX = -UNCLIPPED_BOUND
+            clipMinY = -UNCLIPPED_BOUND
+            clipMaxX = UNCLIPPED_BOUND
+            clipMaxY = UNCLIPPED_BOUND
             clipRadiusTopStart = 0f
             clipRadiusTopEnd = 0f
             clipRadiusBottomEnd = 0f
@@ -335,12 +392,13 @@ object UIBatch : Disposable {
         val packedBorderColor = borderColor.toFloatBits()
 
         var offset = vertexIndex
+        val clipActive = if (clipDepth > 0) CLIP_ON else CLIP_OFF
 
         // Vertex 0: Bottom-Left (leftX, bottomY)
         vertexBuffer[offset++] = leftX; vertexBuffer[offset++] = bottomY; vertexBuffer[offset++] = uvMinU; vertexBuffer[offset++] = uvMinV
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
-        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = clipActive
         vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = radiusTopEnd; vertexBuffer[offset++] = radiusBottomEnd; vertexBuffer[offset++] = radiusBottomStart
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
@@ -350,7 +408,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = leftX; vertexBuffer[offset++] = topY; vertexBuffer[offset++] = uvMinU; vertexBuffer[offset++] = uvMaxV
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = height; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
-        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = clipActive
         vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = radiusTopEnd; vertexBuffer[offset++] = radiusBottomEnd; vertexBuffer[offset++] = radiusBottomStart
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
@@ -360,7 +418,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = rightX; vertexBuffer[offset++] = topY; vertexBuffer[offset++] = uvMaxU; vertexBuffer[offset++] = uvMaxV
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = width; vertexBuffer[offset++] = height; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
-        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = clipActive
         vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = radiusTopEnd; vertexBuffer[offset++] = radiusBottomEnd; vertexBuffer[offset++] = radiusBottomStart
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
@@ -370,7 +428,7 @@ object UIBatch : Disposable {
         vertexBuffer[offset++] = rightX; vertexBuffer[offset++] = bottomY; vertexBuffer[offset++] = uvMaxU; vertexBuffer[offset++] = uvMinV
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = width; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
-        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = borderWidth; vertexBuffer[offset++] = MODE_BOX; vertexBuffer[offset++] = clipActive
         vertexBuffer[offset++] = radiusTopStart; vertexBuffer[offset++] = radiusTopEnd; vertexBuffer[offset++] = radiusBottomEnd; vertexBuffer[offset++] = radiusBottomStart
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
@@ -388,8 +446,8 @@ object UIBatch : Disposable {
         y: Float,
         width: Float,
         height: Float,
-        radius: Float = 0.0f,
         region: TextureRegion? = null,
+        radius: Float = 0.0f,
         color: Color = Color.white,
         borderWidth: Float = 0.0f,
         borderColor: Color = Color.clear
@@ -451,46 +509,47 @@ object UIBatch : Disposable {
         val packedBorderColor = Color.clear.toFloatBits()
 
         var offset = vertexIndex
+        val clipActive = if (clipDepth > 0) CLIP_ON else CLIP_OFF
 
         // Vertex 0: Bottom-Left (leftX, bottomY)
         vertexBuffer[offset++] = leftX; vertexBuffer[offset++] = bottomY; vertexBuffer[offset++] = uvMinU; vertexBuffer[offset++] = uvMinV
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
-        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = MODE_TEXT; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = MODE_TEXT; vertexBuffer[offset++] = clipActive
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
-        vertexBuffer[offset++] = clipRadiusTopStart; vertexBuffer[offset++] = clipRadiusTopEnd; vertexBuffer[offset++] = clipRadiusBottomEnd; vertexBuffer[offset++] = clipRadiusBottomStart
+        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
 
         // Vertex 1: Top-Left (leftX, topY)
         vertexBuffer[offset++] = leftX; vertexBuffer[offset++] = topY; vertexBuffer[offset++] = uvMinU; vertexBuffer[offset++] = uvMaxV
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = height; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
-        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = MODE_TEXT; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = MODE_TEXT; vertexBuffer[offset++] = clipActive
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
-        vertexBuffer[offset++] = clipRadiusTopStart; vertexBuffer[offset++] = clipRadiusTopEnd; vertexBuffer[offset++] = clipRadiusBottomEnd; vertexBuffer[offset++] = clipRadiusBottomStart
+        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
 
         // Vertex 2: Top-Right (rightX, topY)
         vertexBuffer[offset++] = rightX; vertexBuffer[offset++] = topY; vertexBuffer[offset++] = uvMaxU; vertexBuffer[offset++] = uvMaxV
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = width; vertexBuffer[offset++] = height; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
-        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = MODE_TEXT; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = MODE_TEXT; vertexBuffer[offset++] = clipActive
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
-        vertexBuffer[offset++] = clipRadiusTopStart; vertexBuffer[offset++] = clipRadiusTopEnd; vertexBuffer[offset++] = clipRadiusBottomEnd; vertexBuffer[offset++] = clipRadiusBottomStart
+        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
 
         // Vertex 3: Bottom-Right (rightX, bottomY)
         vertexBuffer[offset++] = rightX; vertexBuffer[offset++] = bottomY; vertexBuffer[offset++] = uvMaxU; vertexBuffer[offset++] = uvMinV
         vertexBuffer[offset++] = packedColor
         vertexBuffer[offset++] = width; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = width; vertexBuffer[offset++] = height
-        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = MODE_TEXT; vertexBuffer[offset++] = 0.0f
+        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = MODE_TEXT; vertexBuffer[offset++] = clipActive
         vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
         vertexBuffer[offset++] = packedBorderColor
         vertexBuffer[offset++] = clipMinX; vertexBuffer[offset++] = clipMinY; vertexBuffer[offset++] = clipMaxX; vertexBuffer[offset++] = clipMaxY
-        vertexBuffer[offset++] = clipRadiusTopStart; vertexBuffer[offset++] = clipRadiusTopEnd; vertexBuffer[offset++] = clipRadiusBottomEnd; vertexBuffer[offset++] = clipRadiusBottomStart
+        vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f; vertexBuffer[offset++] = 0.0f
 
         vertexIndex = offset
         queuedQuadCount++
@@ -584,7 +643,7 @@ object UIBatch : Disposable {
     }
 
     override fun dispose() {
-        flush()
+        end()
         try {
             mesh?.dispose()
         } catch (_: Throwable) {
@@ -592,6 +651,5 @@ object UIBatch : Disposable {
         mesh = null
         isMeshInitialized = false
         UberShader.dispose()
-        isDrawing = false
     }
 }

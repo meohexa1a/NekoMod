@@ -106,4 +106,34 @@ class TextFieldTest {
         view.inputDispatcher.keyTyped('X')
         assertEquals("Initial", textState.value)
     }
+
+    @Test
+    fun testTextFieldFocusWithActLoop() {
+        val view = ComposeView()
+        val textState = mutableStateOf("")
+
+        view.setContent {
+            val text by remember { textState }
+            TextField(
+                value = text,
+                onValueChange = { textState.value = it }
+            )
+        }
+
+        view.setSize(200f, 50f)
+        view.act(0.016f)
+
+        // 1. Nhấn chuột vào TextField để kích hoạt focus
+        view.sendPointerInput(PointerEventType.Press, 50f, 25f)
+        view.sendPointerInput(PointerEventType.Release, 50f, 25f)
+
+        // 2. Mô phỏng game loop tick act() như trong runtime thực tế
+        view.act(0.016f)
+
+        // 3. Gõ phím
+        val typed = view.inputDispatcher.keyTyped('A')
+        assertTrue(typed, "Phím phải được tiêu thụ bởi focusedKeyHandler")
+        assertEquals("A", textState.value)
+    }
 }
+

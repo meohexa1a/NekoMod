@@ -188,9 +188,7 @@ open class ComposeView : Element() {
     open fun dispose() {
         // Phase 1: Cancel active interactions before tearing down
         SdlReflectionImeBridge.stopSession()
-        if (Core.scene != null && Core.scene.keyboardFocus === this) {
-            Core.scene.keyboardFocus = null
-        }
+        clearKeyboardFocus()
         inputDispatcher.cancelAllActivePointers(System.currentTimeMillis())
         disposeNodeRecursive(rootLayoutNode)
 
@@ -240,6 +238,27 @@ open class ComposeView : Element() {
         inputDispatcher.cancelAllActivePointers(uptime)
     }
 
+    /**
+     * Yêu cầu tiêu điểm bàn phím cho [handler] và đồng bộ [keyboardFocus] trên Stage Scene2D.
+     */
+    fun requestKeyboardFocus(handler: KeyboardInputHandler) {
+        inputDispatcher.focusedKeyHandler = handler
+        (scene ?: Core.scene)?.keyboardFocus = this
+    }
+
+    /**
+     * Hủy tiêu điểm bàn phím của [handler] (hoặc toàn bộ nếu [handler] là null) và dọn dẹp Stage Scene2D.
+     */
+    fun clearKeyboardFocus(handler: KeyboardInputHandler? = null) {
+        if (handler == null || inputDispatcher.focusedKeyHandler === handler) {
+            inputDispatcher.focusedKeyHandler = null
+            val activeScene = scene ?: Core.scene
+            if (activeScene != null && activeScene.keyboardFocus === this) {
+                activeScene.keyboardFocus = null
+            }
+        }
+    }
+
     override fun sizeChanged() {
         super.sizeChanged()
         isLayoutDirty = true
@@ -276,13 +295,15 @@ open class ComposeView : Element() {
 
     override fun act(delta: Float) {
         super.act(delta)
-        // Đồng bộ mất keyboard focus hai chiều với Arc Scene2D Stage
-        if (inputDispatcher.focusedKeyHandler != null && Core.scene?.keyboardFocus !== this) {
-            inputDispatcher.focusedKeyHandler = null
-        }
         // Đập nhịp đồng bộ
         CompositionManager.frame()
         updateDimensionsAndLayout()
+
+        // Đồng bộ mất keyboard focus hai chiều với Arc Scene2D Stage
+        val activeScene = scene ?: Core.scene
+        if (activeScene != null && inputDispatcher.focusedKeyHandler != null && activeScene.keyboardFocus !== this) {
+            inputDispatcher.focusedKeyHandler = null
+        }
     }
 
     private fun updateDimensionsAndLayout() {
@@ -322,8 +343,11 @@ open class ComposeView : Element() {
         val viewH = if (height > 0f) height else rootLayoutNode.height
         try {
             UIBatch.begin()
-            NodeRenderer.render(rootLayoutNode, this.x, this.y, viewH)
-            UIBatch.end()
+            try {
+                NodeRenderer.render(rootLayoutNode, this.x, this.y, viewH)
+            } finally {
+                UIBatch.end()
+            }
         } finally {
             try {
                 Draw.reset()
