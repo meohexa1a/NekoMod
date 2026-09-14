@@ -2,10 +2,15 @@ package org.hubdustry.core.layout
 
 import androidx.compose.ui.util.fastForEach
 import arc.graphics.Color
+import arc.graphics.g2d.Font
+import org.hubdustry.core.compose.foundation.ScrollState
 import org.hubdustry.core.compose.input.SuspendingPointerInputFilter
 import org.hubdustry.core.graphics.RoundedCorners
 import org.hubdustry.core.layout.policies.BoxLayoutPolicy
 import org.hubdustry.core.layout.policies.LayoutPolicy
+import kotlin.math.abs
+
+private const val GEOMETRY_EPSILON = 0.001f
 
 /**
  * Thực thể Virtual DOM tự trị (Unified Virtual Layout Node) của NekoMod.
@@ -200,7 +205,7 @@ class LayoutNode {
     var backgroundColor: Color? = null
     var text: String? = null
     var textColor: Color = Color.white
-    var font: arc.graphics.g2d.Font? = null
+    var font: Font? = null
 
     var alpha: Float = 1f
         set(value) {
@@ -302,8 +307,8 @@ class LayoutNode {
     }
 
     val hasClipCorners: Boolean
-        get() = clipRadiusTopStart > 0.001f || clipRadiusTopEnd > 0.001f ||
-            clipRadiusBottomEnd > 0.001f || clipRadiusBottomStart > 0.001f
+        get() = clipRadiusTopStart > GEOMETRY_EPSILON || clipRadiusTopEnd > GEOMETRY_EPSILON ||
+            clipRadiusBottomEnd > GEOMETRY_EPSILON || clipRadiusBottomStart > GEOMETRY_EPSILON
 
     /**
      * Kiểm tra xem một điểm trong hệ tọa độ cục bộ ([localX], [localY]) của node
@@ -323,43 +328,44 @@ class LayoutNode {
         val rBottomEnd = if (hasClipCorners) clipRadiusBottomEnd else cornerRadiusBottomEnd
         val rBottomStart = if (hasClipCorners) clipRadiusBottomStart else cornerRadiusBottomStart
 
-        if (rTopStart <= 0.001f && rTopEnd <= 0.001f && rBottomEnd <= 0.001f && rBottomStart <= 0.001f) {
+        if (rTopStart <= GEOMETRY_EPSILON && rTopEnd <= GEOMETRY_EPSILON &&
+            rBottomEnd <= GEOMETRY_EPSILON && rBottomStart <= GEOMETRY_EPSILON) {
             return true
         }
 
-        val halfW = width * 0.5f
-        val halfH = height * 0.5f
+        val halfWidth = width * 0.5f
+        val halfHeight = height * 0.5f
 
         // Góc Top-Start
-        val rTs = minOf(rTopStart, halfW, halfH)
-        if (rTs > 0.001f && localX < rTs && localY < rTs) {
-            val dx = localX - rTs
-            val dy = localY - rTs
-            if (dx * dx + dy * dy > rTs * rTs) return false
+        val radiusTopStart = minOf(rTopStart, halfWidth, halfHeight)
+        if (radiusTopStart > GEOMETRY_EPSILON && localX < radiusTopStart && localY < radiusTopStart) {
+            val deltaX = localX - radiusTopStart
+            val deltaY = localY - radiusTopStart
+            if (deltaX * deltaX + deltaY * deltaY > radiusTopStart * radiusTopStart) return false
         }
 
         // Góc Top-End
-        val rTe = minOf(rTopEnd, halfW, halfH)
-        if (rTe > 0.001f && localX > width - rTe && localY < rTe) {
-            val dx = localX - (width - rTe)
-            val dy = localY - rTe
-            if (dx * dx + dy * dy > rTe * rTe) return false
+        val radiusTopEnd = minOf(rTopEnd, halfWidth, halfHeight)
+        if (radiusTopEnd > GEOMETRY_EPSILON && localX > width - radiusTopEnd && localY < radiusTopEnd) {
+            val deltaX = localX - (width - radiusTopEnd)
+            val deltaY = localY - radiusTopEnd
+            if (deltaX * deltaX + deltaY * deltaY > radiusTopEnd * radiusTopEnd) return false
         }
 
         // Góc Bottom-End
-        val rBe = minOf(rBottomEnd, halfW, halfH)
-        if (rBe > 0.001f && localX > width - rBe && localY > height - rBe) {
-            val dx = localX - (width - rBe)
-            val dy = localY - (height - rBe)
-            if (dx * dx + dy * dy > rBe * rBe) return false
+        val radiusBottomEnd = minOf(rBottomEnd, halfWidth, halfHeight)
+        if (radiusBottomEnd > GEOMETRY_EPSILON && localX > width - radiusBottomEnd && localY > height - radiusBottomEnd) {
+            val deltaX = localX - (width - radiusBottomEnd)
+            val deltaY = localY - (height - radiusBottomEnd)
+            if (deltaX * deltaX + deltaY * deltaY > radiusBottomEnd * radiusBottomEnd) return false
         }
 
         // Góc Bottom-Start
-        val rBs = minOf(rBottomStart, halfW, halfH)
-        if (rBs > 0.001f && localX < rBs && localY > height - rBs) {
-            val dx = localX - rBs
-            val dy = localY - (height - rBs)
-            if (dx * dx + dy * dy > rBs * rBs) return false
+        val radiusBottomStart = minOf(rBottomStart, halfWidth, halfHeight)
+        if (radiusBottomStart > GEOMETRY_EPSILON && localX < radiusBottomStart && localY > height - radiusBottomStart) {
+            val deltaX = localX - radiusBottomStart
+            val deltaY = localY - (height - radiusBottomStart)
+            if (deltaX * deltaX + deltaY * deltaY > radiusBottomStart * radiusBottomStart) return false
         }
 
         return true
@@ -373,9 +379,8 @@ class LayoutNode {
     val pointerInputFilters: List<SuspendingPointerInputFilter> get() = _pointerInputFilters
 
     fun addPointerInputFilter(filter: SuspendingPointerInputFilter) {
-        if (!_pointerInputFilters.contains(filter)) {
-            _pointerInputFilters.add(filter)
-        }
+        if (filter in _pointerInputFilters) return
+        _pointerInputFilters.add(filter)
     }
 
     fun removePointerInputFilter(filter: SuspendingPointerInputFilter): Boolean =
@@ -391,8 +396,8 @@ class LayoutNode {
     var isScrollableVertical: Boolean = false
     var isScrollableHorizontal: Boolean = false
 
-    var verticalScrollState: org.hubdustry.core.compose.foundation.ScrollState? = null
-    var horizontalScrollState: org.hubdustry.core.compose.foundation.ScrollState? = null
+    var verticalScrollState: ScrollState? = null
+    var horizontalScrollState: ScrollState? = null
 
     var scrollX: Float = 0f
         get() = horizontalScrollState?.let { if (maxScrollX > 0f) it.value.coerceIn(0f, maxScrollX) else it.value }
@@ -474,10 +479,10 @@ class LayoutNode {
     }
 
     fun isAncestorOf(node: LayoutNode): Boolean {
-        var p = node.parent
-        while (p != null) {
-            if (p === this) return true
-            p = p.parent
+        var currentAncestor = node.parent
+        while (currentAncestor != null) {
+            if (currentAncestor === this) return true
+            currentAncestor = currentAncestor.parent
         }
         return false
     }
@@ -498,11 +503,9 @@ class LayoutNode {
     }
 
     fun removeChild(child: LayoutNode): Boolean {
-        if (_children.remove(child)) {
-            child.parent = null
-            return true
-        }
-        return false
+        if (!_children.remove(child)) return false
+        child.parent = null
+        return true
     }
 
     fun removeChildren(index: Int, count: Int) {
@@ -671,7 +674,13 @@ class LayoutNode {
         val arrangeW = if (isScrollableHorizontal && contentWidth > innerW) contentWidth else innerW
         val arrangeH = if (isScrollableVertical && contentHeight > innerH) contentHeight else innerH
 
-        policy.arrangeChildren(this, innerX, innerY, arrangeW, arrangeH)
+        policy.arrangeChildren(
+            node = this,
+            innerX = innerX,
+            innerY = innerY,
+            innerWidth = arrangeW,
+            innerHeight = arrangeH
+        )
 
         maxScrollX = maxOf(0f, contentWidth - innerW)
         maxScrollY = maxOf(0f, contentHeight - innerH)
@@ -680,11 +689,11 @@ class LayoutNode {
         horizontalScrollState?.syncIfChanged(viewport = innerW, max = maxScrollX)
     }
 
-    private fun org.hubdustry.core.compose.foundation.ScrollState.syncIfChanged(viewport: Float, max: Float) {
-        if (kotlin.math.abs(viewportSize - viewport) > 0.001f) {
+    private fun ScrollState.syncIfChanged(viewport: Float, max: Float) {
+        if (abs(viewportSize - viewport) > GEOMETRY_EPSILON) {
             viewportSize = viewport
         }
-        if (kotlin.math.abs(maxValue - max) > 0.001f) {
+        if (abs(maxValue - max) > GEOMETRY_EPSILON) {
             maxValue = max
         }
     }

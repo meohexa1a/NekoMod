@@ -5,66 +5,31 @@ import org.hubdustry.core.compose.unit.dp
 import org.hubdustry.core.layout.Alignment
 import org.hubdustry.core.layout.AnchorPreset
 import org.hubdustry.core.layout.LayoutNode
+import org.hubdustry.core.layout.Orientation
 import org.hubdustry.core.layout.SizeFlag
 
-private data class AlignmentModifier(
-    val horizontal: Alignment,
-    val vertical: Alignment
-) : Modifier.Element {
-    override fun applyTo(node: LayoutNode) {
-        node.alignHorizontal = horizontal
-        node.alignVertical = vertical
-    }
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. STANDALONE GEOMETRY MODIFIERS (Offset & Anchor)
+// ─────────────────────────────────────────────────────────────────────────────
 
-private data class RowWeightModifier(
-    val weight: Float
-) : Modifier.Element {
-    override fun applyTo(node: LayoutNode) {
-        node.stretchRatio = weight
-        node.sizeFlagHorizontal = SizeFlag.FILL
-    }
-}
+/**
+ * Dịch chuyển vị trí của widget thêm một khoảng [x] và [y] pixel so với vị trí được sắp xếp bởi layout cha.
+ */
+fun Modifier.offset(x: Float = 0f, y: Float = 0f): Modifier =
+    this.then(OffsetModifier(x = x, y = y))
 
-private data class ColumnWeightModifier(
-    val weight: Float
-) : Modifier.Element {
-    override fun applyTo(node: LayoutNode) {
-        node.stretchRatio = weight
-        node.sizeFlagVertical = SizeFlag.FILL
-    }
-}
+fun Modifier.offset(x: Dp = 0.dp, y: Dp = 0.dp): Modifier =
+    this.offset(x.toPx, y.toPx)
 
-private data class CrossAlignModifier(
-    val alignment: Alignment,
-    val isHorizontal: Boolean
-) : Modifier.Element {
-    override fun applyTo(node: LayoutNode) {
-        if (isHorizontal) {
-            node.alignHorizontal = alignment
-        } else {
-            node.alignVertical = alignment
-        }
-    }
-}
+/**
+ * Đặt chế độ neo định vị tuyệt đối theo mô hình Godot Control ([AnchorPreset]).
+ */
+fun Modifier.anchor(preset: AnchorPreset): Modifier =
+    this.then(AnchorModifier(preset = preset))
 
-private data class OffsetModifier(
-    val x: Float,
-    val y: Float
-) : Modifier.Element {
-    override fun applyTo(node: LayoutNode) {
-        node.offsetX += x
-        node.offsetY += y
-    }
-}
-
-private data class AnchorModifier(
-    val preset: AnchorPreset
-) : Modifier.Element {
-    override fun applyTo(node: LayoutNode) {
-        node.anchor.setPreset(preset)
-    }
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. CONTAINER SCOPES & PUBLISHED SINGLETONS
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Scope cung cấp các modifier chuyên biệt cho các thành phần con bên trong [org.hubdustry.core.compose.primitive.Row].
@@ -113,30 +78,6 @@ interface BoxScope {
     fun Modifier.align(horizontal: Alignment, vertical: Alignment): Modifier
 }
 
-object RowScopeInstance : RowScope {
-    override fun Modifier.weight(weight: Float): Modifier =
-        this.then(RowWeightModifier(weight))
-
-    override fun Modifier.align(alignment: Alignment): Modifier =
-        this.then(CrossAlignModifier(alignment, isHorizontal = false))
-}
-
-object ColumnScopeInstance : ColumnScope {
-    override fun Modifier.weight(weight: Float): Modifier =
-        this.then(ColumnWeightModifier(weight))
-
-    override fun Modifier.align(alignment: Alignment): Modifier =
-        this.then(CrossAlignModifier(alignment, isHorizontal = true))
-}
-
-object BoxScopeInstance : BoxScope {
-    override fun Modifier.align(alignment: Alignment): Modifier =
-        this.then(AlignmentModifier(horizontal = alignment, vertical = alignment))
-
-    override fun Modifier.align(horizontal: Alignment, vertical: Alignment): Modifier =
-        this.then(AlignmentModifier(horizontal = horizontal, vertical = vertical))
-}
-
 /**
  * Scope cung cấp các modifier chuyên biệt cho các thành phần con bên trong [org.hubdustry.core.compose.primitive.FlowRow].
  */
@@ -157,28 +98,104 @@ interface FlowColumnScope {
     fun Modifier.align(alignment: Alignment): Modifier
 }
 
-object FlowRowScopeInstance : FlowRowScope {
+@PublishedApi
+internal object RowScopeInstance : RowScope {
+    override fun Modifier.weight(weight: Float): Modifier =
+        this.then(RowWeightModifier(weight))
+
     override fun Modifier.align(alignment: Alignment): Modifier =
-        this.then(CrossAlignModifier(alignment, isHorizontal = false))
+        this.then(CrossAlignModifier(alignment, orientation = Orientation.VERTICAL))
 }
 
-object FlowColumnScopeInstance : FlowColumnScope {
+@PublishedApi
+internal object ColumnScopeInstance : ColumnScope {
+    override fun Modifier.weight(weight: Float): Modifier =
+        this.then(ColumnWeightModifier(weight))
+
     override fun Modifier.align(alignment: Alignment): Modifier =
-        this.then(CrossAlignModifier(alignment, isHorizontal = true))
+        this.then(CrossAlignModifier(alignment, orientation = Orientation.HORIZONTAL))
 }
 
-/**
- * Dịch chuyển vị trí của widget thêm một khoảng [x] và [y] pixel so với vị trí được sắp xếp bởi layout cha.
- */
-fun Modifier.offset(x: Float = 0f, y: Float = 0f): Modifier =
-    this.then(OffsetModifier(x = x, y = y))
+@PublishedApi
+internal object BoxScopeInstance : BoxScope {
+    override fun Modifier.align(alignment: Alignment): Modifier =
+        this.then(AlignmentModifier(horizontal = alignment, vertical = alignment))
 
-fun Modifier.offset(x: Dp = 0.dp, y: Dp = 0.dp): Modifier =
-    this.offset(x.toPx, y.toPx)
+    override fun Modifier.align(horizontal: Alignment, vertical: Alignment): Modifier =
+        this.then(AlignmentModifier(horizontal = horizontal, vertical = vertical))
+}
 
-/**
- * Đặt chế độ neo định vị tuyệt đối theo mô hình Godot Control ([AnchorPreset]).
- */
-fun Modifier.anchor(preset: AnchorPreset): Modifier =
-    this.then(AnchorModifier(preset = preset))
+@PublishedApi
+internal object FlowRowScopeInstance : FlowRowScope {
+    override fun Modifier.align(alignment: Alignment): Modifier =
+        this.then(CrossAlignModifier(alignment, orientation = Orientation.VERTICAL))
+}
+
+@PublishedApi
+internal object FlowColumnScopeInstance : FlowColumnScope {
+    override fun Modifier.align(alignment: Alignment): Modifier =
+        this.then(CrossAlignModifier(alignment, orientation = Orientation.HORIZONTAL))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. INTERNAL LAYOUT MODIFIER ELEMENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+internal data class AlignmentModifier(
+    val horizontal: Alignment,
+    val vertical: Alignment
+) : Modifier.Element {
+    override fun applyTo(node: LayoutNode) {
+        node.alignHorizontal = horizontal
+        node.alignVertical = vertical
+    }
+}
+
+internal data class RowWeightModifier(
+    val weight: Float
+) : Modifier.Element {
+    override fun applyTo(node: LayoutNode) {
+        node.stretchRatio = weight
+        node.sizeFlagHorizontal = SizeFlag.FILL
+    }
+}
+
+internal data class ColumnWeightModifier(
+    val weight: Float
+) : Modifier.Element {
+    override fun applyTo(node: LayoutNode) {
+        node.stretchRatio = weight
+        node.sizeFlagVertical = SizeFlag.FILL
+    }
+}
+
+internal data class CrossAlignModifier(
+    val alignment: Alignment,
+    val orientation: Orientation
+) : Modifier.Element {
+    override fun applyTo(node: LayoutNode) {
+        when (orientation) {
+            Orientation.HORIZONTAL -> node.alignHorizontal = alignment
+            Orientation.VERTICAL -> node.alignVertical = alignment
+        }
+    }
+}
+
+internal data class OffsetModifier(
+    val x: Float,
+    val y: Float
+) : Modifier.Element {
+    override fun applyTo(node: LayoutNode) {
+        node.offsetX += x
+        node.offsetY += y
+    }
+}
+
+internal data class AnchorModifier(
+    val preset: AnchorPreset
+) : Modifier.Element {
+    override fun applyTo(node: LayoutNode) {
+        node.anchor.setPreset(preset)
+    }
+}
 

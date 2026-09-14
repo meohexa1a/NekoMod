@@ -6,59 +6,20 @@ import org.hubdustry.core.layout.Alignment
 import org.hubdustry.core.layout.LayoutNode
 import org.hubdustry.core.layout.SizeFlag
 
-private data class SizeModifier(
-    val minWidth: Float,
-    val minHeight: Float,
-    val maxWidth: Float,
-    val maxHeight: Float
-) : Modifier.Element {
-    override fun applyTo(node: LayoutNode) {
-        node.minWidth = minWidth
-        node.maxWidth = maxWidth
-        node.minHeight = minHeight
-        node.maxHeight = maxHeight
-    }
-}
-
-private data class FillModifier(
-    val fillHorizontal: Boolean,
-    val fillVertical: Boolean
-) : Modifier.Element {
-    override fun applyTo(node: LayoutNode) {
-        if (fillHorizontal) {
-            node.sizeFlagHorizontal = SizeFlag.FILL
-            if (node.stretchRatio <= 0f) node.stretchRatio = 1f
-        }
-        if (fillVertical) {
-            node.sizeFlagVertical = SizeFlag.FILL
-            if (node.stretchRatio <= 0f) node.stretchRatio = 1f
-        }
-    }
-}
-
-private data class WrapContentModifier(
-    val wrapHorizontal: Boolean,
-    val wrapVertical: Boolean,
-    val alignHorizontal: Alignment,
-    val alignVertical: Alignment
-) : Modifier.Element {
-    override fun applyTo(node: LayoutNode) {
-        if (wrapHorizontal) {
-            node.sizeFlagHorizontal = SizeFlag.SHRINK
-            node.alignHorizontal = alignHorizontal
-        }
-        if (wrapVertical) {
-            node.sizeFlagVertical = SizeFlag.SHRINK
-            node.alignVertical = alignVertical
-        }
-    }
-}
+// ─── Public Dimension Modifiers ───────────────────────────────────
 
 /**
  * Đặt kích thước chính xác [width] và [height] cho widget.
  */
 fun Modifier.size(width: Float, height: Float): Modifier =
-    this.then(SizeModifier(minWidth = width, minHeight = height, maxWidth = width, maxHeight = height))
+    this.then(
+        SizeModifier(
+            minWidth = width,
+            minHeight = height,
+            maxWidth = width,
+            maxHeight = height
+        )
+    )
 
 /**
  * Đặt kích thước vuông [size] x [size] cho widget.
@@ -66,6 +27,7 @@ fun Modifier.size(width: Float, height: Float): Modifier =
 fun Modifier.size(size: Float): Modifier = this.size(size, size)
 
 fun Modifier.size(width: Dp, height: Dp): Modifier = this.size(width.toPx, height.toPx)
+
 fun Modifier.size(size: Dp): Modifier = this.size(size.toPx, size.toPx)
 
 /**
@@ -92,14 +54,26 @@ fun Modifier.sizeIn(
     minHeight: Float = 0f,
     maxWidth: Float = Float.MAX_VALUE,
     maxHeight: Float = Float.MAX_VALUE
-): Modifier = this.then(SizeModifier(minWidth, minHeight, maxWidth, maxHeight))
+): Modifier = this.then(
+    SizeModifier(
+        minWidth = minWidth,
+        minHeight = minHeight,
+        maxWidth = maxWidth,
+        maxHeight = maxHeight
+    )
+)
 
 fun Modifier.sizeIn(
     minWidth: Dp = 0.dp,
     minHeight: Dp = 0.dp,
     maxWidth: Dp = Dp.Infinity,
     maxHeight: Dp = Dp.Infinity
-): Modifier = this.sizeIn(minWidth.toPx, minHeight.toPx, maxWidth.toPx, maxHeight.toPx)
+): Modifier = this.sizeIn(
+    minWidth = minWidth.toPx,
+    minHeight = minHeight.toPx,
+    maxWidth = maxWidth.toPx,
+    maxHeight = maxHeight.toPx
+)
 
 fun Modifier.widthIn(
     min: Float = 0f,
@@ -109,7 +83,7 @@ fun Modifier.widthIn(
 fun Modifier.widthIn(
     min: Dp = 0.dp,
     max: Dp = Dp.Infinity
-): Modifier = this.widthIn(min.toPx, max.toPx)
+): Modifier = this.widthIn(min = min.toPx, max = max.toPx)
 
 fun Modifier.heightIn(
     min: Float = 0f,
@@ -119,22 +93,27 @@ fun Modifier.heightIn(
 fun Modifier.heightIn(
     min: Dp = 0.dp,
     max: Dp = Dp.Infinity
-): Modifier = this.heightIn(min.toPx, max.toPx)
+): Modifier = this.heightIn(min = min.toPx, max = max.toPx)
+
+// ─── Public Fill & Wrap Modifiers ──────────────────────────────────
 
 /**
  * Yêu cầu widget lấp đầy không gian khả dụng của container cha theo cả 2 chiều.
  */
-fun Modifier.fillMaxSize(): Modifier = this.then(FillModifier(fillHorizontal = true, fillVertical = true))
+fun Modifier.fillMaxSize(): Modifier =
+    this.then(FillModifier(fillHorizontal = true, fillVertical = true))
 
 /**
  * Yêu cầu widget lấp đầy chiều rộng của container cha.
  */
-fun Modifier.fillMaxWidth(): Modifier = this.then(FillModifier(fillHorizontal = true, fillVertical = false))
+fun Modifier.fillMaxWidth(): Modifier =
+    this.then(FillModifier(fillHorizontal = true, fillVertical = false))
 
 /**
  * Yêu cầu widget lấp đầy chiều cao của container cha.
  */
-fun Modifier.fillMaxHeight(): Modifier = this.then(FillModifier(fillHorizontal = false, fillVertical = true))
+fun Modifier.fillMaxHeight(): Modifier =
+    this.then(FillModifier(fillHorizontal = false, fillVertical = true))
 
 /**
  * Yêu cầu widget chỉ chiếm không gian vừa đủ theo kích thước nội tại tự thân (wrap content).
@@ -142,15 +121,52 @@ fun Modifier.fillMaxHeight(): Modifier = this.then(FillModifier(fillHorizontal =
 fun Modifier.wrapContentSize(
     alignHorizontal: Alignment = Alignment.CENTER,
     alignVertical: Alignment = Alignment.CENTER
-): Modifier = this.then(WrapContentModifier(wrapHorizontal = true, wrapVertical = true, alignHorizontal = alignHorizontal, alignVertical = alignVertical))
+): Modifier = this.then(
+    WrapContentModifier(
+        wrapHorizontal = true,
+        wrapVertical = true,
+        alignHorizontal = alignHorizontal,
+        alignVertical = alignVertical
+    )
+)
 
 fun Modifier.wrapContentWidth(align: Alignment = Alignment.START): Modifier =
-    this.then(WrapContentModifier(wrapHorizontal = true, wrapVertical = false, alignHorizontal = align, alignVertical = Alignment.START))
+    this.then(
+        WrapContentModifier(
+            wrapHorizontal = true,
+            wrapVertical = false,
+            alignHorizontal = align,
+            alignVertical = Alignment.START
+        )
+    )
 
 fun Modifier.wrapContentHeight(align: Alignment = Alignment.START): Modifier =
-    this.then(WrapContentModifier(wrapHorizontal = false, wrapVertical = true, alignHorizontal = Alignment.START, alignVertical = align))
+    this.then(
+        WrapContentModifier(
+            wrapHorizontal = false,
+            wrapVertical = true,
+            alignHorizontal = Alignment.START,
+            alignVertical = align
+        )
+    )
 
-private data class WidthModifier(
+// ─── Internal Modifier Elements ────────────────────────────────────
+
+internal data class SizeModifier(
+    val minWidth: Float,
+    val minHeight: Float,
+    val maxWidth: Float,
+    val maxHeight: Float
+) : Modifier.Element {
+    override fun applyTo(node: LayoutNode) {
+        node.minWidth = minWidth
+        node.maxWidth = maxWidth
+        node.minHeight = minHeight
+        node.maxHeight = maxHeight
+    }
+}
+
+internal data class WidthModifier(
     val minWidth: Float,
     val maxWidth: Float
 ) : Modifier.Element {
@@ -160,12 +176,46 @@ private data class WidthModifier(
     }
 }
 
-private data class HeightModifier(
+internal data class HeightModifier(
     val minHeight: Float,
     val maxHeight: Float
 ) : Modifier.Element {
     override fun applyTo(node: LayoutNode) {
         node.minHeight = minHeight
         node.maxHeight = maxHeight
+    }
+}
+
+internal data class FillModifier(
+    val fillHorizontal: Boolean,
+    val fillVertical: Boolean
+) : Modifier.Element {
+    override fun applyTo(node: LayoutNode) {
+        if (fillHorizontal) {
+            node.sizeFlagHorizontal = SizeFlag.FILL
+            if (node.stretchRatio <= 0f) node.stretchRatio = 1f
+        }
+        if (fillVertical) {
+            node.sizeFlagVertical = SizeFlag.FILL
+            if (node.stretchRatio <= 0f) node.stretchRatio = 1f
+        }
+    }
+}
+
+internal data class WrapContentModifier(
+    val wrapHorizontal: Boolean,
+    val wrapVertical: Boolean,
+    val alignHorizontal: Alignment,
+    val alignVertical: Alignment
+) : Modifier.Element {
+    override fun applyTo(node: LayoutNode) {
+        if (wrapHorizontal) {
+            node.sizeFlagHorizontal = SizeFlag.SHRINK
+            node.alignHorizontal = alignHorizontal
+        }
+        if (wrapVertical) {
+            node.sizeFlagVertical = SizeFlag.SHRINK
+            node.alignVertical = alignVertical
+        }
     }
 }

@@ -17,7 +17,7 @@ import org.hubdustry.core.layout.policies.ColumnPolicy
  */
 @Composable
 inline fun Column(
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     gap: Float = 0f,
     crossinline content: @Composable ColumnScope.() -> Unit = {}
 ) {
@@ -36,7 +36,7 @@ inline fun Column(
 
 @Composable
 inline fun Column(
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     gap: Dp,
     crossinline content: @Composable ColumnScope.() -> Unit = {}
-) = Column(modifier, gap.toPx, content)
+) = Column(modifier = modifier, gap = gap.toPx, content = content)

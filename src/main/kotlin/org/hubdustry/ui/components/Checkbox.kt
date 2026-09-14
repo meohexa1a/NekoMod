@@ -16,15 +16,28 @@ import org.hubdustry.core.compose.primitive.Text
 import org.hubdustry.core.graphics.RoundedCorners
 import org.hubdustry.core.layout.Alignment
 
-internal val DefaultCheckboxCorners = RoundedCorners(4f)
+// ─── Checkbox Defaults ────────────────────────────────────────────
+
+object CheckboxDefaults {
+    const val SIZE: Float = 20f
+    const val BORDER_WIDTH: Float = 1.5f
+    const val DISABLED_ALPHA: Float = 0.5f
+
+    val corners: RoundedCorners = RoundedCorners(4f)
+    val checkedColor: Color get() = Color.royal
+    val uncheckedColor: Color get() = Color.darkGray
+    val checkmarkColor: Color get() = Color.white
+    val borderColor: Color get() = Color.lightGray
+}
+
+// ─── Checkbox Component ───────────────────────────────────────────
 
 /**
  * Checkbox chuẩn Jetpack Compose cho NekoMod UI:
- * - Kích thước mặc định 20x20 px với bo góc SDF 4px ([DefaultCheckboxCorners]).
+ * - Kích thước mặc định 20x20 px với bo góc SDF 4px ([CheckboxDefaults.corners]).
  * - Khi [checked] = true: Nền [checkedColor], hiển thị ký tự "✓" màu [checkmarkColor] căn chính giữa.
- * - Khi [checked] = false: Nền [uncheckedColor] với viền độ dày 1.5px màu [borderColor].
- * - Kết nối trực tiếp cử chỉ click/tap mà không dùng Arc ClickListener.
- * - Tự động giảm độ mờ (alpha 0.5f) và vô hiệu hóa tương tác khi [enabled] = false.
+ * - Khi [checked] = false: Nền [uncheckedColor], viền [borderColor] dày 1.5px.
+ * - Tự động phát sinh các tương tác [PressInteraction] và [HoverInteraction] lên [interactionSource].
  */
 @Composable
 fun Checkbox(
@@ -33,25 +46,28 @@ fun Checkbox(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
-    checkedColor: Color = Color.royal,
-    uncheckedColor: Color = Color.darkGray,
-    checkmarkColor: Color = Color.white,
-    borderColor: Color = Color.lightGray
+    corners: RoundedCorners = CheckboxDefaults.corners,
+    checkedColor: Color = CheckboxDefaults.checkedColor,
+    uncheckedColor: Color = CheckboxDefaults.uncheckedColor,
+    checkmarkColor: Color = CheckboxDefaults.checkmarkColor,
+    borderColor: Color = CheckboxDefaults.borderColor
 ) {
-    val source = interactionSource ?: remember { MutableInteractionSource() }
+    val currentInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
 
     val visualModifier = if (checked) {
-        Modifier.background(checkedColor, DefaultCheckboxCorners)
+        Modifier
+            .background(color = checkedColor, corners = corners)
+            .border(width = 0f, color = Color.clear, corners = corners)
     } else {
         Modifier
-            .background(uncheckedColor, DefaultCheckboxCorners)
-            .border(1.5f, borderColor, DefaultCheckboxCorners)
+            .background(color = uncheckedColor, corners = corners)
+            .border(width = CheckboxDefaults.BORDER_WIDTH, color = borderColor, corners = corners)
     }
 
     val interactiveModifier = if (enabled && onCheckedChange != null) {
         Modifier
-            .hoverable(interactionSource = source, enabled = enabled)
-            .clickable(interactionSource = source, enabled = enabled) {
+            .hoverable(interactionSource = currentInteractionSource, enabled = enabled)
+            .clickable(interactionSource = currentInteractionSource, enabled = enabled) {
                 onCheckedChange(!checked)
             }
     } else {
@@ -60,9 +76,9 @@ fun Checkbox(
 
     Box(
         modifier = Modifier
-            .size(20f)
+            .size(CheckboxDefaults.SIZE)
             .then(modifier)
-            .then(if (!enabled) Modifier.alpha(0.5f) else Modifier)
+            .then(if (!enabled) Modifier.alpha(CheckboxDefaults.DISABLED_ALPHA) else Modifier)
             .then(visualModifier)
             .then(interactiveModifier)
     ) {
@@ -75,3 +91,4 @@ fun Checkbox(
         }
     }
 }
+

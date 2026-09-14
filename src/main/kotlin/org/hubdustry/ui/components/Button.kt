@@ -15,8 +15,16 @@ import org.hubdustry.core.compose.modifier.hoverable
 import org.hubdustry.core.compose.primitive.Box
 import org.hubdustry.core.graphics.RoundedCorners
 
-internal val DefaultButtonCorners = RoundedCorners(6f)
-internal val DefaultButtonPressedColor: Color by lazy { Color.royal.cpy().mul(0.75f) }
+// ─── Button Defaults ──────────────────────────────────────────────
+ 
+object ButtonDefaults {
+    const val HOVER_BRIGHTNESS_FACTOR: Float = 1.2f
+    val corners: RoundedCorners = RoundedCorners(6f)
+    val backgroundColor: Color get() = Color.royal
+    val pressedColor: Color by lazy { Color.royal.cpy().mul(0.75f) }
+}
+
+// ─── Button Component ─────────────────────────────────────────────
 
 /**
  * Nút bấm chuẩn của NekoMod UI:
@@ -30,17 +38,17 @@ fun Button(
     modifier: Modifier = Modifier,
     interactionSource: MutableInteractionSource? = null,
     enabled: Boolean = true,
-    corners: RoundedCorners = DefaultButtonCorners,
-    backgroundColor: Color = Color.royal,
-    pressedColor: Color = DefaultButtonPressedColor,
+    corners: RoundedCorners = ButtonDefaults.corners,
+    backgroundColor: Color = ButtonDefaults.backgroundColor,
+    pressedColor: Color = ButtonDefaults.pressedColor,
     hoverColor: Color? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val source = interactionSource ?: remember { MutableInteractionSource() }
-    val isPressed by source.collectIsPressedAsState()
-    val isHovered by source.collectIsHoveredAsState()
+    val currentInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    val isPressed by currentInteractionSource.collectIsPressedAsState()
+    val isHovered by currentInteractionSource.collectIsHoveredAsState()
 
-    val effectiveHoverColor = hoverColor ?: remember(backgroundColor) { backgroundColor.cpy().mul(1.2f) }
+    val effectiveHoverColor = hoverColor ?: remember(backgroundColor) { backgroundColor.cpy().mul(ButtonDefaults.HOVER_BRIGHTNESS_FACTOR) }
     val currentColor = when {
         isPressed -> pressedColor
         isHovered -> effectiveHoverColor
@@ -50,8 +58,9 @@ fun Button(
     Box(
         modifier = modifier
             .background(currentColor, corners)
-            .hoverable(interactionSource = source, enabled = enabled)
-            .clickable(interactionSource = source, enabled = enabled, onClick = onClick),
+            .hoverable(interactionSource = currentInteractionSource, enabled = enabled)
+            .clickable(interactionSource = currentInteractionSource, enabled = enabled, onClick = onClick),
         content = content
     )
 }
+

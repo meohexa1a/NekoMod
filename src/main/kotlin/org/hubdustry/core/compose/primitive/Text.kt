@@ -12,43 +12,10 @@ import org.hubdustry.core.compose.runtime.LayoutNodeApplier
 import org.hubdustry.core.layout.LayoutNode
 import org.hubdustry.core.layout.SizeFlag
 
-/**
- * Bộ đo kích thước BMFont cho các [Text] composable node.
- */
-object TextMeasurer {
-    private val glyphLayout by lazy { GlyphLayout() }
+private const val FALLBACK_CHAR_WIDTH = 8f
+private const val FALLBACK_LINE_HEIGHT = 16f
 
-    fun measure(node: LayoutNode, text: String) {
-        node.text = text
-        if (text.isEmpty()) {
-            return
-        }
-
-        var measuredW: Float
-        var measuredH: Float
-        try {
-            val font = node.font ?: Fonts.def
-            if (font != null) {
-                glyphLayout.setText(font, text)
-                measuredW = glyphLayout.width
-                measuredH = maxOf(font.lineHeight, glyphLayout.height)
-            } else {
-                measuredW = text.length * 8f
-                measuredH = 16f
-            }
-        } catch (_: Throwable) {
-            measuredW = text.length * 8f
-            measuredH = 16f
-        }
-
-        // Intrinsic measurement tôn trọng giới hạn maxWidth / maxHeight đã ấn định tường minh
-        val targetMinW = maxOf(node.minWidth, measuredW)
-        val targetMinH = maxOf(node.minHeight, measuredH)
-
-        node.minWidth = targetMinW.coerceAtMost(node.maxWidth)
-        node.minHeight = targetMinH.coerceAtMost(node.maxHeight)
-    }
-}
+// ─── Public Text Composable ───────────────────────────────────────
 
 /**
  * [Text] composable hiển thị văn bản BMFont.
@@ -57,7 +24,7 @@ object TextMeasurer {
 @Composable
 fun Text(
     text: String,
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     textColor: Color? = null,
     font: Font? = null
 ) {
@@ -81,21 +48,60 @@ fun Text(
                 TextMeasurer.measure(this, it)
             }
             set(textColor) {
-                if (it != null) {
-                    this.textColor = it
-                }
+                val color = it ?: return@set
+                this.textColor = color
             }
             set(font) {
-                if (it != null) {
-                    this.font = it
-                    this.resetModifierState(SizeFlag.SHRINK, SizeFlag.SHRINK)
-                    this.clip = true
-                    modifier.applyTo(this)
-                    if (textColor != null) this.textColor = textColor
-                    this.font = it
-                    TextMeasurer.measure(this, text)
-                }
+                val targetFont = it ?: return@set
+                this.font = targetFont
+                this.resetModifierState(SizeFlag.SHRINK, SizeFlag.SHRINK)
+                this.clip = true
+                modifier.applyTo(this)
+                if (textColor != null) this.textColor = textColor
+                this.font = targetFont
+                TextMeasurer.measure(this, text)
             }
         }
     )
 }
+
+// ─── Internal Text Measurement Engine ─────────────────────────────
+
+/**
+ * Bộ đo kích thước BMFont cho các [Text] composable node.
+ */
+internal object TextMeasurer {
+    private val glyphLayout by lazy { GlyphLayout() }
+
+    fun measure(node: LayoutNode, text: String) {
+        node.text = text
+        if (text.isEmpty()) {
+            return
+        }
+
+        var measuredWidth: Float
+        var measuredHeight: Float
+        try {
+            val font = node.font ?: Fonts.def
+            if (font != null) {
+                glyphLayout.setText(font, text)
+                measuredWidth = glyphLayout.width
+                measuredHeight = maxOf(font.lineHeight, glyphLayout.height)
+            } else {
+                measuredWidth = text.length * FALLBACK_CHAR_WIDTH
+                measuredHeight = FALLBACK_LINE_HEIGHT
+            }
+        } catch (_: Throwable) {
+            measuredWidth = text.length * FALLBACK_CHAR_WIDTH
+            measuredHeight = FALLBACK_LINE_HEIGHT
+        }
+
+        // Intrinsic measurement tôn trọng giới hạn maxWidth / maxHeight đã ấn định tường minh
+        val targetMinWidth = maxOf(node.minWidth, measuredWidth)
+        val targetMinHeight = maxOf(node.minHeight, measuredHeight)
+
+        node.minWidth = targetMinWidth.coerceAtMost(node.maxWidth)
+        node.minHeight = targetMinHeight.coerceAtMost(node.maxHeight)
+    }
+}
+

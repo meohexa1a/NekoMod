@@ -15,6 +15,7 @@ import org.hubdustry.core.compose.primitive.Box
 import org.hubdustry.core.compose.primitive.Column
 import org.hubdustry.core.compose.view.ComposeView
 import org.hubdustry.core.layout.LayoutNode
+import org.hubdustry.core.layout.Orientation
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -30,7 +31,7 @@ class ScrollTest {
         val vState = ScrollState(15f)
         val hState = ScrollState(25f)
 
-        val vMod = ScrollModifier(vState, isVertical = true, enabled = true)
+        val vMod = ScrollModifier(vState, orientation = Orientation.VERTICAL, enabled = true)
         vMod.applyTo(node)
 
         assertTrue(node.clip, "ScrollModifier phải kích hoạt clipping trên node")
@@ -41,7 +42,7 @@ class ScrollTest {
         assertEquals(vState, node.verticalScrollState)
         assertEquals(15f, node.scrollY)
 
-        val hMod = ScrollModifier(hState, isVertical = false, enabled = true)
+        val hMod = ScrollModifier(hState, orientation = Orientation.HORIZONTAL, enabled = true)
         hMod.applyTo(node)
 
         assertTrue(node.clipHorizontal, "ScrollModifier ngang phải bật clipHorizontal")
@@ -55,8 +56,8 @@ class ScrollTest {
         assertFalse(node.clipHorizontal, "resetModifierState phải tắt clipHorizontal")
         assertFalse(node.isScrollableVertical)
         assertFalse(node.isScrollableHorizontal)
-        assertEquals(null, node.verticalScrollState)
-        assertEquals(null, node.horizontalScrollState)
+        assertNull(node.verticalScrollState)
+        assertNull(node.horizontalScrollState)
         assertEquals(0f, node.scrollX)
         assertEquals(0f, node.scrollY)
     }
@@ -569,4 +570,50 @@ class ScrollTest {
         view.sendPointerInput(PointerEventType.Release, 100f, 10f, uptimeMillis = t0 + 50L)
         view.dispose()
     }
+
+    @Test
+    fun testScrollDisabledRetainsClippingAndProgrammaticScroll() {
+        val view = ComposeView()
+        val state = ScrollState()
+
+        view.setContent {
+            Column(
+                modifier = Modifier
+                    .size(100f, 200f)
+                    .verticalScroll(state, enabled = false)
+            ) {
+                Box(modifier = Modifier.size(100f, 300f))
+            }
+        }
+        CompositionManager.frame()
+        view.setSize(100f, 200f)
+        view.layout()
+
+        val root = view.rootLayoutNode
+        val scrollColumn = root.children[0]
+
+        // Scissor clip và layout vẫn phải hoạt động khi enabled = false
+        assertTrue(scrollColumn.clip, "enabled=false vẫn phải kích hoạt scissor clip")
+        assertTrue(scrollColumn.clipVertical, "enabled=false vẫn phải kích hoạt clipVertical")
+        assertEquals(state, scrollColumn.verticalScrollState, "enabled=false vẫn phải gắn verticalScrollState")
+        assertEquals(100f, state.maxValue, "Content cao 300f, viewport cao 200f -> maxScrollY = 100f")
+
+        // Cuộn bằng lập trình (programmatic scroll) vẫn hoạt động bình thường
+        state.dispatchRawDelta(60f)
+        assertEquals(60f, state.value)
+        assertEquals(60f, scrollColumn.scrollY)
+
+        // Tuy nhiên cử chỉ vuốt / lăn chuột người dùng không được xử lý
+        val handled = view.sendPointerInput(
+            type = PointerEventType.Scroll,
+            x = 50f,
+            y = 50f,
+            scrollDelta = Offset(0f, 2f)
+        )
+        assertFalse(handled, "Sự kiện Scroll chuột không được xử lý khi enabled=false")
+        assertEquals(60f, state.value, "Con lăn chuột không được làm thay đổi state khi enabled=false")
+
+        view.dispose()
+    }
 }
+

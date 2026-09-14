@@ -7,6 +7,8 @@ import org.hubdustry.core.compose.input.AwaitPointerEventScope
 import org.hubdustry.core.compose.input.PointerEventPass
 import org.hubdustry.core.compose.input.PointerInputScope
 
+// ─── Gesture Lifecycle Coroutine Scopes ────────────────────────────
+
 /**
  * Lặp lại việc lắng nghe các cử chỉ con trỏ độc lập theo chuẩn AOSP Compose.
  * Tự động đảm bảo dọn dẹp và chờ toàn bộ con trỏ nhả ra ([awaitAllPointersUp])
@@ -21,18 +23,20 @@ suspend fun PointerInputScope.awaitEachGesture(
             awaitPointerEventScope {
                 block()
             }
-        } catch (c: CancellationException) {
+        } catch (cancellationException: CancellationException) {
             if (currentContext.isActive) {
                 // Khối cử chỉ bị hủy cục bộ, chờ tất cả con trỏ nhả ra trước khi lặp lại
                 awaitPointerEventScope {
                     awaitAllPointersUp()
                 }
             } else {
-                throw c
+                throw cancellationException
             }
         }
     }
 }
+
+// ─── Pointer State Await Helpers ───────────────────────────────────
 
 /**
  * Chờ cho đến khi tất cả các con trỏ được nhả ra hoàn toàn (All pointers up).

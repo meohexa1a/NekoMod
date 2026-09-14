@@ -198,16 +198,18 @@ Trước khi viết bất kỳ cấu trúc dữ liệu, enum, modifier, hoặc h
 Đọc `.agents/skills/review-pipeline/SKILL.md` trước khi chạy bất kỳ skill review nào.
 Pipeline điều phối nhiều skill chuyên biệt song song, mỗi skill chấm 1 góc nhìn, PM tổng hợp quyết định.
 
-### Skills Hiện Có (chạy tuỳ context):
+### Skills Hiện Có:
 - **`kotlin-idioms-reviewer`** (`.agents/skills/kotlin-idioms-reviewer/SKILL.md`): Java-thinking, Zero-GC, Expression/Statement, Feature Envy
 - **`semantic-clarity-reviewer`** (`.agents/skills/semantic-clarity-reviewer/SKILL.md`): Tên nói dối, API phantom, suspend giả, abstraction thừa
 - **`code-aesthetics-reviewer`** (`.agents/skills/code-aesthetics-reviewer/SKILL.md`): Expression body, blank line phân đoạn, named args, narrative naming, local functions, section banners, ASCII diagrams
+- **`coding-conventions-reviewer`** (`.agents/skills/coding-conventions-reviewer/SKILL.md`): Quy chuẩn đặt tên Kotlin, khớp package/directory, guard clauses, giới hạn độ dài hàm
 
-### Khi Nào Chạy Review:
-- Bất kỳ thay đổi nào trong module 🟢 Stable → **bắt buộc** cả 2 skills logic (`kotlin-idioms-reviewer` + `semantic-clarity-reviewer`)
-- Bất kỳ task làm đẹp mã nguồn (aesthetics polish) → **bắt buộc** `code-aesthetics-reviewer`
-- Thêm module mới hoặc modifier mới → `semantic-clarity-reviewer`
-- Sửa hot-path (layout, render, input) → `kotlin-idioms-reviewer`
+### Khi Nào Chạy Review (Trigger Matrix Bắt Buộc):
+- **Bất kỳ thay đổi code nào (tối thiểu)**: Bắt buộc tối thiểu 3 skills: `kotlin-idioms-reviewer` + `semantic-clarity-reviewer` + `coding-conventions-reviewer`.
+- **Module 🟢 Stable**: Bắt buộc 4 skills: `kotlin-idioms-reviewer` + `semantic-clarity-reviewer` + `code-aesthetics-reviewer` + `coding-conventions-reviewer`.
+- **Tạo File / Package mới**: Thêm `architecture-boundary-reviewer`.
+- **Sửa Hot-Path (layout, render, input)**: Bắt buộc siết chặt `kotlin-idioms-reviewer` (Zero-GC, không boxing, không allocation).
+- **Task làm đẹp mã nguồn (aesthetics polish)**: Bắt buộc `code-aesthetics-reviewer`.
 
 ### Format Output Chuẩn (xem review-pipeline/SKILL.md):
 Mỗi skill trả về: Score X/10 + Findings (🔴 CRITICAL / 🟡 WARNING / 🟢 GOOD) + Recommendation.

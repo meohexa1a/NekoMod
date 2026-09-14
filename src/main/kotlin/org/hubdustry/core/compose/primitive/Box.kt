@@ -18,7 +18,7 @@ import org.hubdustry.core.layout.policies.BoxLayoutPolicy
  */
 @Composable
 inline fun Box(
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     crossinline content: @Composable BoxScope.() -> Unit = {}
 ) {
     ComposeNode<LayoutNode, LayoutNodeApplier>(

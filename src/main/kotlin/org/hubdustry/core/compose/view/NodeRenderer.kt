@@ -6,15 +6,49 @@ import mindustry.ui.Fonts
 import org.hubdustry.core.graphics.UIBatch
 import org.hubdustry.core.layout.LayoutNode
 
+private const val MIN_RENDER_EPSILON = 0.001f
+private const val MIN_SCROLLBAR_CONTAINER_LENGTH = 10f
+private const val MIN_SCROLLBAR_THUMB_LENGTH = 16f
+private const val SCROLLBAR_THICKNESS = 4f
+private const val SCROLLBAR_MARGIN = 2f
+private const val SCROLLBAR_RADIUS = 2f
+private const val SCROLLBAR_ALPHA = 0.35f
+
 /**
- * Trình dựng hình đệ quy Virtual DOM ([LayoutNode]) phát lệnh vẽ ra [UIBatch].
+ * ## NodeRenderer
  *
- * TÁCH BIỆT TRÁCH NHIỆM (Đợt 2 Refactor):
- * 1. Chịu trách nhiệm 100% việc chuyển đổi không gian Top-Left (Y-down) sang Arc Scene2D (Y-up) tại thời điểm vẽ.
- * 2. Hot-Path Zero-GC: Sở hữu các bộ đệm [Color] scratchpad tái sử dụng, cấm cấp phát object trong frame loop.
- * 3. Hỗ trợ đầy đủ background, bo góc SDF shader, viền ngoài, văn bản BMFont có padding, và thanh cuộn.
+ * Thực thi việc dựng hình đệ quy Virtual DOM Node xuống GPU thông qua [UIBatch].
+ * Tách biệt hoàn toàn trách nhiệm render khỏi [ComposeView].
+ *
+ * ĐẶC TÍNH KIẾN TRÚC:
+ * 1. **Zero-GC Hot-Path**:
+ *    - Sử dụng các scratchpad Color tĩnh tái sử dụng (`colorScratch`, `borderScratch`, `textScratch`, `scrollbarScratch`).
+ *    - Tuyệt đối không cấp phát đối tượng mới hoặc lambda closure trong frame loop.
+ * 2. **Chuyển đổi tọa độ Bức tường Berlin**:
+ *    - Node Virtual DOM quản lý tọa độ cục bộ Top-Left ($Y$-down).
+ *    - Tại duy nhất thời điểm phát lệnh vẽ, tính toán tọa độ thế giới Arc Viewport (Y-up):
+ *      `arcY = viewY + viewHeight - (nodeLocalY + nodeHeight)`.
+ *
+ * ```
+ *   NekoMod Virtual DOM (Y-down)                 Arc Scene2D / OpenGL (Y-up)
+ *   (0, 0) Top-Left                             (viewX, viewY + viewHeight) Top-Left
+ *     ┌────────────────────┐   BERLIN WALL        ┌────────────────────┐
+ *     │ nodeY ↓            │  ═════════════►      │                    │
+ *     │ ┌────────────────┐ │                      │ ┌────────────────┐ │
+ *     │ │ Node           │ │                      │ │ Node           │ │ arcY ↑
+ *     │ └────────────────┘ │                      │ └────────────────┘ │
+ *     └────────────────────┘                      └────────────────────┘
+ *     (width, height)                             (viewX, viewY) Bottom-Left
+ *       Formula: arcY = viewY + viewHeight - (nodeLocalY + nodeHeight)
+ * ```
+ * 3. **Cắt gọt tự động (Auto-Clipping)**:
+ *    - Tự động cắt gọt nội dung con và văn bản BMFont khi vượt quá đệm nội tại của node.
  */
-object NodeRenderer {
+internal object NodeRenderer {
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. ZERO-GC SCRATCHPADS & PUBLIC ENTRY POINT
+    // ─────────────────────────────────────────────────────────────────────────
 
     private val colorScratch = Color()
     private val borderScratch = Color()
@@ -28,7 +62,7 @@ object NodeRenderer {
         rootNode: LayoutNode,
         viewX: Float,
         viewY: Float,
-        viewH: Float
+        viewHeight: Float
     ) {
         renderNodeRecursive(
             node = rootNode,
@@ -37,9 +71,13 @@ object NodeRenderer {
             parentEffectiveAlpha = 1f,
             viewX = viewX,
             viewY = viewY,
-            viewH = viewH
+            viewHeight = viewHeight
         )
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. RECURSIVE TREE TRAVERSAL & CLIPPING
+    // ─────────────────────────────────────────────────────────────────────────
 
     private fun renderNodeRecursive(
         node: LayoutNode,
@@ -48,7 +86,7 @@ object NodeRenderer {
         parentEffectiveAlpha: Float,
         viewX: Float,
         viewY: Float,
-        viewH: Float
+        viewHeight: Float
     ) {
         if (!node.visible) return
 
@@ -57,18 +95,18 @@ object NodeRenderer {
 
         val nodeLocalX = parentLocalX + node.x + node.offsetX
         val nodeLocalY = parentLocalY + node.y + node.offsetY
-        val nodeW = node.width
-        val nodeH = node.height
+        val nodeWidth = node.width
+        val nodeHeight = node.height
 
         val arcX = viewX + nodeLocalX
-        val arcY = viewY + viewH - (nodeLocalY + nodeH)
+        val arcY = viewY + viewHeight - (nodeLocalY + nodeHeight)
 
         if (node.clip) {
             UIBatch.pushClip(
                 x = arcX,
                 y = arcY,
-                width = nodeW,
-                height = nodeH,
+                width = nodeWidth,
+                height = nodeHeight,
                 clipHorizontal = node.clipHorizontal,
                 clipVertical = node.clipVertical,
                 radiusTopStart = node.clipRadiusTopStart,
@@ -78,8 +116,8 @@ object NodeRenderer {
             )
         }
 
-        renderBackgroundAndBorder(node, arcX, arcY, nodeW, nodeH, effectiveAlpha)
-        renderText(node, arcX, arcY, nodeW, nodeH, effectiveAlpha)
+        renderBackgroundAndBorder(node, arcX, arcY, nodeWidth, nodeHeight, effectiveAlpha)
+        renderText(node, arcX, arcY, nodeWidth, nodeHeight, effectiveAlpha)
 
         // Duyệt con bằng fastForEach (Zero-GC inline), bù trừ độ cuộn (scrollX, scrollY)
         val childParentLocalX = nodeLocalX - node.scrollX
@@ -92,30 +130,34 @@ object NodeRenderer {
                 parentEffectiveAlpha = effectiveAlpha,
                 viewX = viewX,
                 viewY = viewY,
-                viewH = viewH
+                viewHeight = viewHeight
             )
         }
 
-        renderScrollbars(node, arcX, arcY, nodeW, nodeH, effectiveAlpha)
+        renderScrollbars(node, arcX, arcY, nodeWidth, nodeHeight, effectiveAlpha)
 
         if (node.clip) UIBatch.popClip()
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. VISUAL TOKENS RENDERING: BACKGROUND & SDF BORDER
+    // ─────────────────────────────────────────────────────────────────────────
 
     private fun renderBackgroundAndBorder(
         node: LayoutNode,
         arcX: Float,
         arcY: Float,
-        nodeW: Float,
-        nodeH: Float,
+        nodeWidth: Float,
+        nodeHeight: Float,
         effectiveAlpha: Float
     ) {
         if (node.backgroundColor == null && !node.hasBorder) return
 
-        val bg = node.backgroundColor
+        val backgroundColor = node.backgroundColor
         val fillColor = when {
-            bg == null -> Color.clear
-            effectiveAlpha < 1f -> colorScratch.set(bg.r, bg.g, bg.b, bg.a * effectiveAlpha)
-            else -> bg
+            backgroundColor == null -> Color.clear
+            effectiveAlpha < 1f -> colorScratch.set(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a * effectiveAlpha)
+            else -> backgroundColor
         }
 
         val borderColor = when {
@@ -127,8 +169,8 @@ object NodeRenderer {
         UIBatch.drawBox(
             x = arcX,
             y = arcY,
-            width = nodeW,
-            height = nodeH,
+            width = nodeWidth,
+            height = nodeHeight,
             radiusTopStart = node.cornerRadiusTopStart,
             radiusTopEnd = node.cornerRadiusTopEnd,
             radiusBottomEnd = node.cornerRadiusBottomEnd,
@@ -139,12 +181,16 @@ object NodeRenderer {
         )
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4. BMFONT TEXT AUTO-CLIP & RENDERING
+    // ─────────────────────────────────────────────────────────────────────────
+
     private fun renderText(
         node: LayoutNode,
         arcX: Float,
         arcY: Float,
-        nodeW: Float,
-        nodeH: Float,
+        nodeWidth: Float,
+        nodeHeight: Float,
         effectiveAlpha: Float
     ) {
         val textContent = node.text ?: return
@@ -157,23 +203,28 @@ object NodeRenderer {
             } else node.textColor
 
             val capHeight = font.data.capHeight
-            val innerH = maxOf(0f, nodeH - node.paddingTop - node.paddingBottom)
-            val innerW = maxOf(0f, nodeW - node.paddingLeft - node.paddingRight)
-            if (innerW <= 0.001f || innerH <= 0.001f) return
+            val innerHeight = maxOf(0f, nodeHeight - node.paddingTop - node.paddingBottom)
+            val innerWidth = maxOf(0f, nodeWidth - node.paddingLeft - node.paddingRight)
+            if (innerWidth <= MIN_RENDER_EPSILON || innerHeight <= MIN_RENDER_EPSILON) return
             val drawX = arcX + node.paddingLeft
-            val drawY = if (innerH > capHeight) (arcY + node.paddingBottom) + (innerH + capHeight) * 0.5f else arcY + nodeH - node.paddingTop
+            val drawY = if (innerHeight > capHeight) (arcY + node.paddingBottom) + (innerHeight + capHeight) * 0.5f else arcY + nodeHeight - node.paddingTop
 
             // Tự động cắt gọt (auto-clip) nội dung văn bản theo khung đệm nội tại của node
             val textClipX = arcX + node.paddingLeft
             val textClipY = arcY + node.paddingBottom
-            UIBatch.pushClip(textClipX, textClipY, innerW, innerH)
+            UIBatch.pushClip(
+                x = textClipX,
+                y = textClipY,
+                width = innerWidth,
+                height = innerHeight
+            )
 
             UIBatch.drawText(
                 font = font,
                 text = textContent,
                 x = drawX,
                 y = drawY,
-                targetWidth = innerW,
+                targetWidth = innerWidth,
                 color = textColor
             )
 
@@ -183,43 +234,47 @@ object NodeRenderer {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 5. SCROLLBAR VISUALIZATION: VERTICAL & HORIZONTAL
+    // ─────────────────────────────────────────────────────────────────────────
+
     private fun renderScrollbars(
         node: LayoutNode,
         arcX: Float,
         arcY: Float,
-        nodeW: Float,
-        nodeH: Float,
+        nodeWidth: Float,
+        nodeHeight: Float,
         effectiveAlpha: Float
     ) {
-        renderVerticalScrollbar(node, arcX, arcY, nodeW, nodeH, effectiveAlpha)
-        renderHorizontalScrollbar(node, arcX, arcY, nodeW, nodeH, effectiveAlpha)
+        renderVerticalScrollbar(node, arcX, arcY, nodeWidth, nodeHeight, effectiveAlpha)
+        renderHorizontalScrollbar(node, arcX, arcY, nodeWidth, nodeHeight, effectiveAlpha)
     }
 
     private fun renderVerticalScrollbar(
         node: LayoutNode,
         arcX: Float,
         arcY: Float,
-        nodeW: Float,
-        nodeH: Float,
+        nodeWidth: Float,
+        nodeHeight: Float,
         effectiveAlpha: Float
     ) {
-        if (!node.isScrollableVertical || node.maxScrollY <= 0.001f || nodeH <= 10f) return
+        if (!node.isScrollableVertical || node.maxScrollY <= MIN_RENDER_EPSILON || nodeHeight <= MIN_SCROLLBAR_CONTAINER_LENGTH) return
 
-        val thumbH = maxOf(16f, (nodeH / (nodeH + node.maxScrollY)) * nodeH)
-        val availableTrack = nodeH - thumbH
+        val thumbHeight = maxOf(MIN_SCROLLBAR_THUMB_LENGTH, (nodeHeight / (nodeHeight + node.maxScrollY)) * nodeHeight)
+        val availableTrack = nodeHeight - thumbHeight
         val progress = (node.scrollY / node.maxScrollY).coerceIn(0f, 1f)
         val thumbTop = progress * availableTrack
-        val arcThumbY = arcY + nodeH - thumbTop - thumbH
-        val scrollbarW = 4f
-        val arcScrollbarX = arcX + nodeW - scrollbarW - 2f
+        val arcThumbY = arcY + nodeHeight - thumbTop - thumbHeight
+        val scrollbarWidth = SCROLLBAR_THICKNESS
+        val arcScrollbarX = arcX + nodeWidth - scrollbarWidth - SCROLLBAR_MARGIN
 
-        scrollbarScratch.set(1f, 1f, 1f, 0.35f * effectiveAlpha)
+        scrollbarScratch.set(1f, 1f, 1f, SCROLLBAR_ALPHA * effectiveAlpha)
         UIBatch.drawBox(
             x = arcScrollbarX,
             y = arcThumbY,
-            width = scrollbarW,
-            height = thumbH,
-            radius = 2f,
+            width = scrollbarWidth,
+            height = thumbHeight,
+            radius = SCROLLBAR_RADIUS,
             color = scrollbarScratch
         )
     }
@@ -228,27 +283,27 @@ object NodeRenderer {
         node: LayoutNode,
         arcX: Float,
         arcY: Float,
-        nodeW: Float,
-        nodeH: Float,
+        nodeWidth: Float,
+        nodeHeight: Float,
         effectiveAlpha: Float
     ) {
-        if (!node.isScrollableHorizontal || node.maxScrollX <= 0.001f || nodeW <= 10f) return
+        if (!node.isScrollableHorizontal || node.maxScrollX <= MIN_RENDER_EPSILON || nodeWidth <= MIN_SCROLLBAR_CONTAINER_LENGTH) return
 
-        val thumbW = maxOf(16f, (nodeW / (nodeW + node.maxScrollX)) * nodeW)
-        val availableTrack = nodeW - thumbW
+        val thumbWidth = maxOf(MIN_SCROLLBAR_THUMB_LENGTH, (nodeWidth / (nodeWidth + node.maxScrollX)) * nodeWidth)
+        val availableTrack = nodeWidth - thumbWidth
         val progress = (node.scrollX / node.maxScrollX).coerceIn(0f, 1f)
         val thumbLeft = progress * availableTrack
         val arcThumbX = arcX + thumbLeft
-        val scrollbarH = 4f
-        val arcScrollbarY = arcY + 2f
+        val scrollbarHeight = SCROLLBAR_THICKNESS
+        val arcScrollbarY = arcY + SCROLLBAR_MARGIN
 
-        scrollbarScratch.set(1f, 1f, 1f, 0.35f * effectiveAlpha)
+        scrollbarScratch.set(1f, 1f, 1f, SCROLLBAR_ALPHA * effectiveAlpha)
         UIBatch.drawBox(
             x = arcThumbX,
             y = arcScrollbarY,
-            width = thumbW,
-            height = scrollbarH,
-            radius = 2f,
+            width = thumbWidth,
+            height = scrollbarHeight,
+            radius = SCROLLBAR_RADIUS,
             color = scrollbarScratch
         )
     }

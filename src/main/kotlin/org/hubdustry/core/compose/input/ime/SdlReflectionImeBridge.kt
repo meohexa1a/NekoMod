@@ -89,7 +89,7 @@ object SdlReflectionImeBridge {
     val isActive: Boolean
         get() = isSessionActive
 
-    // ── REFLECTION HOOK CORE ─────────────────────────────────────────────────
+    // ─── 2. REFLECTION HOOK & INTERCEPTION ──────────────────────────────────
 
     private fun ensureHook() {
         if (isHookInstalled) return
@@ -111,31 +111,16 @@ object SdlReflectionImeBridge {
             this.stringEditEventsField = field
             this.originalSeq = original
 
-            val proxySeq = object : Seq<Any>() {
-                override fun add(value: Any): Seq<Any> {
-                    val listener = activeListener
-                    if (listener == null) {
-                        // Passthrough cho các thành phần gốc của Mindustry
-                        return super.add(value)
-                    }
-
-                    val text = extractEditText(value) ?: return super.add(value)
-                    if (text.isNotEmpty()) {
-                        listener.onCompositionChanged(text)
-                    } else {
-                        listener.onCompositionCleared()
-                    }
-
-                    // Nuốt sự kiện: không đẩy vào super để Arc không kiểm tra instanceof TextField
-                    return this
-                }
-            }
+            val proxySeq = ImeStringEditProxySeq(
+                activeListenerProvider = { activeListener },
+                textExtractor = ::extractEditText
+            )
 
             field.set(input, proxySeq)
             isHookInstalled = true
             Log.info("[NekoMod] SdlReflectionImeBridge hook installed successfully.")
-        } catch (t: Throwable) {
-            Log.err("[NekoMod] Failed to install SdlReflectionImeBridge hook", t)
+        } catch (throwable: Throwable) {
+            Log.err("[NekoMod] Failed to install SdlReflectionImeBridge hook", throwable)
         }
     }
 
@@ -154,10 +139,12 @@ object SdlReflectionImeBridge {
             activeListener = null
             isSessionActive = false
             Log.info("[NekoMod] SdlReflectionImeBridge hook uninstalled.")
-        } catch (t: Throwable) {
-            Log.err("[NekoMod] Failed to uninstall SdlReflectionImeBridge hook", t)
+        } catch (throwable: Throwable) {
+            Log.err("[NekoMod] Failed to uninstall SdlReflectionImeBridge hook", throwable)
         }
     }
+
+    // ─── 3. REFLECTION EXTRACTION HELPERS ────────────────────────────────────
 
     private fun extractEditText(editEvent: Any): String? {
         val field = cachedEventTextField ?: findField(editEvent.javaClass, "text")?.also {
@@ -172,8 +159,8 @@ object SdlReflectionImeBridge {
         }
     }
 
-    private fun findField(clazz: Class<*>, name: String): Field? {
-        var current: Class<*>? = clazz
+    private fun findField(targetClass: Class<*>, name: String): Field? {
+        var current: Class<*>? = targetClass
         while (current != null && current != Any::class.java) {
             try {
                 return current.getDeclaredField(name)
@@ -182,5 +169,36 @@ object SdlReflectionImeBridge {
             }
         }
         return null
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. PROXY SEQUENCE IMPLEMENTATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Lớp bọc ủy quyền cho `Seq<Any>` của Arc để chặn bắt và nuốt các sự kiện IME
+ * khi có ô nhập liệu Compose đang active, hoặc passthrough cho Arc khi rảnh rỗi.
+ */
+private class ImeStringEditProxySeq(
+    private val activeListenerProvider: () -> ImeCompositionListener?,
+    private val textExtractor: (Any) -> String?
+) : Seq<Any>() {
+    override fun add(value: Any): Seq<Any> {
+        val listener = activeListenerProvider()
+        if (listener == null) {
+            // Passthrough cho các ô nhập liệu gốc của Mindustry
+            return super.add(value)
+        }
+
+        val text = textExtractor(value) ?: return super.add(value)
+        if (text.isNotEmpty()) {
+            listener.onCompositionChanged(text)
+        } else {
+            listener.onCompositionCleared()
+        }
+
+        // Nuốt sự kiện: không chuyển tiếp vào Seq gốc của Arc để tránh lỗi kiểm tra instanceof
+        return this
     }
 }

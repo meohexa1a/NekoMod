@@ -59,8 +59,33 @@ value class TextRange(val packedValue: Long) {
 /**
  * Hàm khởi tạo tiện ích đóng gói [start] và [end] thành [TextRange].
  */
-fun TextRange(start: Int, end: Int = start): TextRange {
-    val s = start.toLong() and 0xFFFFFFFFL
-    val e = end.toLong() and 0xFFFFFFFFL
-    return TextRange((s shl 32) or e)
+inline fun TextRange(start: Int, end: Int = start): TextRange {
+    val startBits = start.toLong() and 0xFFFFFFFFL
+    val endBits = end.toLong() and 0xFFFFFFFFL
+    return TextRange((startBits shl 32) or endBits)
 }
+
+// ─── Primitive State Delegation (Zero-GC) ────────────────────────────────────
+
+/**
+ * Đóng gói snapshot state [MutableLongState] để lưu trữ [TextRange] không boxing (Zero-GC).
+ */
+@JvmInline
+value class MutableTextRangeState(val state: androidx.compose.runtime.MutableLongState) {
+    var value: TextRange
+        inline get() = TextRange(state.longValue)
+        inline set(newVal) { state.longValue = newVal.packedValue }
+}
+
+inline fun mutableTextRangeStateOf(initialValue: TextRange = TextRange.Zero): MutableTextRangeState =
+    MutableTextRangeState(androidx.compose.runtime.mutableLongStateOf(initialValue.packedValue))
+
+@Suppress("NOTHING_TO_INLINE")
+inline operator fun MutableTextRangeState.getValue(thisRef: Any?, property: kotlin.reflect.KProperty<*>): TextRange =
+    value
+
+@Suppress("NOTHING_TO_INLINE")
+inline operator fun MutableTextRangeState.setValue(thisRef: Any?, property: kotlin.reflect.KProperty<*>, value: TextRange) {
+    this.value = value
+}
+

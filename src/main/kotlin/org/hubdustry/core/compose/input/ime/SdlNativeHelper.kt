@@ -10,16 +10,18 @@ import java.lang.reflect.Method
  *
  * Tự động vô hiệu hóa mà không ném ngoại lệ khi chạy trên Android, iOS hoặc môi trường JVM test không có SDL.
  */
-object SdlNativeHelper {
+internal object SdlNativeHelper {
 
-    val isAvailable: Boolean by lazy {
+    private val sdlClass: Class<*>? by lazy {
         try {
             Class.forName("arc.backend.sdl.jni.SDL")
-            true
         } catch (_: Throwable) {
-            false
+            null
         }
     }
+
+    val isAvailable: Boolean
+        get() = sdlClass != null
 
     private val startTextInputMethod: Method? by lazy {
         resolveMethod("SDL_StartTextInput")
@@ -32,19 +34,21 @@ object SdlNativeHelper {
     private val setTextInputRectMethod: Method? by lazy {
         resolveMethod(
             "SDL_SetTextInputRect",
-            Integer.TYPE,
-            Integer.TYPE,
-            Integer.TYPE,
-            Integer.TYPE
+            Int::class.java,
+            Int::class.java,
+            Int::class.java,
+            Int::class.java
         )
     }
 
-    private fun resolveMethod(name: String, vararg parameterTypes: Class<*>): Method? =
-        try {
-            Class.forName("arc.backend.sdl.jni.SDL").getMethod(name, *parameterTypes)
+    private fun resolveMethod(name: String, vararg parameterTypes: Class<*>): Method? {
+        val targetClass = sdlClass ?: return null
+        return try {
+            targetClass.getMethod(name, *parameterTypes)
         } catch (_: Throwable) {
             null
         }
+    }
 
     /**
      * Bắt đầu phiên nhập văn bản native của hệ điều hành (hiển thị IME candidate box nếu có).

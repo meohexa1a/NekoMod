@@ -3,30 +3,23 @@ package org.hubdustry.core.compose.view
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
-import org.hubdustry.core.compose.input.PointerButton
-import org.hubdustry.core.compose.input.PointerType
 import org.hubdustry.core.layout.LayoutNode
+
+// ─── Data Contracts & Clip Bounds ─────────────────────────────────
+
+private const val DEFAULT_CLIP_MIN = Float.NEGATIVE_INFINITY
+private const val DEFAULT_CLIP_MAX = Float.POSITIVE_INFINITY
 
 /**
  * Ghi lại thông tin node trúng hit-test và tọa độ tuyệt đối của node trong ComposeView.
  */
-internal data class LayoutNodeHit(
+internal class LayoutNodeHit(
     var node: LayoutNode,
     var absX: Float,
     var absY: Float
 )
 
-/**
- * Bản ghi con trỏ đang được theo dõi trong suốt vòng đời nhấn giữ (Touch Tracking).
- */
-internal class PointerHitRecord(
-    val chain: List<LayoutNodeHit>,
-    var lastComposeX: Float,
-    var lastComposeY: Float,
-    var lastUptime: Long,
-    val button: PointerButton? = PointerButton.Primary,
-    val pointerType: PointerType = PointerType.Touch
-)
+// ─── Hit Test Manager ─────────────────────────────────────────────
 
 /**
  * [HitTestManager] — Quản lý thuật toán Hit-Testing và bộ đệm con trỏ/hover cho cây Virtual DOM.
@@ -47,31 +40,12 @@ internal class HitTestManager(private val rootLayoutNode: LayoutNode) {
     private val hoverPool = ArrayList<LayoutNodeHit>()
 
     /**
-     * Lấy hoặc tái sử dụng một [LayoutNodeHit] từ object pool.
-     */
-    private fun obtainHit(node: LayoutNode, absX: Float, absY: Float): LayoutNodeHit {
-        val hit = if (hitPoolIndex < hitPool.size) {
-            val existing = hitPool[hitPoolIndex]
-            existing.node = node
-            existing.absX = absX
-            existing.absY = absY
-            existing
-        } else {
-            val newHit = LayoutNodeHit(node, absX, absY)
-            hitPool.add(newHit)
-            newHit
-        }
-        hitPoolIndex++
-        return hit
-    }
-
-    /**
-     * Tìm chuỗi các node nhận tương tác tại tọa độ ([targetX], [targetY]).
+     * Tìm kiếm chuỗi các node nhận tương tác tại tọa độ ([targetX], [targetY]) của ComposeView.
      * Kết quả trả về danh sách [LayoutNodeHit] từ gốc xuống lá (Root -> Leaf, phù hợp với pha Tunneling; tái sử dụng [hitScratch], Zero-GC).
      */
     fun findHitChain(targetX: Float, targetY: Float): List<LayoutNodeHit> {
-        hitPoolIndex = 0
         hitScratch.clear()
+        hitPoolIndex = 0
         hitTestChain(
             node = rootLayoutNode,
             parentAbsX = 0f,
@@ -83,14 +57,34 @@ internal class HitTestManager(private val rootLayoutNode: LayoutNode) {
         return hitScratch
     }
 
+    /**
+     * Lấy hoặc tái sử dụng một [LayoutNodeHit] từ object pool.
+     */
+    private fun obtainHit(node: LayoutNode, absX: Float, absY: Float): LayoutNodeHit {
+        return if (hitPoolIndex < hitPool.size) {
+            val hit = hitPool[hitPoolIndex++]
+            hit.node = node
+            hit.absX = absX
+            hit.absY = absY
+            hit
+        } else {
+            val newHit = LayoutNodeHit(node = node, absX = absX, absY = absY)
+            hitPool.add(newHit)
+            hitPoolIndex++
+            newHit
+        }
+    }
+
+    // ─── Internal Hit Testing Algorithms ──────────────────────────────
+
     private fun hitTestChain(
         node: LayoutNode,
         parentAbsX: Float,
         parentAbsY: Float,
-        clipMinX: Float = -100000f,
-        clipMinY: Float = -100000f,
-        clipMaxX: Float = 100000f,
-        clipMaxY: Float = 100000f,
+        clipMinX: Float = DEFAULT_CLIP_MIN,
+        clipMinY: Float = DEFAULT_CLIP_MIN,
+        clipMaxX: Float = DEFAULT_CLIP_MAX,
+        clipMaxY: Float = DEFAULT_CLIP_MAX,
         targetX: Float,
         targetY: Float,
         result: MutableList<LayoutNodeHit>
@@ -104,16 +98,16 @@ internal class HitTestManager(private val rootLayoutNode: LayoutNode) {
 
         val absX = parentAbsX + node.x + node.offsetX
         val absY = parentAbsY + node.y + node.offsetY
-        val w = node.width
-        val h = node.height
+        val nodeWidth = node.width
+        val nodeHeight = node.height
 
         // 2. Tọa độ cục bộ trong node
         val localX = targetX - absX
         val localY = targetY - absY
 
         // 3. Nếu node có clip nhưng điểm chạm rơi ra ngoài AABB của trục được clip -> reject
-        if ((node.clipHorizontal && (localX < 0f || localX > w)) ||
-            (node.clipVertical && (localY < 0f || localY > h))) {
+        if ((node.clipHorizontal && (localX < 0f || localX > nodeWidth)) ||
+            (node.clipVertical && (localY < 0f || localY > nodeHeight))) {
             return false
         }
 
@@ -134,9 +128,9 @@ internal class HitTestManager(private val rootLayoutNode: LayoutNode) {
 
         // 5. Tính toán vùng clip lũy tiến cho các node con
         val nextClipMinX = if (node.clipHorizontal) maxOf(clipMinX, absX) else clipMinX
-        val nextClipMaxX = if (node.clipHorizontal) minOf(clipMaxX, absX + w) else clipMaxX
+        val nextClipMaxX = if (node.clipHorizontal) minOf(clipMaxX, absX + nodeWidth) else clipMaxX
         val nextClipMinY = if (node.clipVertical) maxOf(clipMinY, absY) else clipMinY
-        val nextClipMaxY = if (node.clipVertical) minOf(clipMaxY, absY + h) else clipMaxY
+        val nextClipMaxY = if (node.clipVertical) minOf(clipMaxY, absY + nodeHeight) else clipMaxY
 
         val childParentAbsX = absX - node.scrollX
         val childParentAbsY = absY - node.scrollY
@@ -164,6 +158,8 @@ internal class HitTestManager(private val rootLayoutNode: LayoutNode) {
         return result.size > initialSize
     }
 
+    // ─── Hover State & Lifecycle ──────────────────────────────────────
+
     /**
      * Xác định danh sách các node vừa rời khỏi tầm chuột (Exited) dựa trên [currentHits].
      */
@@ -190,7 +186,7 @@ internal class HitTestManager(private val rootLayoutNode: LayoutNode) {
                 existing.absY = src.absY
                 existing
             } else {
-                val newHit = LayoutNodeHit(src.node, src.absX, src.absY)
+                val newHit = LayoutNodeHit(node = src.node, absX = src.absX, absY = src.absY)
                 hoverPool.add(newHit)
                 newHit
             }

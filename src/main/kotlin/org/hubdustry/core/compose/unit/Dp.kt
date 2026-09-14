@@ -25,8 +25,8 @@ value class Dp(val value: Float) : Comparable<Dp> {
         get() {
             if (value == Float.MAX_VALUE) return Float.MAX_VALUE
             val scale = try {
-                val s = uiScaleProvider()
-                if (s.isNaN() || s <= 0f) 1f else s
+                val rawScale = uiScaleProvider()
+                if (rawScale.isNaN() || rawScale <= 0f) 1f else rawScale
             } catch (_: Throwable) {
                 1f
             }
@@ -65,8 +65,8 @@ value class Dp(val value: Float) : Comparable<Dp> {
         private fun defaultScale(): Float = try {
             val settings = Core.settings
             if (settings != null) {
-                val s = settings.getInt("uiscale", 100)
-                if (s > 0) s / 100f else 1f
+                val userScalePercent = settings.getInt("uiscale", 100)
+                if (userScalePercent > 0) userScalePercent / 100f else 1f
             } else 1f
         } catch (_: Throwable) {
             1f

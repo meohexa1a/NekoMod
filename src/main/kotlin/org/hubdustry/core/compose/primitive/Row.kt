@@ -17,7 +17,7 @@ import org.hubdustry.core.layout.policies.RowPolicy
  */
 @Composable
 inline fun Row(
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     gap: Float = 0f,
     crossinline content: @Composable RowScope.() -> Unit = {}
 ) {
@@ -36,7 +36,7 @@ inline fun Row(
 
 @Composable
 inline fun Row(
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     gap: Dp,
     crossinline content: @Composable RowScope.() -> Unit = {}
-) = Row(modifier, gap.toPx, content)
+) = Row(modifier = modifier, gap = gap.toPx, content = content)

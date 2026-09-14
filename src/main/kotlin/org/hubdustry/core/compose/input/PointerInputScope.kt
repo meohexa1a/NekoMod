@@ -2,12 +2,13 @@ package org.hubdustry.core.compose.input
 
 import androidx.compose.ui.util.fastForEach
 import kotlinx.coroutines.CancellableContinuation
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.createCoroutine
 import kotlin.coroutines.resume
+
+// ─── Configuration Contracts ──────────────────────────────────────
 
 /**
  * Cấu hình ngưỡng cảm ứng và thời gian cử chỉ.
@@ -19,6 +20,8 @@ interface ViewConfiguration {
 }
 
 object DefaultViewConfiguration : ViewConfiguration
+
+// ─── Pointer Input Scope Contracts ────────────────────────────────
 
 /**
  * Phạm vi coroutine nhận diện cử chỉ con trỏ tại một node.
@@ -47,6 +50,8 @@ interface AwaitPointerEventScope {
     suspend fun awaitPointerEvent(pass: PointerEventPass = PointerEventPass.Main): PointerEvent
 }
 
+// ─── Suspending Pointer Input Filter ──────────────────────────────
+
 /**
  * Bộ lọc Pointer Input sử dụng Coroutine Continuation, mô phỏng theo SuspendingPointerInputFilter của AOSP.
  * Quản lý vòng đời Coroutine và điều phối sự kiện 3-pass mà không gây side-effect hay rò rỉ bộ nhớ.
@@ -56,8 +61,6 @@ class SuspendingPointerInputFilter(
 ) : PointerInputScope {
 
     override var size: IntSize = IntSize.Zero
-
-    var coroutineScope: CoroutineScope? = null
 
     internal val handlers = ArrayList<PointerEventHandlerCoroutine<*>>()
     private val dispatchingHandlers = ArrayList<PointerEventHandlerCoroutine<*>>()
@@ -95,6 +98,8 @@ class SuspendingPointerInputFilter(
     }
 }
 
+// ─── Coroutine Handler Implementation ─────────────────────────────
+
 internal class PointerEventHandlerCoroutine<R>(
     private val filter: SuspendingPointerInputFilter,
     private val completion: CancellableContinuation<R>,
@@ -120,33 +125,33 @@ internal class PointerEventHandlerCoroutine<R>(
         coroutine.resume(Unit)
     }
 
-    override suspend fun awaitPointerEvent(pass: PointerEventPass): PointerEvent {
-        return suspendCancellableCoroutine { cont ->
+    override suspend fun awaitPointerEvent(pass: PointerEventPass): PointerEvent =
+        suspendCancellableCoroutine { continuation ->
             awaitingPass = pass
-            awaitingContinuation = cont
-            cont.invokeOnCancellation {
-                if (awaitingContinuation === cont) {
+            awaitingContinuation = continuation
+            continuation.invokeOnCancellation {
+                if (awaitingContinuation === continuation) {
                     awaitingContinuation = null
                     awaitingPass = null
                 }
             }
         }
-    }
 
     fun dispatch(event: PointerEvent, pass: PointerEventPass) {
         if (awaitingPass != pass) return
-        val cont = awaitingContinuation ?: return
+        val continuation = awaitingContinuation ?: return
 
         awaitingPass = null
         awaitingContinuation = null
         currentEvent = event
-        cont.resume(event)
+        continuation.resume(event)
     }
 
     fun cancel(cause: Throwable?) {
-        val cont = awaitingContinuation ?: return
+        val continuation = awaitingContinuation ?: return
         awaitingPass = null
         awaitingContinuation = null
-        cont.cancel(cause)
+        continuation.cancel(cause)
     }
 }
+

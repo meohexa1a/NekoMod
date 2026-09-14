@@ -6,6 +6,12 @@ import androidx.compose.runtime.setValue
 import arc.Core
 import arc.input.KeyCode
 
+// ─── Constants & Configuration ───────────────────────────────────────────────
+
+private const val DEFAULT_BLINK_INTERVAL_SECONDS = 0.5f
+
+// ─── TextField State Machine ─────────────────────────────────────────────────
+
 /**
  * ## TextFieldState
  *
@@ -22,10 +28,12 @@ class TextFieldState(
     initialText: String = "",
     var onTextChange: ((String) -> Unit)? = null
 ) {
+    // ─── State Properties ────────────────────────────────────────────────────
+
     private var _text by mutableStateOf(initialText)
     val text: String get() = _text
 
-    private var _selection by mutableStateOf(TextRange(initialText.length))
+    private var _selection by mutableTextRangeStateOf(TextRange(initialText.length))
     val selection: TextRange get() = _selection
 
     private var _composition by mutableStateOf("")
@@ -41,10 +49,12 @@ class TextFieldState(
         internal set(value) { _cursorVisible = value }
 
     private var blinkTimer: Float = 0f
-    private val blinkInterval: Float = 0.5f
+    private val blinkInterval: Float = DEFAULT_BLINK_INTERVAL_SECONDS
 
     val cursor: Int
         get() = selection.end
+
+    // ─── State Queries ───────────────────────────────────────────────────────
 
     fun hasComposition(): Boolean = composition.isNotEmpty()
 
@@ -53,11 +63,18 @@ class TextFieldState(
     /**
      * Trả về toàn bộ chuỗi đang hiển thị, bao gồm cả chuỗi ứng viên IME (nếu có)
      * được chèn ngay tại vị trí con trỏ hiện tại.
+     *
+     * ```
+     * 0                safeCursorPosition               text.length
+     * |─── Text Prefix ───|─── IME Composition ───|─── Text Suffix ───|
+     *                     ▲                       ▲
+     *                  cursor               effectiveCursor
+     * ```
      */
     fun getDisplayText(): String {
         if (composition.isEmpty()) return text
-        val safePos = cursor.coerceIn(0, text.length)
-        return text.substring(0, safePos) + composition + text.substring(safePos)
+        val safeCursorPosition = cursor.coerceIn(0, text.length)
+        return text.substring(0, safeCursorPosition) + composition + text.substring(safeCursorPosition)
     }
 
     /**
@@ -73,9 +90,11 @@ class TextFieldState(
      */
     fun getCompositionRange(): TextRange? {
         if (composition.isEmpty()) return null
-        val safePos = cursor.coerceIn(0, text.length)
-        return TextRange(safePos, safePos + composition.length)
+        val safeCursorPosition = cursor.coerceIn(0, text.length)
+        return TextRange(safeCursorPosition, safeCursorPosition + composition.length)
     }
+
+    // ─── Composition Operations ──────────────────────────────────────────────
 
     /**
      * Cập nhật chuỗi ứng viên IME (chưa chốt commit vào văn bản chính).
@@ -91,21 +110,21 @@ class TextFieldState(
      * Xóa bỏ chuỗi ứng viên IME mà không ghi vào văn bản chính.
      */
     fun clearComposition() {
-        if (composition.isNotEmpty()) {
-            _composition = ""
-            resetBlink()
-        }
+        if (composition.isEmpty()) return
+        _composition = ""
+        resetBlink()
     }
 
     /**
      * Chốt (commit) chuỗi ứng viên IME vào văn bản chính tại vị trí con trỏ.
      */
     fun commitComposition() {
-        if (composition.isNotEmpty()) {
-            insertText(composition)
-            _composition = ""
-        }
+        if (composition.isEmpty()) return
+        insertText(composition)
+        _composition = ""
     }
+
+    // ─── Selection & Cursor Operations ───────────────────────────────────────
 
     /**
      * Thiết lập văn bản mới và cập nhật vị trí con trỏ.
@@ -130,10 +149,9 @@ class TextFieldState(
      * Chọn toàn bộ văn bản.
      */
     fun selectAll() {
-        if (text.isNotEmpty()) {
-            _selection = TextRange(0, text.length)
-            resetBlink()
-        }
+        if (text.isEmpty()) return
+        _selection = TextRange(0, text.length)
+        resetBlink()
     }
 
     /**
@@ -145,15 +163,17 @@ class TextFieldState(
         resetBlink()
     }
 
+    // ─── Text Mutation Operations ────────────────────────────────────────────────
+
     /**
-     * Chèn một chuỗi [str] vào vị trí hiện tại (thay thế selection nếu đang bôi đen).
+     * Chèn một chuỗi [textToInsert] vào vị trí hiện tại (thay thế selection nếu đang bôi đen).
      */
-    fun insertText(str: String) {
-        if (str.isEmpty()) return
+    fun insertText(textToInsert: String) {
+        if (textToInsert.isEmpty()) return
         val min = selection.min
         val max = selection.max
-        val newText = text.substring(0, min) + str + text.substring(max)
-        val newCursor = min + str.length
+        val newText = text.substring(0, min) + textToInsert + text.substring(max)
+        val newCursor = min + textToInsert.length
         _text = newText
         _selection = TextRange(newCursor)
         _composition = ""
@@ -161,37 +181,39 @@ class TextFieldState(
         onTextChange?.invoke(newText)
     }
 
+    // ─── Keyboard Event Processing ───────────────────────────────────────────────
+
     /**
      * Xử lý ký tự committed nhận được từ bàn phím (`InputListener.keyTyped`).
      */
-    fun onKeyTyped(c: Char): Boolean {
+    fun onKeyTyped(typedChar: Char): Boolean {
         if (!isFocused) return false
 
         // Loại bỏ phím điều khiển BackSpace, DEL (127) hoặc ký tự không in được
-        if (c == '\b' || c.code == 127 || (c.code < 32 && c != '\t' && c != '\n')) {
+        if (typedChar == '\b' || typedChar.code == 127 || (typedChar.code < 32 && typedChar != '\t' && typedChar != '\n')) {
             return false
         }
 
-        if (c == '\r' || c == '\n') {
+        if (typedChar == '\r' || typedChar == '\n') {
             if (isSingleLine) return false
             insertText("\n")
             return true
         }
 
-        insertText(c.toString())
+        insertText(typedChar.toString())
         return true
     }
 
     /**
      * Xử lý các phím chức năng (Xóa, Điều hướng, Copy, Cut, Paste).
      */
-    fun onKeyDown(keycode: KeyCode?): Boolean {
-        if (!isFocused || keycode == null) return false
+    fun onKeyDown(keyCode: KeyCode?): Boolean {
+        if (!isFocused || keyCode == null) return false
 
         val isShift = try { Core.input?.shift() == true } catch (_: Throwable) { false }
         val isCtrl = try { Core.input?.ctrl() == true } catch (_: Throwable) { false }
 
-        return when (keycode) {
+        return when (keyCode) {
             KeyCode.backspace -> {
                 handleBackspace()
                 true
@@ -249,14 +271,13 @@ class TextFieldState(
             deleteSelection()
             return
         }
-        if (cursor > 0) {
-            val prev = cursor - 1
-            val newText = text.substring(0, prev) + text.substring(cursor)
-            _text = newText
-            _selection = TextRange(prev)
-            resetBlink()
-            onTextChange?.invoke(newText)
-        }
+        if (cursor <= 0) return
+        val previousCursorPosition = cursor - 1
+        val newText = text.substring(0, previousCursorPosition) + text.substring(cursor)
+        _text = newText
+        _selection = TextRange(previousCursorPosition)
+        resetBlink()
+        onTextChange?.invoke(newText)
     }
 
     private fun handleDelete() {
@@ -264,12 +285,11 @@ class TextFieldState(
             deleteSelection()
             return
         }
-        if (cursor < text.length) {
-            val newText = text.substring(0, cursor) + text.substring(cursor + 1)
-            _text = newText
-            resetBlink()
-            onTextChange?.invoke(newText)
-        }
+        if (cursor >= text.length) return
+        val newText = text.substring(0, cursor) + text.substring(cursor + 1)
+        _text = newText
+        resetBlink()
+        onTextChange?.invoke(newText)
     }
 
     private fun deleteSelection() {
@@ -281,6 +301,8 @@ class TextFieldState(
         resetBlink()
         onTextChange?.invoke(newText)
     }
+
+    // ─── Navigation & Word Boundary Helpers ──────────────────────────────────────
 
     private fun handleMoveLeft(extendSelection: Boolean, byWord: Boolean) {
         val target = if (byWord) findPreviousWordBoundary(cursor) else (cursor - 1).coerceAtLeast(0)
@@ -320,26 +342,26 @@ class TextFieldState(
     }
 
     private fun findPreviousWordBoundary(from: Int): Int {
-        var i = (from - 1).coerceAtLeast(0)
-        while (i > 0 && text[i].isWhitespace()) i--
-        while (i > 0 && !text[i - 1].isWhitespace()) i--
-        return i
+        var boundaryIndex = (from - 1).coerceAtLeast(0)
+        while (boundaryIndex > 0 && text[boundaryIndex].isWhitespace()) boundaryIndex--
+        while (boundaryIndex > 0 && !text[boundaryIndex - 1].isWhitespace()) boundaryIndex--
+        return boundaryIndex
     }
 
     private fun findNextWordBoundary(from: Int): Int {
-        var i = from.coerceAtMost(text.length)
-        while (i < text.length && text[i].isWhitespace()) i++
-        while (i < text.length && !text[i].isWhitespace()) i++
-        return i
+        var boundaryIndex = from.coerceAtMost(text.length)
+        while (boundaryIndex < text.length && text[boundaryIndex].isWhitespace()) boundaryIndex++
+        while (boundaryIndex < text.length && !text[boundaryIndex].isWhitespace()) boundaryIndex++
+        return boundaryIndex
     }
 
-    // ── CLIPBOARD OPERATIONS ─────────────────────────────────────────────────
+    // ─── Clipboard Operations ────────────────────────────────────────────────────
 
     fun copyToClipboard() {
         if (!hasSelection()) return
         val selectedText = text.substring(selection.min, selection.max)
         try {
-            Core.app?.setClipboardText(selectedText)
+            Core.app?.clipboardText = selectedText
         } catch (_: Throwable) {
         }
     }
@@ -352,18 +374,17 @@ class TextFieldState(
 
     fun pasteFromClipboard() {
         val clipboardContent: String = try {
-            Core.app?.getClipboardText()
+            Core.app?.clipboardText
         } catch (_: Throwable) {
             null
         } ?: return
 
-        if (clipboardContent.isNotEmpty()) {
-            val sanitized = if (isSingleLine) clipboardContent.replace("\n", "").replace("\r", "") else clipboardContent
-            insertText(sanitized)
-        }
+        if (clipboardContent.isEmpty()) return
+        val sanitized = if (isSingleLine) clipboardContent.replace("\n", "").replace("\r", "") else clipboardContent
+        insertText(sanitized)
     }
 
-    // ── BLINK LOGIC ──────────────────────────────────────────────────────────
+    // ─── Cursor Blink Logic ──────────────────────────────────────────────────────
 
     fun resetBlink() {
         blinkTimer = 0f

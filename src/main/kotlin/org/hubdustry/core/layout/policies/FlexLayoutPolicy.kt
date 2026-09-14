@@ -5,6 +5,20 @@ import org.hubdustry.core.layout.Orientation
 import org.hubdustry.core.layout.SizeFlag
 import org.hubdustry.core.layout.computeOffset
 
+private const val INITIAL_SCRATCHPAD_CAPACITY = 32
+private const val RATIO_EPSILON = 1e-5f
+private const val SPACE_EPSILON = 1e-4f
+
+// ─── Public Flex Layout Policies ──────────────────────────────────
+
+/** Factory function tạo [FlexLayoutPolicy] theo hàng ngang (Row/HBox). */
+fun RowPolicy(gap: Float = 0f): FlexLayoutPolicy = FlexLayoutPolicy(Orientation.HORIZONTAL, gap)
+
+/** Factory function tạo [FlexLayoutPolicy] theo hàng dọc (Column/VBox). */
+fun ColumnPolicy(gap: Float = 0f): FlexLayoutPolicy = FlexLayoutPolicy(Orientation.VERTICAL, gap)
+
+// ─── Flex Layout Policy Core ──────────────────────────────────────
+
 /**
  * Bố cục tuyến tính Flex đa năng (hỗ trợ cả HBox/Row và VBox/Column).
  * Tuân thủ nghiêm ngặt kỷ luật Zero-GC và Pure Math:
@@ -35,6 +49,19 @@ class FlexLayoutPolicy(
     val orientation: Orientation,
     val gap: Float = 0f
 ) : LayoutPolicy {
+
+    private var allocatedMainSlots = FloatArray(INITIAL_SCRATCHPAD_CAPACITY)
+    private var isSlotFrozen = BooleanArray(INITIAL_SCRATCHPAD_CAPACITY)
+
+    private fun ensureCapacity(size: Int) {
+        if (allocatedMainSlots.size < size) {
+            val newCapacity = maxOf(size, allocatedMainSlots.size * 2)
+            allocatedMainSlots = FloatArray(newCapacity)
+            isSlotFrozen = BooleanArray(newCapacity)
+        }
+    }
+
+    // ─── Intrinsic Measurement ────────────────────────────────────────
 
     override fun computeMinSize(node: LayoutNode) {
         var totalMinMain = 0f
@@ -76,21 +103,12 @@ class FlexLayoutPolicy(
         val minMain = if (isScrollMain) padMain else totalCalculatedMain
         node.setMinSizeByAxis(
             orientation,
-            maxOf(node.minSize(orientation), minMain).coerceAtMost(node.maxSize(orientation)),
-            maxOf(node.minSize(cross), totalCalculatedCross).coerceAtMost(node.maxSize(cross))
+            main = maxOf(node.minSize(orientation), minMain).coerceAtMost(node.maxSize(orientation)),
+            cross = maxOf(node.minSize(cross), totalCalculatedCross).coerceAtMost(node.maxSize(cross))
         )
     }
 
-    private var allocatedMainSlots = FloatArray(32)
-    private var isSlotFrozen = BooleanArray(32)
-
-    private fun ensureCapacity(size: Int) {
-        if (allocatedMainSlots.size < size) {
-            val newCap = maxOf(size, allocatedMainSlots.size * 2)
-            allocatedMainSlots = FloatArray(newCap)
-            isSlotFrozen = BooleanArray(newCap)
-        }
-    }
+    // ─── Children Placement ───────────────────────────────────────────
 
     override fun arrangeChildren(
         node: LayoutNode,
@@ -102,8 +120,8 @@ class FlexLayoutPolicy(
         val cross = orientation.cross()
         val rawAvailableMain = orientation.main(innerWidth, innerHeight)
         val rawAvailableCross = orientation.cross(innerWidth, innerHeight)
-        val startMain = orientation.main(innerX, innerY)
-        val startCross = orientation.cross(innerX, innerY)
+        val originMainPosition = orientation.main(innerX, innerY)
+        val originCrossPosition = orientation.cross(innerX, innerY)
 
         val isUnconstrainedMain = rawAvailableMain.isNaN() || rawAvailableMain == Float.MAX_VALUE || rawAvailableMain.isInfinite() || rawAvailableMain <= 0f
         val isUnconstrainedCross = rawAvailableCross.isNaN() || rawAvailableCross == Float.MAX_VALUE || rawAvailableCross.isInfinite() || rawAvailableCross <= 0f
@@ -147,14 +165,14 @@ class FlexLayoutPolicy(
         }
 
         // ── Pass 2: Position children along main axis ─────────────────────────
-        var currentMain = startMain
+        var currentMainPosition = originMainPosition
         for (i in 0 until count) {
             val child = node.children[i]
             if (!child.visible || child.anchor.isEnabled) continue
 
-            val marginLeadMain = child.marginLeading(orientation)
-            val marginTrailMain = child.marginTrailing(orientation)
-            val marginLeadCross = child.marginCrossLeading(orientation)
+            val marginLeadingMain = child.marginLeading(orientation)
+            val marginTrailingMain = child.marginTrailing(orientation)
+            val marginLeadingCross = child.marginCrossLeading(orientation)
             val marginTotalCross = child.marginCross(orientation)
 
             val slotMain = allocatedMainSlots[i]
@@ -180,13 +198,13 @@ class FlexLayoutPolicy(
 
             child.arrangeAxis(
                 orientation,
-                mainPos = currentMain + marginLeadMain + alignOffsetMain,
-                crossPos = startCross + marginLeadCross + alignOffsetCross,
+                mainPos = currentMainPosition + marginLeadingMain + alignOffsetMain,
+                crossPos = originCrossPosition + marginLeadingCross + alignOffsetCross,
                 mainSize = childMain,
                 crossSize = childCross
             )
 
-            currentMain += marginLeadMain + slotMain + marginTrailMain + effectiveGap
+            currentMainPosition += marginLeadingMain + slotMain + marginTrailingMain + effectiveGap
         }
 
         // ── Pass 3: Resolve ghost nodes (Anchor) ──────────────────────────────
@@ -197,6 +215,8 @@ class FlexLayoutPolicy(
         }
     }
 
+    // ─── Clamping Redistribution Math ─────────────────────────────────
+
     private fun redistributeFreeSpace(
         node: LayoutNode,
         count: Int,
@@ -206,7 +226,7 @@ class FlexLayoutPolicy(
         var remainingFreeSpace = initialFreeSpace
         var remainingStretchRatio = initialTotalRatio
 
-        while (remainingStretchRatio > 1e-5f && remainingFreeSpace > 1e-4f) {
+        while (remainingStretchRatio > RATIO_EPSILON && remainingFreeSpace > SPACE_EPSILON) {
             var newlyClamped = false
             val spacePerRatio = remainingFreeSpace / remainingStretchRatio
 
@@ -267,9 +287,4 @@ class FlexLayoutPolicy(
     }
 }
 
-/** Factory function tạo [FlexLayoutPolicy] theo hàng ngang (Row/HBox). */
-fun RowPolicy(gap: Float = 0f): FlexLayoutPolicy = FlexLayoutPolicy(Orientation.HORIZONTAL, gap)
-
-/** Factory function tạo [FlexLayoutPolicy] theo hàng dọc (Column/VBox). */
-fun ColumnPolicy(gap: Float = 0f): FlexLayoutPolicy = FlexLayoutPolicy(Orientation.VERTICAL, gap)
 

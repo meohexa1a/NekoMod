@@ -6,6 +6,9 @@ import org.hubdustry.core.compose.input.Offset
 import org.hubdustry.core.compose.input.PointerEventPass
 import org.hubdustry.core.compose.input.PointerInputChange
 import org.hubdustry.core.compose.input.PointerInputScope
+import org.hubdustry.core.layout.Orientation
+
+// ─── Public Drag Gesture APIs ─────────────────────────────────────
 
 /**
  * Nhận diện cử chỉ kéo trượt (Drag Gestures) theo chuẩn Jetpack Compose AOSP.
@@ -20,15 +23,15 @@ suspend fun PointerInputScope.detectDragGestures(
     onDrag: (change: PointerInputChange, dragAmount: Offset) -> Unit
 ) = coroutineScope {
     awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
+        val initialDown = awaitFirstDown(requireUnconsumed = false)
         val touchSlop = viewConfiguration.touchSlop
         val slopSquared = touchSlop * touchSlop
 
         var dragStarted = false
-        val pointerId = down.id
-        var previousPos = down.position
-        var totalDx = 0f
-        var totalDy = 0f
+        val pointerId = initialDown.id
+        var previousPosition = initialDown.position
+        var totalDeltaX = 0f
+        var totalDeltaY = 0f
 
         while (true) {
             val event = awaitPointerEvent(PointerEventPass.Main)
@@ -44,17 +47,17 @@ suspend fun PointerInputScope.detectDragGestures(
                 break
             }
 
-            val currentPos = matched.position
-            val deltaX = currentPos.x - previousPos.x
-            val deltaY = currentPos.y - previousPos.y
+            val currentPosition = matched.position
+            val deltaX = currentPosition.x - previousPosition.x
+            val deltaY = currentPosition.y - previousPosition.y
 
             if (!dragStarted) {
-                totalDx += deltaX
-                totalDy += deltaY
-                if (totalDx * totalDx + totalDy * totalDy > slopSquared) {
+                totalDeltaX += deltaX
+                totalDeltaY += deltaY
+                if (totalDeltaX * totalDeltaX + totalDeltaY * totalDeltaY > slopSquared) {
                     dragStarted = true
-                    onDragStart?.invoke(currentPos)
-                    onDrag(matched, Offset(totalDx, totalDy))
+                    onDragStart?.invoke(currentPosition)
+                    onDrag(matched, Offset(totalDeltaX, totalDeltaY))
                     matched.consume()
                 }
             } else if (deltaX != 0f || deltaY != 0f) {
@@ -62,7 +65,7 @@ suspend fun PointerInputScope.detectDragGestures(
                 matched.consume()
             }
 
-            previousPos = currentPos
+            previousPosition = currentPosition
         }
 
         if (currentEvent.hasPressed) {
@@ -80,60 +83,13 @@ suspend fun PointerInputScope.detectVerticalDragGestures(
     onDragEnd: (() -> Unit)? = null,
     onDragCancel: (() -> Unit)? = null,
     onVerticalDrag: (change: PointerInputChange, dragAmount: Float) -> Unit
-) = coroutineScope {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
-        val touchSlop = viewConfiguration.touchSlop
-        val slopSquared = touchSlop * touchSlop
-
-        var dragStarted = false
-        val pointerId = down.id
-        var previousPos = down.position
-        var totalDx = 0f
-        var totalDy = 0f
-
-        while (true) {
-            val event = awaitPointerEvent(PointerEventPass.Main)
-            val matched = event.changes.fastFirstOrNull { it.id == pointerId }
-
-            if (matched == null || matched.isConsumed) {
-                if (dragStarted) onDragCancel?.invoke()
-                break
-            }
-
-            if (matched.changedToUp) {
-                if (dragStarted) onDragEnd?.invoke()
-                break
-            }
-
-            val currentPos = matched.position
-            val deltaX = currentPos.x - previousPos.x
-            val deltaY = currentPos.y - previousPos.y
-
-            if (!dragStarted) {
-                totalDx += deltaX
-                totalDy += deltaY
-                val distYSquared = totalDy * totalDy
-                val distXSquared = totalDx * totalDx
-                if (distYSquared > slopSquared && distYSquared >= distXSquared) {
-                    dragStarted = true
-                    onDragStart?.invoke(currentPos)
-                    onVerticalDrag(matched, totalDy)
-                    matched.consume()
-                }
-            } else if (deltaY != 0f) {
-                onVerticalDrag(matched, deltaY)
-                matched.consume()
-            }
-
-            previousPos = currentPos
-        }
-
-        if (currentEvent.hasPressed) {
-            awaitAllPointersUp()
-        }
-    }
-}
+) = detectOrientedDragGestures(
+    orientation = Orientation.VERTICAL,
+    onDragStart = onDragStart,
+    onDragEnd = onDragEnd,
+    onDragCancel = onDragCancel,
+    onDrag = onVerticalDrag
+)
 
 /**
  * Nhận diện cử chỉ kéo trượt theo trục ngang (Horizontal Drag).
@@ -144,17 +100,38 @@ suspend fun PointerInputScope.detectHorizontalDragGestures(
     onDragEnd: (() -> Unit)? = null,
     onDragCancel: (() -> Unit)? = null,
     onHorizontalDrag: (change: PointerInputChange, dragAmount: Float) -> Unit
+) = detectOrientedDragGestures(
+    orientation = Orientation.HORIZONTAL,
+    onDragStart = onDragStart,
+    onDragEnd = onDragEnd,
+    onDragCancel = onDragCancel,
+    onDrag = onHorizontalDrag
+)
+
+// ─── Internal Oriented Drag Helpers ───────────────────────────────
+
+/**
+ * Nhận diện cử chỉ kéo trượt định hướng theo trục chính [orientation].
+ * Áp dụng trừu tượng hóa đối xứng (GEMINI.md Rule 2.4 Symmetry Abstraction),
+ * triệt tiêu hoàn toàn sự nhân đôi logic giữa kéo dọc và kéo ngang.
+ */
+internal suspend fun PointerInputScope.detectOrientedDragGestures(
+    orientation: Orientation,
+    onDragStart: ((Offset) -> Unit)? = null,
+    onDragEnd: (() -> Unit)? = null,
+    onDragCancel: (() -> Unit)? = null,
+    onDrag: (change: PointerInputChange, dragAmount: Float) -> Unit
 ) = coroutineScope {
     awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
+        val initialDown = awaitFirstDown(requireUnconsumed = false)
         val touchSlop = viewConfiguration.touchSlop
         val slopSquared = touchSlop * touchSlop
 
         var dragStarted = false
-        val pointerId = down.id
-        var previousPos = down.position
-        var totalDx = 0f
-        var totalDy = 0f
+        val pointerId = initialDown.id
+        var previousPosition = initialDown.position
+        var totalDeltaX = 0f
+        var totalDeltaY = 0f
 
         while (true) {
             val event = awaitPointerEvent(PointerEventPass.Main)
@@ -170,27 +147,32 @@ suspend fun PointerInputScope.detectHorizontalDragGestures(
                 break
             }
 
-            val currentPos = matched.position
-            val deltaX = currentPos.x - previousPos.x
-            val deltaY = currentPos.y - previousPos.y
+            val currentPosition = matched.position
+            val deltaX = currentPosition.x - previousPosition.x
+            val deltaY = currentPosition.y - previousPosition.y
 
             if (!dragStarted) {
-                totalDx += deltaX
-                totalDy += deltaY
-                val distYSquared = totalDy * totalDy
-                val distXSquared = totalDx * totalDx
-                if (distXSquared > slopSquared && distXSquared >= distYSquared) {
+                totalDeltaX += deltaX
+                totalDeltaY += deltaY
+                val distMain = orientation.main(totalDeltaX, totalDeltaY)
+                val distCross = orientation.cross(totalDeltaX, totalDeltaY)
+                val distMainSquared = distMain * distMain
+                val distCrossSquared = distCross * distCross
+                if (distMainSquared > slopSquared && distMainSquared >= distCrossSquared) {
                     dragStarted = true
-                    onDragStart?.invoke(currentPos)
-                    onHorizontalDrag(matched, totalDx)
+                    onDragStart?.invoke(currentPosition)
+                    onDrag(matched, distMain)
                     matched.consume()
                 }
-            } else if (deltaX != 0f) {
-                onHorizontalDrag(matched, deltaX)
-                matched.consume()
+            } else {
+                val deltaMain = orientation.main(deltaX, deltaY)
+                if (deltaMain != 0f) {
+                    onDrag(matched, deltaMain)
+                    matched.consume()
+                }
             }
 
-            previousPos = currentPos
+            previousPosition = currentPosition
         }
 
         if (currentEvent.hasPressed) {
@@ -198,3 +180,4 @@ suspend fun PointerInputScope.detectHorizontalDragGestures(
         }
     }
 }
+

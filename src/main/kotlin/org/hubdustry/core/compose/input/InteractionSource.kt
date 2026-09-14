@@ -61,13 +61,9 @@ private class MutableInteractionSourceImpl : MutableInteractionSource {
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
 
-    override suspend fun emit(interaction: Interaction) {
-        interactions.emit(interaction)
-    }
+    override suspend fun emit(interaction: Interaction) = interactions.emit(interaction)
 
-    override fun tryEmit(interaction: Interaction): Boolean {
-        return interactions.tryEmit(interaction)
-    }
+    override fun tryEmit(interaction: Interaction): Boolean = interactions.tryEmit(interaction)
 }
 
 /**

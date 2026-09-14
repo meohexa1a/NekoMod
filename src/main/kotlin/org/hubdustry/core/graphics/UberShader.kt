@@ -16,24 +16,26 @@ import arc.util.Log
  * - `MODE_TEXT` (0.0f): BMFont Glyph rendering từ Texture Unit 0 (`u_atlas`).
  * - `MODE_BOX` (1.0f): SDF Rounded Rectangle, solid card, button, rounded avatar/icon, và viền nổi.
  */
-class UberShader(
+class UberShader internal constructor(
     vertexSource: String,
     fragmentSource: String
 ) : Shader(vertexSource, fragmentSource) {
 
-    init {
-        bind()
-        setUniformi("u_atlas", 0)
-    }
-
-    /**
-     * Đồng bộ ma trận phép chiếu orthographic cho shader.
-     */
-    fun applyProjection(proj: Mat) {
-        setUniformMatrix4("u_projTrans", proj)
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. CONSTANTS & COMPANION FACTORY (NEWSPAPER TOP)
+    // ─────────────────────────────────────────────────────────────────────────
 
     companion object {
+        const val VERTEX_SHADER_PATH = "/shaders/uber_ui.vert"
+        const val FRAGMENT_SHADER_PATH = "/shaders/uber_ui.frag"
+
+        const val UNIFORM_ATLAS = "u_atlas"
+        const val UNIFORM_PROJECTION_TRANS = "u_projTrans"
+        const val TEXTURE_UNIT_ATLAS = 0
+
+        private const val UTF8_BOM = "\uFEFF"
+
+        @Volatile
         private var instance: UberShader? = null
 
         /**
@@ -46,14 +48,14 @@ class UberShader(
             instance?.let { return it }
             if (Core.gl == null || Core.graphics == null) return null
 
-            val vert = checkNotNull(loadResourceString("/shaders/uber_ui.vert")) {
-                "🛑 [CRITICAL SHADER ERROR] Không tìm thấy file tài nguyên shader: /shaders/uber_ui.vert"
+            val vertexShaderSource = checkNotNull(loadResourceString(VERTEX_SHADER_PATH)) {
+                "🛑 [CRITICAL SHADER ERROR] Không tìm thấy file tài nguyên shader: $VERTEX_SHADER_PATH"
             }
-            val frag = checkNotNull(loadResourceString("/shaders/uber_ui.frag")) {
-                "🛑 [CRITICAL SHADER ERROR] Không tìm thấy file tài nguyên shader: /shaders/uber_ui.frag"
+            val fragmentShaderSource = checkNotNull(loadResourceString(FRAGMENT_SHADER_PATH)) {
+                "🛑 [CRITICAL SHADER ERROR] Không tìm thấy file tài nguyên shader: $FRAGMENT_SHADER_PATH"
             }
 
-            val shader = UberShader(vert, frag)
+            val shader = UberShader(vertexShaderSource, fragmentShaderSource)
             check(shader.isCompiled) {
                 "🛑 [CRITICAL SHADER ERROR] Biên dịch UberShader thất bại!\n${shader.log}"
             }
@@ -64,10 +66,29 @@ class UberShader(
         }
 
         private fun loadResourceString(path: String): String? {
-            val normalized = if (path.startsWith("/")) path else "/$path"
-            val stream = UberShader::class.java.getResourceAsStream(normalized)
-                ?: Thread.currentThread().contextClassLoader?.getResourceAsStream(normalized.removePrefix("/"))
-            return stream?.use { it.readBytes().decodeToString().replace("\uFEFF", "").trim() }
+            val normalizedPath = if (path.startsWith("/")) path else "/$path"
+            val stream = UberShader::class.java.getResourceAsStream(normalizedPath)
+                ?: Thread.currentThread().contextClassLoader?.getResourceAsStream(normalizedPath.removePrefix("/"))
+            return stream?.use { it.readBytes().decodeToString().replace(UTF8_BOM, "").trim() }
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. UNIFORM LOCATIONS & INITIALIZATION
+    // ─────────────────────────────────────────────────────────────────────────
+
+    init {
+        bind()
+        setUniformi(UNIFORM_ATLAS, TEXTURE_UNIT_ATLAS)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. PUBLIC RENDERING API
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Đồng bộ ma trận phép chiếu orthographic cho shader.
+     */
+    fun applyProjection(projectionMatrix: Mat) =
+        setUniformMatrix4(UNIFORM_PROJECTION_TRANS, projectionMatrix)
 }

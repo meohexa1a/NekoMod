@@ -19,11 +19,29 @@ import org.hubdustry.core.compose.primitive.Text
 import org.hubdustry.core.graphics.RoundedCorners
 import org.hubdustry.core.layout.Alignment
 
-val DefaultTextFieldBgColor: Color = Color.valueOf("181926")
-val DefaultTextFieldBorderColor: Color = Color.valueOf("363a4f")
-val DefaultTextFieldFocusBorderColor: Color = Color.royal
-val DefaultTextFieldSelectionColor: Color = DefaultSelectionColor
-val DefaultTextFieldShape: RoundedCorners = RoundedCorners(6f)
+// ─── TextField Defaults ──────────────────────────────────────────────────────
+
+/**
+ * Các giá trị cấu hình mặc định cho Composable [TextField].
+ */
+object TextFieldDefaults {
+    const val MIN_WIDTH: Float = 140f
+    const val MIN_HEIGHT: Float = 36f
+    const val BORDER_WIDTH_FOCUSED: Float = 1.5f
+    const val BORDER_WIDTH_DEFAULT: Float = 1f
+    const val DISABLED_ALPHA: Float = 0.5f
+
+    val shape: RoundedCorners = RoundedCorners(6f)
+    val backgroundColor: Color = Color.valueOf("181926")
+    val borderColor: Color = Color.valueOf("363a4f")
+    val focusedBorderColor: Color = Color.royal
+    val selectionColor: Color = DefaultSelectionColor
+    val textColor: Color = Color.white
+    val placeholderColor: Color = Color.gray
+    val cursorColor: Color = Color.royal
+}
+
+// ─── Composable TextField ────────────────────────────────────────────────────
 
 /**
  * Thành phần soạn thảo văn bản Composable [TextField] hoàn chỉnh chuẩn NekoMod v3:
@@ -39,39 +57,39 @@ fun TextField(
     placeholder: String = "",
     singleLine: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
-    shape: RoundedCorners = DefaultTextFieldShape,
-    backgroundColor: Color = DefaultTextFieldBgColor,
-    borderColor: Color = DefaultTextFieldBorderColor,
-    focusedBorderColor: Color = DefaultTextFieldFocusBorderColor,
-    textColor: Color = Color.white,
-    placeholderColor: Color = Color.gray,
-    cursorColor: Color = Color.royal,
-    selectionColor: Color = DefaultTextFieldSelectionColor,
+    shape: RoundedCorners = TextFieldDefaults.shape,
+    backgroundColor: Color = TextFieldDefaults.backgroundColor,
+    borderColor: Color = TextFieldDefaults.borderColor,
+    focusedBorderColor: Color = TextFieldDefaults.focusedBorderColor,
+    textColor: Color = TextFieldDefaults.textColor,
+    placeholderColor: Color = TextFieldDefaults.placeholderColor,
+    cursorColor: Color = TextFieldDefaults.cursorColor,
+    selectionColor: Color = TextFieldDefaults.selectionColor,
     font: Font? = null
 ) {
-    val source = interactionSource ?: remember { MutableInteractionSource() }
-    val isFocused by source.collectIsFocusedAsState()
+    val currentInteractionSource = interactionSource ?: remember { MutableInteractionSource() }
+    val isFocused by currentInteractionSource.collectIsFocusedAsState()
     val currentBorderColor = if (isFocused) focusedBorderColor else borderColor
-    val currentBorderWidth = if (isFocused) 1.5f else 1f
+    val currentBorderWidth = if (isFocused) TextFieldDefaults.BORDER_WIDTH_FOCUSED else TextFieldDefaults.BORDER_WIDTH_DEFAULT
 
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
-            .sizeIn(minWidth = 140f, minHeight = 36f)
-            .then(if (!enabled) Modifier.alpha(0.5f) else Modifier)
-            .background(backgroundColor, shape)
-            .border(currentBorderWidth, currentBorderColor, shape)
+            .sizeIn(minWidth = TextFieldDefaults.MIN_WIDTH, minHeight = TextFieldDefaults.MIN_HEIGHT)
+            .then(if (!enabled) Modifier.alpha(TextFieldDefaults.DISABLED_ALPHA) else Modifier)
+            .background(color = backgroundColor, corners = shape)
+            .border(width = currentBorderWidth, color = currentBorderColor, corners = shape)
             .padding(horizontal = 12f, vertical = 8f),
         enabled = enabled,
         singleLine = singleLine,
-        interactionSource = source,
+        interactionSource = currentInteractionSource,
         textColor = textColor,
         font = font,
         cursorColor = cursorColor,
         selectionColor = selectionColor,
         decorationBox = { innerTextField ->
-            if (value.isEmpty() && !isFocused) {
+            if (value.isEmpty()) {
                 Text(
                     text = placeholder,
                     textColor = placeholderColor,

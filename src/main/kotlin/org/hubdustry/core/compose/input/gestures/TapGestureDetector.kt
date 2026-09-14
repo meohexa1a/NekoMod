@@ -17,6 +17,10 @@ import org.hubdustry.core.compose.input.PointerInputChange
 import org.hubdustry.core.compose.input.PointerInputScope
 import kotlin.time.Duration.Companion.milliseconds
 
+private const val DOUBLE_TAP_SLOP_MULTIPLIER: Float = 2.0f
+
+// ─── Public Tap Gesture Scope ─────────────────────────────────────
+
 /**
  * Phạm vi điều khiển trạng thái cho callback onPress theo chuẩn AOSP Compose.
  */
@@ -37,32 +41,142 @@ interface PressGestureScope {
     fun reset()
 }
 
-internal class PressGestureScopeImpl : PressGestureScope {
-    private var deferred = CompletableDeferred<Boolean>()
+// ─── Public Tap Gesture API ───────────────────────────────────────
 
-    override suspend fun awaitRelease() {
-        if (!tryAwaitRelease()) {
-            throw CancellationException("The press gesture was canceled.")
+/**
+ * Bộ máy nhận diện cử chỉ Tap theo chuẩn Jetpack Compose AOSP, hỗ trợ cả Touch và Desktop Mouse.
+ *
+ * ```
+ *                     ┌─────────────┐
+ *                     │ First Down  │
+ *                     └──────┬──────┘
+ *                            │
+ *               ┌────────────┴────────────┐
+ *               ▼                         ▼
+ *         [Right Click]              [Left / Touch]
+ *               │                         │
+ *        onSecondaryTap()        ┌────────┴────────┐
+ *                                │                 │
+ *                       (Timeout > 500ms)     (Release Up)
+ *                                │                 │
+ *                          onLongPress()      [Wait 300ms]
+ *                                             ┌────┴────┐
+ *                                             ▼         ▼
+ *                                        Second Down  Timeout
+ *                                             │         │
+ *                                       onDoubleTap() onTap()
+ * ```
+ *
+ * Hỗ trợ:
+ * - onPress: kích hoạt ngay khi con trỏ Down.
+ * - Touch-Slop & Out-Of-Bounds: nếu con trỏ dịch chuyển quá slop hoặc rời khỏi bounds thì hủy tap.
+ * - Long-Press: kích hoạt khi con trỏ giữ yên quá longPressTimeoutMillis (mặc định 500ms).
+ * - Double-Tap: kích hoạt khi có lần tap thứ hai trong cửa sổ doubleTapTimeoutMillis (mặc định 300ms).
+ * - onTap: kích hoạt khi nhả chuột hợp lệ trong bounds (chuột trái / touch).
+ * - onSecondaryTap: kích hoạt khi click chuột phải trên Desktop.
+ */
+suspend fun PointerInputScope.detectTapGestures(
+    onDoubleTap: ((Offset) -> Unit)? = null,
+    onLongPress: ((Offset) -> Unit)? = null,
+    onPress: (suspend PressGestureScope.(Offset) -> Unit)? = null,
+    onTap: ((Offset) -> Unit)? = null,
+    onSecondaryTap: ((Offset) -> Unit)? = null
+) = coroutineScope {
+    val pressScope = PressGestureScopeImpl()
+
+    awaitEachGesture {
+        val firstDown = awaitFirstDown()
+        firstDown.consume()
+
+        // 1. Nhận diện Secondary Click (Chuột phải trên PC / Desktop)
+        if (firstDown.button == PointerButton.Secondary && onSecondaryTap != null) {
+            val secondaryUp = waitForUpOrCancellation(firstDown.id) ?: return@awaitEachGesture
+            secondaryUp.consume()
+            onSecondaryTap(secondaryUp.position)
+            return@awaitEachGesture
         }
-    }
 
-    override suspend fun tryAwaitRelease(): Boolean {
-        return deferred.await()
-    }
+        // 2. Kích hoạt onPress
+        pressScope.reset()
+        if (onPress != null) {
+            this@coroutineScope.launch {
+                pressScope.onPress(firstDown.position)
+            }
+        }
 
-    fun release() {
-        deferred.complete(true)
-    }
+        val touchSlop = viewConfiguration.touchSlop
+        var isLongPressed = false
+        val longPressJob = if (onLongPress != null) {
+            this@coroutineScope.launch {
+                delay(viewConfiguration.longPressTimeoutMillis)
+                isLongPressed = true
+                onLongPress(firstDown.position)
+            }
+        } else null
 
-    fun cancel() {
-        deferred.complete(false)
-    }
+        // 3. Theo dõi chuyển động
+        var trackedUpOrCancel: PointerInputChange? = null
+        while (trackedUpOrCancel == null) {
+            val event = awaitPointerEvent(PointerEventPass.Main)
+            val matched = event.changes.fastFirstOrNull { it.id == firstDown.id }
 
-    override fun reset() {
-        deferred.cancel()
-        deferred = CompletableDeferred()
+            if (matched == null || matched.isConsumed || matched.isOutOfBounds(size, touchSlop)) {
+                break
+            }
+
+            val deltaX = matched.position.x - firstDown.position.x
+            val deltaY = matched.position.y - firstDown.position.y
+            if (deltaX * deltaX + deltaY * deltaY > touchSlop * touchSlop) {
+                longPressJob?.cancel()
+                break
+            }
+
+            if (matched.changedToUp) {
+                trackedUpOrCancel = matched
+                matched.consume()
+                break
+            }
+        }
+
+        longPressJob?.cancel()
+
+        if (trackedUpOrCancel == null) {
+            pressScope.cancel()
+            return@awaitEachGesture
+        }
+
+        pressScope.release()
+
+        if (isLongPressed) {
+            return@awaitEachGesture
+        }
+
+        val firstUp = trackedUpOrCancel
+
+        // 4. Phân định Single-tap vs Double-tap
+        if (onDoubleTap == null) {
+            onTap?.invoke(firstUp.position)
+            return@awaitEachGesture
+        }
+
+        val secondDown = awaitSecondDownOrNull(
+            firstUpPosition = firstUp.position,
+            touchSlop = touchSlop,
+            doubleTapTimeoutMillis = viewConfiguration.doubleTapTimeoutMillis
+        )
+
+        if (secondDown == null) {
+            onTap?.invoke(firstUp.position)
+            return@awaitEachGesture
+        }
+
+        val secondUp = waitForUpOrCancellation(secondDown.id) ?: return@awaitEachGesture
+        secondUp.consume()
+        onDoubleTap(secondDown.position)
     }
 }
+
+// ─── Internal Tap & Pointer Detection Helpers ─────────────────────
 
 /**
  * Chờ sự kiện con trỏ đầu tiên chuyển sang trạng thái Down theo chuẩn AOSP Compose.
@@ -73,8 +187,8 @@ suspend fun AwaitPointerEventScope.awaitFirstDown(
 ): PointerInputChange {
     while (true) {
         val event = awaitPointerEvent(pass)
-        val down = event.changes.fastFirstOrNull { c ->
-            if (requireUnconsumed) c.changedToDown else c.changedToDownIgnoreConsumed
+        val down = event.changes.fastFirstOrNull { change ->
+            if (requireUnconsumed) change.changedToDown else change.changedToDownIgnoreConsumed
         }
         if (down != null) return down
     }
@@ -104,125 +218,55 @@ suspend fun AwaitPointerEventScope.waitForUpOrCancellation(
     }
 }
 
-/**
- * Bộ máy nhận diện cử chỉ Tap theo chuẩn Jetpack Compose AOSP, hỗ trợ cả Touch và Desktop Mouse.
- *
- * Hỗ trợ:
- * - onPress: kích hoạt ngay khi con trỏ Down.
- * - Touch-Slop & Out-Of-Bounds: nếu con trỏ dịch chuyển quá slop hoặc rời khỏi bounds thì hủy tap.
- * - Long-Press: kích hoạt khi con trỏ giữ yên quá longPressTimeoutMillis (mặc định 500ms).
- * - Double-Tap: kích hoạt khi có lần tap thứ hai trong cửa sổ doubleTapTimeoutMillis (mặc định 300ms).
- * - onTap: kích hoạt khi nhả chuột hợp lệ trong bounds (chuột trái / touch).
- * - onSecondaryTap: kích hoạt khi click chuột phải trên Desktop.
- */
-suspend fun PointerInputScope.detectTapGestures(
-    onDoubleTap: ((Offset) -> Unit)? = null,
-    onLongPress: ((Offset) -> Unit)? = null,
-    onPress: (suspend PressGestureScope.(Offset) -> Unit)? = null,
-    onTap: ((Offset) -> Unit)? = null,
-    onSecondaryTap: ((Offset) -> Unit)? = null
-) = coroutineScope {
-    val pressScope = PressGestureScopeImpl()
-
-    awaitEachGesture {
-        val down = awaitFirstDown()
-        down.consume()
-
-        // 1. Nhận diện Secondary Click (Chuột phải trên PC / Desktop)
-        if (down.button == PointerButton.Secondary && onSecondaryTap != null) {
-            val up = waitForUpOrCancellation(down.id) ?: return@awaitEachGesture
-            up.consume()
-            onSecondaryTap(up.position)
-            return@awaitEachGesture
-        }
-
-        // 2. Kích hoạt onPress
-        pressScope.reset()
-        if (onPress != null) {
-            this@coroutineScope.launch {
-                pressScope.onPress(down.position)
-            }
-        }
-
-        val touchSlop = viewConfiguration.touchSlop
-        var isLongPressed = false
-        val longPressJob = if (onLongPress != null) {
-            this@coroutineScope.launch {
-                delay(viewConfiguration.longPressTimeoutMillis)
-                isLongPressed = true
-                onLongPress(down.position)
-            }
-        } else null
-
-        // 3. Theo dõi chuyển động
-        var upOrCancel: PointerInputChange? = null
-        while (upOrCancel == null) {
+private suspend fun AwaitPointerEventScope.awaitSecondDownOrNull(
+    firstUpPosition: Offset,
+    touchSlop: Float,
+    doubleTapTimeoutMillis: Long
+): PointerInputChange? = try {
+    withTimeout(doubleTapTimeoutMillis.milliseconds) {
+        while (true) {
             val event = awaitPointerEvent(PointerEventPass.Main)
-            val matched = event.changes.fastFirstOrNull { it.id == down.id }
-
-            if (matched == null || matched.isConsumed || matched.isOutOfBounds(size, touchSlop)) {
-                break
+            val change = event.changes.fastFirstOrNull { it.changedToDown } ?: continue
+            val deltaTapX = change.position.x - firstUpPosition.x
+            val deltaTapY = change.position.y - firstUpPosition.y
+            val maxDoubleTapDist = touchSlop * DOUBLE_TAP_SLOP_MULTIPLIER
+            if (deltaTapX * deltaTapX + deltaTapY * deltaTapY <= maxDoubleTapDist * maxDoubleTapDist) {
+                change.consume()
+                return@withTimeout change
             }
-
-            val dx = matched.position.x - down.position.x
-            val dy = matched.position.y - down.position.y
-            if (dx * dx + dy * dy > touchSlop * touchSlop) {
-                longPressJob?.cancel()
-                break
-            }
-
-            if (matched.changedToUp) {
-                upOrCancel = matched
-                matched.consume()
-                break
-            }
+            return@withTimeout null
         }
+        @Suppress("UNREACHABLE_CODE")
+        null
+    }
+} catch (_: TimeoutCancellationException) {
+    null
+}
 
-        longPressJob?.cancel()
+// ─── Press Gesture Scope Implementation ───────────────────────────
 
-        if (upOrCancel == null) {
-            pressScope.cancel()
-            return@awaitEachGesture
+internal class PressGestureScopeImpl : PressGestureScope {
+    private var deferred = CompletableDeferred<Boolean>()
+
+    override suspend fun awaitRelease() {
+        if (!tryAwaitRelease()) {
+            throw CancellationException("The press gesture was canceled.")
         }
+    }
 
-        pressScope.release()
+    override suspend fun tryAwaitRelease(): Boolean = deferred.await()
 
-        if (isLongPressed) {
-            return@awaitEachGesture
-        }
+    fun release() {
+        deferred.complete(true)
+    }
 
-        val up = upOrCancel
+    fun cancel() {
+        deferred.complete(false)
+    }
 
-        // 4. Phân định Single-tap vs Double-tap
-        if (onDoubleTap == null) {
-            onTap?.invoke(up.position)
-            return@awaitEachGesture
-        }
-
-        var secondDown: PointerInputChange? = null
-        try {
-            withTimeout(viewConfiguration.doubleTapTimeoutMillis.milliseconds) {
-                while (secondDown == null) {
-                    val event = awaitPointerEvent(PointerEventPass.Main)
-                    val c = event.changes.fastFirstOrNull { it.changedToDown } ?: continue
-                    val ddx = c.position.x - up.position.x
-                    val ddy = c.position.y - up.position.y
-                    val maxDoubleTapDist = touchSlop * 2f
-                    if (ddx * ddx + ddy * ddy <= maxDoubleTapDist * maxDoubleTapDist) {
-                        secondDown = c
-                        c.consume()
-                    }
-                    break
-                }
-            }
-        } catch (_: TimeoutCancellationException) {
-            onTap?.invoke(up.position)
-            return@awaitEachGesture
-        }
-
-        val validSecondDown = secondDown ?: return@awaitEachGesture
-        val secondUp = waitForUpOrCancellation(validSecondDown.id) ?: return@awaitEachGesture
-        secondUp.consume()
-        onDoubleTap(validSecondDown.position)
+    override fun reset() {
+        deferred.cancel()
+        deferred = CompletableDeferred()
     }
 }
+

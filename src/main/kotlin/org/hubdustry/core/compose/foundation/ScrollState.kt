@@ -120,6 +120,5 @@ class ScrollState(initial: Float = 0f) {
  * Khởi tạo và ghi nhớ [ScrollState] trong cây Compose.
  */
 @Composable
-fun rememberScrollState(initial: Float = 0f): ScrollState {
-    return remember { ScrollState(initial) }
-}
+fun rememberScrollState(initial: Float = 0f): ScrollState =
+    remember { ScrollState(initial) }

@@ -15,35 +15,62 @@ import arc.util.Align
 /**
  * ## UIBatch
  *
- * Master GPU UI Batch Renderer cho NekoMod v3.
- *
- * TÍNH NĂNG CỐT LÕI:
- * 1. **2 Chế Độ Tinh Gọn (MODE_TEXT & MODE_BOX)**:
- * Master GPU Batcher chuyên biệt cho giao diện Declarative UI NekoMod v3.
+ * Master GPU UI Batch Renderer chuyên biệt cho giao diện Declarative UI NekoMod v3.
  *
  * KIẾN TRÚC V3 (Sau tái cấu trúc):
  * 1. **Zero-GC Hot-Path**:
- *    - Toàn bộ dữ liệu đỉnh được ghi trực tiếp vào Bộ nhớ đệm NIO Off-Heap (`directByteBuffer`).
+ *    - Toàn bộ dữ liệu đỉnh được ghi trực tiếp vào bộ đệm mảng phẳng tĩnh ([vertexBuffer]).
  *    - Triệt tiêu hoàn toàn việc cấp phát đối tượng `FloatArray` trung gian trong vòng lặp render.
  * 2. **Vertex Layout 26 Floats Chuẩn Mực**:
- *    - Tọa độ 2D: `a_position` (2 floats).
- *    - Màu đỉnh: `a_color` (1 packed float).
- *    - Tọa độ UV: `a_texCoord` (2 floats).
- *    - Thuộc tính SDF: `a_quadParams` (4 floats: width, height, mode, clipActive).
- *    - Bo 4 góc động: `a_cornerRadii` (4 floats: rTL, rTR, rBR, rBL).
- *    - Viền ngoài: `a_border` (2 floats: width, packed color).
- *    - Scissor Scissor Stack 2 tầng: `a_clipRect` (4 floats), `a_parentClipRect` (4 floats).
- *    - Bo góc cắt gọt: `a_clipCornerRadii` (3 floats: rTL, rTR, rBR).
+ * ```
+ * ┌─────────────────────────── 26 Floats Quad Vertex Layout ──────────────────────────┐
+ * │ Offset  │ Attribute      │ Floats │ Description                                   │
+ * ├─────────┼────────────────┼────────┼───────────────────────────────────────────────┤
+ * │  0..3   │ a_position     │   4    │ x, y (screen pos), u, v (texture coords)      │
+ * │  4      │ a_color        │   1    │ Packed RGBA/ABGR tint color                   │
+ * │  5..8   │ a_boxData      │   4    │ localX, localY, width, height                 │
+ * │  9..12  │ a_style        │   4    │ baseRadius, borderWidth, mode, clipActive     │
+ * │ 13..16  │ a_cornerRadii  │   4    │ radiusTL, radiusTR, radiusBR, radiusBL        │
+ * │ 17      │ a_borderColor  │   1    │ Packed RGBA/ABGR border color                 │
+ * │ 18..21  │ a_clipRect     │   4    │ clipMinX, clipMinY, clipMaxX, clipMaxY        │
+ * │ 22..25  │ a_clipRadii    │   4    │ clipTL, clipTR, clipBR, clipBL                │
+ * └─────────┴────────────────┴────────┴───────────────────────────────────────────────┘
+ * ```
+ *    - Tổng cộng: 4 + 1 + 4 + 4 + 4 + 1 + 4 + 4 = 26 floats / đỉnh (104 floats / quad).
  * 3. **Cắt Gọt Phân Cấp Phổ Quát (Analytical Scissor Stack)**:
  *    - Sử dụng giải thuật cắt gọt giải tích trực tiếp trên GPU Shader thay vì gọi `glScissor` liên tục.
- *    - Hỗ trợ lồng nhau 16 cấp độ (`MAX_CLIP_DEPTH`) mà không làm gãy (break) draw call batching.
+ *    - Hỗ trợ lồng nhau 64 cấp độ ([MAX_CLIP_DEPTH]) mà không làm gãy (break) draw call batching.
  * 4. **An Toàn Tuyệt Đối Trong Headless Testing**:
  *    - Khi `Core.gl == null`, renderer tự động ghi nhận quads vào buffer để phục vụ kiểm thử đơn vị
- *    - mà không quăng lỗi hay gọi OpenGL native.
+ *      mà không quăng lỗi hay gọi OpenGL native.
  * 5. **Singleton Vĩnh Viễn (Rule 0.5)**:
  *    - UIBatch là GPU Batcher toàn cục cấp tiến trình, không chứa hàm dispose() để tránh bị hủy từ View con.
+ *
+ * ```
+ * ┌─────────────────────────────────────────────────────────────────────────────┐
+ * │ Quad Triangle Winding & Coordinate Space:                                   │
+ * │                                                                             │
+ * │ (0, height) Vertex 1 [Top-Left]       Vertex 2 [Top-Right] (width, height) │
+ * │                  ┌────────────────────────┐                                │
+ * │                  │ ＼                   ▲ │                                │
+ * │                  │   ＼  Tri 1        ／  │                                │
+ * │                  │     ＼           ／    │                                │
+ * │                  │       ＼       ／      │                                │
+ * │                  │  Tri 2  ＼   ／        │                                │
+ * │                  │           ＼           │                                │
+ * │                  ▼             ＼         │                                │
+ * │                  └────────────────────────┘                                │
+ * │ (0, 0)      Vertex 0 [Bottom-Left]    Vertex 3 [Bottom-Right] (width, 0)   │
+ * │                                                                             │
+ * │ Triangles: [0, 1, 2] và [2, 3, 0] (CCW Winding, 6 indices per quad)         │
+ * └─────────────────────────────────────────────────────────────────────────────┘
+ * ```
  */
 object UIBatch {
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. CONSTANTS & TUNABLES
+    // ─────────────────────────────────────────────────────────────────────────
 
     /** Chế độ vẽ văn bản BMFont Glyph từ `u_atlas`. */
     const val MODE_TEXT = 0.0f
@@ -66,17 +93,33 @@ object UIBatch {
     /** Số lượng floats cấu thành 1 đỉnh GPU (26 floats). */
     const val FLOATS_PER_VERTEX = 26
 
+    /** Số lượng đỉnh của mỗi hình chữ nhật quad. */
+    const val VERTICES_PER_QUAD = 4
+
+    /** Số lượng chỉ mục tam giác cho mỗi quad (2 tam giác = 6 indices). */
+    const val INDICES_PER_QUAD = 6
+
     /** Số lượng floats cho một hình chữ nhật quad (4 đỉnh * 26 = 104 floats). */
-    const val FLOATS_PER_QUAD = FLOATS_PER_VERTEX * 4
+    const val FLOATS_PER_QUAD = FLOATS_PER_VERTEX * VERTICES_PER_QUAD
 
     /** Số lượng đỉnh tối đa cho [MAX_QUADS]. */
-    const val MAX_VERTICES = MAX_QUADS * 4
+    const val MAX_VERTICES = MAX_QUADS * VERTICES_PER_QUAD
 
     /** Số lượng chỉ mục tam giác tối đa (6 indices per quad). */
-    const val MAX_INDICES = MAX_QUADS * 6
+    const val MAX_INDICES = MAX_QUADS * INDICES_PER_QUAD
 
     /** Độ sâu tối đa của ngăn xếp cắt gọt giải tích phân cấp. */
     const val MAX_CLIP_DEPTH = 64
+
+    /** Số lượng tham số cắt gọt lưu trữ cho mỗi tầng độ sâu trong stack. */
+    private const val CLIP_PARAMS_PER_LEVEL = 8
+
+    /** Sai số kích thước tối thiểu để một Quad được đưa vào render buffer. */
+    private const val MIN_QUAD_DIMENSION_EPSILON = 0.001f
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. ZERO-GC STATIC BUFFERS & STATE
+    // ─────────────────────────────────────────────────────────────────────────
 
     /** Bộ đệm đỉnh mảng phẳng tĩnh đạt chuẩn Zero-GC Hot-Path (104 floats per quad). */
     internal val vertexBuffer = FloatArray(MAX_QUADS * FLOATS_PER_QUAD)
@@ -94,7 +137,7 @@ object UIBatch {
     private var isDrawing = false
 
     // Analytical Scissor & SDF Clip Stack (8 primitives per depth level: minX, minY, maxX, maxY, rTS, rTE, rBE, rBS)
-    private val clipStackBuffer = FloatArray(MAX_CLIP_DEPTH * 8)
+    private val clipStackBuffer = FloatArray(MAX_CLIP_DEPTH * CLIP_PARAMS_PER_LEVEL)
 
     /** Độ sâu ngăn xếp cắt gọt hiện tại. */
     var clipDepth: Int = 0
@@ -146,45 +189,9 @@ object UIBatch {
             false
         }
 
-    private fun ensureMesh(): Boolean {
-        if (isMeshInitialized && mesh != null) return true
-        if (Core.gl == null || Core.graphics == null) return false
-
-        return try {
-            val attributes = arrayOf(
-                VertexAttribute(4, "a_position"),                           // xy = screen pos, zw = uv coords
-                VertexAttribute(4, Gl.unsignedByte, true, "a_color"),       // rgba = packed ABGR color
-                VertexAttribute(4, "a_boxData"),                            // xy = local pos, zw = box dimensions
-                VertexAttribute(4, "a_style"),                              // x = radius, y = borderWidth, z = mode, w = clipActive
-                VertexAttribute(4, "a_cornerRadii"),                        // x = topStart, y = topEnd, z = bottomEnd, w = bottomStart
-                VertexAttribute(4, Gl.unsignedByte, true, "a_borderColor"), // rgba = packed ABGR border color
-                VertexAttribute(4, "a_clipRect"),                           // xy = min(x,y), zw = max(x,y) analytical scissor clip
-                VertexAttribute(4, "a_clipRadii")                           // x = topStart, y = topEnd, z = bottomEnd, w = bottomStart (clip corner radii)
-            )
-
-            val indices = ShortArray(MAX_INDICES)
-            var vertexOffset = 0
-            for (indexOffset in 0 until MAX_INDICES step 6) {
-                indices[indexOffset] = vertexOffset.toShort()
-                indices[indexOffset + 1] = (vertexOffset + 1).toShort()
-                indices[indexOffset + 2] = (vertexOffset + 2).toShort()
-                indices[indexOffset + 3] = (vertexOffset + 2).toShort()
-                indices[indexOffset + 4] = (vertexOffset + 3).toShort()
-                indices[indexOffset + 5] = vertexOffset.toShort()
-                vertexOffset += 4
-            }
-
-            mesh = Mesh(false, MAX_VERTICES, MAX_INDICES, *attributes).apply {
-                setIndices(indices)
-            }
-            isMeshInitialized = true
-            true
-        } catch (_: Throwable) {
-            false
-        }
-    }
-
-    // --- FRAME LIFECYCLE ---
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. FRAME LIFECYCLE & PIPELINE SETUP
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
      * Bắt đầu phiên vẽ UI.
@@ -200,38 +207,7 @@ object UIBatch {
 
         vertexIndex = 0
         queuedQuadCount = 0
-        clipDepth = 0
-        clipMinX = -UNCLIPPED_BOUND
-        clipMinY = -UNCLIPPED_BOUND
-        clipMaxX = UNCLIPPED_BOUND
-        clipMaxY = UNCLIPPED_BOUND
-        clipRadiusTopStart = 0f
-        clipRadiusTopEnd = 0f
-        clipRadiusBottomEnd = 0f
-        clipRadiusBottomStart = 0f
-    }
-
-    private fun setupGpuPipeline() {
-        if (!isSupported || !ensureMesh()) return
-        try {
-            Draw.flush()
-
-            val shader = UberShader.getOrCreate() ?: return
-            val atlasTexture = Core.atlas?.white()?.texture
-            activeAtlasTexture = atlasTexture
-            if (atlasTexture != null) {
-                Gl.activeTexture(Gl.texture0)
-                atlasTexture.bind()
-            }
-
-            shader.bind()
-            shader.applyProjection(Draw.proj())
-
-            Gl.depthMask(false)
-            Gl.enable(Gl.blend)
-            Gl.blendFunc(Gl.srcAlpha, Gl.oneMinusSrcAlpha)
-        } catch (_: Throwable) {
-        }
+        resetClipBounds()
     }
 
     /**
@@ -249,19 +225,25 @@ object UIBatch {
             }
         } finally {
             isDrawing = false
-            clipDepth = 0
-            clipMinX = -UNCLIPPED_BOUND
-            clipMinY = -UNCLIPPED_BOUND
-            clipMaxX = UNCLIPPED_BOUND
-            clipMaxY = UNCLIPPED_BOUND
-            clipRadiusTopStart = 0f
-            clipRadiusTopEnd = 0f
-            clipRadiusBottomEnd = 0f
-            clipRadiusBottomStart = 0f
+            resetClipBounds()
         }
     }
 
-    // --- ANALYTICAL SCISSOR & SDF CLIPPING ---
+    private fun resetClipBounds() {
+        clipDepth = 0
+        clipMinX = -UNCLIPPED_BOUND
+        clipMinY = -UNCLIPPED_BOUND
+        clipMaxX = UNCLIPPED_BOUND
+        clipMaxY = UNCLIPPED_BOUND
+        clipRadiusTopStart = 0f
+        clipRadiusTopEnd = 0f
+        clipRadiusBottomEnd = 0f
+        clipRadiusBottomStart = 0f
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4. ANALYTICAL SCISSOR & SDF CLIPPING
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
      * Đẩy một vùng cắt gọt mới lên ngăn xếp và giao cắt với vùng cắt hiện tại.
@@ -279,8 +261,8 @@ object UIBatch {
         radiusBottomEnd: Float = 0f,
         radiusBottomStart: Float = 0f
     ) {
-        val offset = clipDepth * 8
-        if (offset + 8 > clipStackBuffer.size) {
+        val offset = clipDepth * CLIP_PARAMS_PER_LEVEL
+        if (offset + CLIP_PARAMS_PER_LEVEL > clipStackBuffer.size) {
             arc.util.Log.err("[UIBatch] Clip stack overflow! Maximum depth $MAX_CLIP_DEPTH exceeded.")
             clipDepth++
             return
@@ -309,7 +291,11 @@ object UIBatch {
             clipMaxY = maxOf(minY, maxY)
         }
 
-        if (radiusTopStart > 0.001f || radiusTopEnd > 0.001f || radiusBottomEnd > 0.001f || radiusBottomStart > 0.001f) {
+        if (radiusTopStart > MIN_QUAD_DIMENSION_EPSILON ||
+            radiusTopEnd > MIN_QUAD_DIMENSION_EPSILON ||
+            radiusBottomEnd > MIN_QUAD_DIMENSION_EPSILON ||
+            radiusBottomStart > MIN_QUAD_DIMENSION_EPSILON
+        ) {
             clipRadiusTopStart = radiusTopStart
             clipRadiusTopEnd = radiusTopEnd
             clipRadiusBottomEnd = radiusBottomEnd
@@ -324,21 +310,14 @@ object UIBatch {
      */
     fun popClip() {
         if (clipDepth <= 0) {
-            clipMinX = -UNCLIPPED_BOUND
-            clipMinY = -UNCLIPPED_BOUND
-            clipMaxX = UNCLIPPED_BOUND
-            clipMaxY = UNCLIPPED_BOUND
-            clipRadiusTopStart = 0f
-            clipRadiusTopEnd = 0f
-            clipRadiusBottomEnd = 0f
-            clipRadiusBottomStart = 0f
+            resetClipBounds()
             return
         }
 
         clipDepth--
         if (clipDepth >= MAX_CLIP_DEPTH) return
 
-        val offset = clipDepth * 8
+        val offset = clipDepth * CLIP_PARAMS_PER_LEVEL
         clipMinX = clipStackBuffer[offset]
         clipMinY = clipStackBuffer[offset + 1]
         clipMaxX = clipStackBuffer[offset + 2]
@@ -349,7 +328,9 @@ object UIBatch {
         clipRadiusBottomStart = clipStackBuffer[offset + 7]
     }
 
-    // --- DRAWING PRIMITIVES ---
+    // ─────────────────────────────────────────────────────────────────────────
+    // 5. PUBLIC DRAWING PRIMITIVES
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
      * Dựng hình Box (Background, Thẻ bo góc SDF, Viền nổi, hoặc Ảnh/Icon/Avatar bo góc).
@@ -369,21 +350,11 @@ object UIBatch {
         borderWidth: Float = 0.0f,
         borderColor: Color = Color.clear
     ) {
-        if (width <= 0.001f || height <= 0.001f) return
+        if (width <= MIN_QUAD_DIMENSION_EPSILON || height <= MIN_QUAD_DIMENSION_EPSILON) return
 
         val whiteRegion = Core.atlas?.white()
         val texture = region?.texture ?: whiteRegion?.texture
-        if (texture != null && activeAtlasTexture != null && activeAtlasTexture != texture) {
-            flush()
-            activeAtlasTexture = texture
-            if (isSupported) {
-                try {
-                    Gl.activeTexture(Gl.texture0)
-                    texture.bind()
-                } catch (_: Throwable) {
-                }
-            }
-        }
+        bindTextureIfChanged(texture)
 
         if (queuedQuadCount >= MAX_QUADS) {
             flush()
@@ -493,20 +464,10 @@ object UIBatch {
         color: Color,
         fontTexture: Texture? = null
     ) {
-        if (width <= 0.001f || height <= 0.001f) return
+        if (width <= MIN_QUAD_DIMENSION_EPSILON || height <= MIN_QUAD_DIMENSION_EPSILON) return
 
         val texture = fontTexture ?: Core.atlas?.white()?.texture
-        if (texture != null && activeAtlasTexture != null && activeAtlasTexture != texture) {
-            flush()
-            activeAtlasTexture = texture
-            if (isSupported) {
-                try {
-                    Gl.activeTexture(Gl.texture0)
-                    texture.bind()
-                } catch (_: Throwable) {
-                }
-            }
-        }
+        bindTextureIfChanged(texture)
 
         if (queuedQuadCount >= MAX_QUADS) {
             flush()
@@ -590,8 +551,8 @@ object UIBatch {
             val runs = textLayoutHelper.runs
             val runCount = runs.size
 
-            for (r in 0 until runCount) {
-                val run = runs[r]
+            for (runIndex in 0 until runCount) {
+                val run = runs[runIndex]
                 val glyphs = run.glyphs
                 val xAdvances = run.xAdvances
                 var currentX = x + run.x
@@ -629,7 +590,84 @@ object UIBatch {
         }
     }
 
-    // --- GPU EXECUTION & FLUSH ---
+    private fun bindTextureIfChanged(texture: Texture?) {
+        if (texture != null && activeAtlasTexture != null && activeAtlasTexture != texture) {
+            flush()
+            activeAtlasTexture = texture
+            if (isSupported) {
+                try {
+                    Gl.activeTexture(Gl.texture0)
+                    texture.bind()
+                } catch (_: Throwable) {
+                }
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 6. LOW-LEVEL GPU MESH & FLUSH EXECUTION
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private fun ensureMesh(): Boolean {
+        if (isMeshInitialized && mesh != null) return true
+        if (Core.gl == null || Core.graphics == null) return false
+
+        return try {
+            val attributes = arrayOf(
+                VertexAttribute(4, "a_position"),                           // xy = screen pos, zw = uv coords
+                VertexAttribute(4, Gl.unsignedByte, true, "a_color"),       // rgba = packed ABGR color
+                VertexAttribute(4, "a_boxData"),                            // xy = local pos, zw = box dimensions
+                VertexAttribute(4, "a_style"),                              // x = radius, y = borderWidth, z = mode, w = clipActive
+                VertexAttribute(4, "a_cornerRadii"),                        // x = topStart, y = topEnd, z = bottomEnd, w = bottomStart
+                VertexAttribute(4, Gl.unsignedByte, true, "a_borderColor"), // rgba = packed ABGR border color
+                VertexAttribute(4, "a_clipRect"),                           // xy = min(x,y), zw = max(x,y) analytical scissor clip
+                VertexAttribute(4, "a_clipRadii")                           // x = topStart, y = topEnd, z = bottomEnd, w = bottomStart (clip corner radii)
+            )
+
+            val indices = ShortArray(MAX_INDICES)
+            var vertexOffset = 0
+            for (indexOffset in 0 until MAX_INDICES step INDICES_PER_QUAD) {
+                indices[indexOffset] = vertexOffset.toShort()
+                indices[indexOffset + 1] = (vertexOffset + 1).toShort()
+                indices[indexOffset + 2] = (vertexOffset + 2).toShort()
+                indices[indexOffset + 3] = (vertexOffset + 2).toShort()
+                indices[indexOffset + 4] = (vertexOffset + 3).toShort()
+                indices[indexOffset + 5] = vertexOffset.toShort()
+                vertexOffset += VERTICES_PER_QUAD
+            }
+
+            mesh = Mesh(/* isStatic = */ false, /* maxVertices = */ MAX_VERTICES, /* maxIndices = */ MAX_INDICES, *attributes).apply {
+                setIndices(indices)
+            }
+            isMeshInitialized = true
+            true
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    private fun setupGpuPipeline() {
+        if (!isSupported || !ensureMesh()) return
+        try {
+            Draw.flush()
+
+            val shader = UberShader.getOrCreate() ?: return
+            val atlasTexture = Core.atlas?.white()?.texture
+            activeAtlasTexture = atlasTexture
+            if (atlasTexture != null) {
+                Gl.activeTexture(Gl.texture0)
+                atlasTexture.bind()
+            }
+
+            shader.bind()
+            shader.applyProjection(Draw.proj())
+
+            Gl.depthMask(false)
+            Gl.enable(Gl.blend)
+            Gl.blendFunc(Gl.srcAlpha, Gl.oneMinusSrcAlpha)
+        } catch (_: Throwable) {
+        }
+    }
 
     /**
      * Submit toàn bộ quads đã gom trong batch tới GPU.
@@ -645,7 +683,7 @@ object UIBatch {
                 currentShader.applyProjection(Draw.proj())
 
                 currentMesh.setVertices(vertexBuffer, 0, vertexIndex)
-                currentMesh.render(currentShader, Gl.triangles, 0, queuedQuadCount * 6)
+                currentMesh.render(currentShader, Gl.triangles, 0, queuedQuadCount * INDICES_PER_QUAD)
             } catch (_: Throwable) {
             }
         }

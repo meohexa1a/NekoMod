@@ -8,22 +8,22 @@ import androidx.compose.ui.util.fastForEach
 import arc.Core
 import arc.graphics.Color
 import arc.graphics.g2d.Draw
-import arc.input.KeyCode
 import arc.scene.Element
 import arc.scene.Scene
-import arc.scene.event.InputEvent
-import arc.scene.event.InputListener
+import arc.scene.ui.layout.Cell
+import arc.scene.ui.layout.Table
 import arc.util.Log
 import org.hubdustry.core.compose.input.KeyboardInputHandler
 import org.hubdustry.core.compose.input.Offset
 import org.hubdustry.core.compose.input.PointerButton
 import org.hubdustry.core.compose.input.PointerEventType
 import org.hubdustry.core.compose.input.PointerType
-import org.hubdustry.core.compose.input.ime.SdlReflectionImeBridge
 import org.hubdustry.core.compose.runtime.CompositionManager
 import org.hubdustry.core.compose.runtime.LayoutNodeApplier
 import org.hubdustry.core.graphics.UIBatch
 import org.hubdustry.core.layout.LayoutNode
+
+private const val MAX_LAYOUT_ITERATIONS = 100
 
 /**
  * Cửa khẩu Mount-Point mỏng (Slim Coordinator) giữa Arc Scene2D và Jetpack Compose Runtime.
@@ -45,14 +45,18 @@ val LocalComposeView = staticCompositionLocalOf<ComposeView?> { null }
 
 open class ComposeView : Element() {
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. VIRTUAL DOM ROOT & ADAPTER STATE
+    // ─────────────────────────────────────────────────────────────────────────
+
     internal val rootLayoutNode: LayoutNode = LayoutNode()
     internal val inputDispatcher: InputDispatcher = InputDispatcher(rootLayoutNode)
 
     private var composition: Composition? = null
     private var composableContent: (@Composable () -> Unit)? = null
 
-    private var lastLayoutW = -1f
-    private var lastLayoutH = -1f
+    private var lastLayoutWidth = -1f
+    private var lastLayoutHeight = -1f
     private var layoutIteration = 0
     private var isLayoutDirty = true
 
@@ -72,6 +76,10 @@ open class ComposeView : Element() {
         // Gắn ArcInputAdapter đón bắt sự kiện thô và quản lý scrollFocus
         addListener(inputAdapter)
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. COMPOSITION LIFECYCLE & MOUNT MANAGEMENT
+    // ─────────────────────────────────────────────────────────────────────────
 
     fun setContent(content: @Composable () -> Unit) {
         this.composableContent = content
@@ -93,9 +101,7 @@ open class ComposeView : Element() {
 
         if (stage != null && oldScene == null) {
             // GẮN VÀO SCENE: Khởi động composition nếu chưa được khởi động từ trước
-            if (composition == null) {
-                ensureCompositionStarted()
-            }
+            ensureCompositionStarted()
             requestLayout()
             invalidateHierarchy()
         } else if (stage == null && oldScene != null) {
@@ -112,35 +118,38 @@ open class ComposeView : Element() {
     }
 
     private fun ensureCompositionStarted() {
-        if (composition == null) {
-            val comp = Composition(
-                applier = LayoutNodeApplier(
-                    root = rootLayoutNode,
-                    onNodeRemovedCallback = { node ->
-                        disposeNodeRecursive(node)
-                        inputDispatcher.onNodeRemoved(node)
-                    },
-                    onEndChangesCallback = {
-                        requestLayout()
-                    }
-                ),
-                parent = CompositionManager.recomposer
-            )
-            this.composition = comp
-            composableContent?.let { content ->
-                comp.setContent {
-                    CompositionLocalProvider(LocalComposeView provides this) {
-                        content()
-                    }
+        if (composition != null) return
+
+        val newComposition = Composition(
+            applier = LayoutNodeApplier(
+                root = rootLayoutNode,
+                onNodeRemovedCallback = { node ->
+                    disposeNodeRecursive(node)
+                    inputDispatcher.onNodeRemoved(node)
+                },
+                onEndChangesCallback = {
+                    requestLayout()
+                }
+            ),
+            parent = CompositionManager.recomposer
+        )
+        this.composition = newComposition
+        composableContent?.let { content ->
+            newComposition.setContent {
+                CompositionLocalProvider(LocalComposeView provides this) {
+                    content()
                 }
             }
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. DETERMINISTIC TEARDOWN & DISPOSAL
+    // ─────────────────────────────────────────────────────────────────────────
+
     open fun dispose() {
         // Phase 1: Cancel active interactions before tearing down
         inputAdapter.releaseScrollFocus()
-        SdlReflectionImeBridge.stopSession()
         clearKeyboardFocus()
         inputDispatcher.cancelAllActivePointers(System.currentTimeMillis())
         disposeNodeRecursive(rootLayoutNode)
@@ -148,15 +157,15 @@ open class ComposeView : Element() {
         // Phase 2: Dispose the Compose Runtime composition
         try {
             composition?.dispose()
-        } catch (t: Throwable) {
-            Log.err("[ComposeView] Error disposing composition", t)
+        } catch (throwable: Throwable) {
+            Log.err("[ComposeView] Error disposing composition", throwable)
         }
         composition = null
 
         // Phase 3: Reset dispatcher and layout bookkeeping
         inputDispatcher.dispose()
-        lastLayoutW = -1f
-        lastLayoutH = -1f
+        lastLayoutWidth = -1f
+        lastLayoutHeight = -1f
         rootLayoutNode.clearChildren()
     }
 
@@ -165,6 +174,10 @@ open class ComposeView : Element() {
         node.clearPointerInputFilters()
         node.children.fastForEach { disposeNodeRecursive(it) }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4. POINTER & KEYBOARD INPUT DELEGATION
+    // ─────────────────────────────────────────────────────────────────────────
 
     /**
      * Entry point nhận sự kiện con trỏ tổng quát (sử dụng trong kiểm thử và tích hợp mở rộng).
@@ -178,7 +191,16 @@ open class ComposeView : Element() {
         button: PointerButton? = PointerButton.Primary,
         pointerType: PointerType = PointerType.Touch,
         scrollDelta: Offset = Offset.Zero
-    ): Boolean = inputDispatcher.sendPointerInput(type, x, y, pointer, uptimeMillis, button, pointerType, scrollDelta)
+    ): Boolean = inputDispatcher.sendPointerInput(
+        type = type,
+        x = x,
+        y = y,
+        pointer = pointer,
+        uptimeMillis = uptimeMillis,
+        button = button,
+        pointerType = pointerType,
+        scrollDelta = scrollDelta
+    )
 
     fun handleScroll(
         composeX: Float,
@@ -187,9 +209,8 @@ open class ComposeView : Element() {
         uptime: Long = System.currentTimeMillis()
     ): Boolean = inputDispatcher.scroll(composeX, composeY, scrollDelta, uptime)
 
-    fun cancelAllActivePointers(uptime: Long = System.currentTimeMillis()) {
+    fun cancelAllActivePointers(uptime: Long = System.currentTimeMillis()) =
         inputDispatcher.cancelAllActivePointers(uptime)
-    }
 
     /**
      * Yêu cầu tiêu điểm bàn phím cho [handler] và đồng bộ [keyboardFocus] trên Stage Scene2D.
@@ -203,14 +224,18 @@ open class ComposeView : Element() {
      * Hủy tiêu điểm bàn phím của [handler] (hoặc toàn bộ nếu [handler] là null) và dọn dẹp Stage Scene2D.
      */
     fun clearKeyboardFocus(handler: KeyboardInputHandler? = null) {
-        if (handler == null || inputDispatcher.focusedKeyHandler === handler) {
-            inputDispatcher.focusedKeyHandler = null
-            val activeScene = scene ?: Core.scene
-            if (activeScene != null && activeScene.keyboardFocus === this) {
-                activeScene.keyboardFocus = null
-            }
+        if (handler != null && inputDispatcher.focusedKeyHandler !== handler) return
+
+        inputDispatcher.focusedKeyHandler = null
+        val activeScene = scene ?: Core.scene
+        if (activeScene?.keyboardFocus === this) {
+            activeScene.keyboardFocus = null
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 5. SCENE2D SIZING & AUTO-LAYOUT INTEGRATION
+    // ─────────────────────────────────────────────────────────────────────────
 
     override fun sizeChanged() {
         super.sizeChanged()
@@ -225,14 +250,14 @@ open class ComposeView : Element() {
 
     override fun getPrefWidth(): Float {
         rootLayoutNode.policy.computeMinSize(rootLayoutNode)
-        val minW = rootLayoutNode.minWidth
-        return if (minW > 0f) minW else super.getPrefWidth()
+        val minWidth = rootLayoutNode.minWidth
+        return if (minWidth > 0f) minWidth else super.getPrefWidth()
     }
 
     override fun getPrefHeight(): Float {
         rootLayoutNode.policy.computeMinSize(rootLayoutNode)
-        val minH = rootLayoutNode.minHeight
-        return if (minH > 0f) minH else super.getPrefHeight()
+        val minHeight = rootLayoutNode.minHeight
+        return if (minHeight > 0f) minHeight else super.getPrefHeight()
     }
 
     override fun getMinWidth(): Float = getPrefWidth()
@@ -241,9 +266,9 @@ open class ComposeView : Element() {
     override fun hit(x: Float, y: Float, touchable: Boolean): Element? {
         if (touchable && this.touchable != arc.scene.event.Touchable.enabled) return null
         if (!visible) return null
-        val effectiveW = if (width > 0f) width else rootLayoutNode.width
-        val effectiveH = if (height > 0f) height else rootLayoutNode.height
-        return if (x in 0f..effectiveW && y in 0f..effectiveH) this else null
+        val effectiveWidth = if (width > 0f) width else rootLayoutNode.width
+        val effectiveHeight = if (height > 0f) height else rootLayoutNode.height
+        return if (x in 0f..effectiveWidth && y in 0f..effectiveHeight) this else null
     }
 
     override fun act(delta: Float) {
@@ -260,13 +285,13 @@ open class ComposeView : Element() {
     }
 
     private fun updateDimensionsAndLayout() {
-        val currentW = width
-        val currentH = height
-        if (currentW <= 0f || currentH <= 0f) return
-        if (!isLayoutDirty && currentW == lastLayoutW && currentH == lastLayoutH) return
+        val currentWidth = width
+        val currentHeight = height
+        if (currentWidth <= 0f || currentHeight <= 0f) return
+        if (!isLayoutDirty && currentWidth == lastLayoutWidth && currentHeight == lastLayoutHeight) return
 
         layoutIteration++
-        if (layoutIteration > 100) {
+        if (layoutIteration > MAX_LAYOUT_ITERATIONS) {
             Log.err("[ComposeView] Potential infinite layout loop detected ($layoutIteration iterations)! Clamping layout.")
             isLayoutDirty = false
             layoutIteration = 0
@@ -274,12 +299,16 @@ open class ComposeView : Element() {
         }
 
         // Host Window phân phối ràng buộc kích thước chuẩn xuống Node gốc trong 1 pass duy nhất
-        rootLayoutNode.layout(currentW, currentH, exact = true)
-        lastLayoutW = currentW
-        lastLayoutH = currentH
+        rootLayoutNode.layout(currentWidth, currentHeight, exact = true)
+        lastLayoutWidth = currentWidth
+        lastLayoutHeight = currentHeight
         isLayoutDirty = false
         layoutIteration = 0
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 6. BERLIN WALL DRAW GATEWAY
+    // ─────────────────────────────────────────────────────────────────────────
 
     override fun draw() {
         if (!visible || width <= 0f || height <= 0f) return
@@ -288,16 +317,21 @@ open class ComposeView : Element() {
         // Safety net: draw() có thể được gọi trực tiếp bởi Stage mà không qua act()
         if (isLayoutDirty) {
             rootLayoutNode.layout(width, height, exact = true)
-            lastLayoutW = width
-            lastLayoutH = height
+            lastLayoutWidth = width
+            lastLayoutHeight = height
             isLayoutDirty = false
         }
 
-        val viewH = if (height > 0f) height else rootLayoutNode.height
+        val viewHeight = if (height > 0f) height else rootLayoutNode.height
         try {
             UIBatch.begin()
             try {
-                NodeRenderer.render(rootLayoutNode, this.x, this.y, viewH)
+                NodeRenderer.render(
+                    rootNode = rootLayoutNode,
+                    viewX = this.x,
+                    viewY = this.y,
+                    viewHeight = viewHeight
+                )
             } finally {
                 UIBatch.end()
             }
@@ -310,13 +344,17 @@ open class ComposeView : Element() {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. SCENE2D TABLE INTEGRATION DSL
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
- * Cú pháp DSL thuận tiện để nhúng trực tiếp [ComposeView] vào bất kỳ [arc.scene.ui.layout.Table] nào của Arc Scene2D.
- * Trả về [arc.scene.ui.layout.Cell] để caller tự do chain các thuộc tính layout Scene2D (.size, .grow, .pad, .row,...).
+ * Cú pháp DSL thuận tiện để nhúng trực tiếp [ComposeView] vào bất kỳ [Table] nào của Arc Scene2D.
+ * Trả về [Cell] để caller tự do chain các thuộc tính layout Scene2D (.size, .grow, .pad, .row,...).
  */
-fun arc.scene.ui.layout.Table.compose(
+fun Table.compose(
     content: @Composable () -> Unit
-): arc.scene.ui.layout.Cell<ComposeView> {
+): Cell<ComposeView> {
     val view = ComposeView().apply {
         setContent(content)
     }

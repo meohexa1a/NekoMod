@@ -7,6 +7,8 @@ import org.hubdustry.core.compose.modifier.FlowRowScopeInstance
 import org.hubdustry.core.compose.modifier.Modifier
 import org.hubdustry.core.compose.modifier.applyTo
 import org.hubdustry.core.compose.runtime.LayoutNodeApplier
+import org.hubdustry.core.compose.unit.Dp
+import org.hubdustry.core.compose.unit.dp
 import org.hubdustry.core.layout.LayoutNode
 import org.hubdustry.core.layout.SizeFlag
 import org.hubdustry.core.layout.policies.FlowRowPolicy
@@ -21,7 +23,7 @@ import org.hubdustry.core.layout.policies.FlowRowPolicy
  */
 @Composable
 inline fun FlowRow(
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     horizontalGap: Float = 0f,
     verticalGap: Float = 0f,
     crossinline content: @Composable FlowRowScope.() -> Unit = {}
@@ -43,3 +45,19 @@ inline fun FlowRow(
         content = { FlowRowScopeInstance.content() }
     )
 }
+
+/**
+ * Overload tiện lợi nhận [Dp] cho khoảng cách giữa các phần tử và các dòng của [FlowRow].
+ */
+@Composable
+inline fun FlowRow(
+    modifier: Modifier = Modifier,
+    horizontalGap: Dp,
+    verticalGap: Dp = 0.dp,
+    crossinline content: @Composable FlowRowScope.() -> Unit = {}
+) = FlowRow(
+    modifier = modifier,
+    horizontalGap = horizontalGap.toPx,
+    verticalGap = verticalGap.toPx,
+    content = content
+)

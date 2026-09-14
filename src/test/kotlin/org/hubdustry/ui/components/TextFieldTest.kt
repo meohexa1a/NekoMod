@@ -35,8 +35,8 @@ class TextFieldTest {
             val fieldNode = view.rootLayoutNode.children[0]
             assertEquals(200f, fieldNode.width)
             assertEquals(50f, fieldNode.height)
-            assertEquals(DefaultTextFieldBgColor, fieldNode.backgroundColor)
-            assertEquals(DefaultTextFieldBorderColor, fieldNode.borderColor)
+            assertEquals(TextFieldDefaults.backgroundColor, fieldNode.backgroundColor)
+            assertEquals(TextFieldDefaults.borderColor, fieldNode.borderColor)
 
             // Phải có child hiển thị placeholder text
             val placeholderNode = fieldNode.children.firstOrNull { it.text != null }

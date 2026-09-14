@@ -3,6 +3,8 @@ package org.hubdustry.core.compose.input
 import androidx.compose.ui.util.fastAny
 import kotlin.math.sqrt
 
+// ─── Primitive Packed Value Classes ───────────────────────────────
+
 /**
  * Biểu diễn tọa độ hoặc vector dịch chuyển 2D (Top-Left Y-down).
  * Đóng gói hai số thực 32-bit (x, y) vào một số nguyên 64-bit Long theo chuẩn Jetpack Compose (AOSP),
@@ -77,6 +79,8 @@ value class IntSize(val packedValue: Long) {
 @JvmInline
 value class PointerId(val value: Long)
 
+// ─── Event Contracts & Enums ──────────────────────────────────────
+
 /**
  * Loại thiết bị con trỏ theo chuẩn Jetpack Compose AOSP.
  */
@@ -99,6 +103,16 @@ enum class PointerButton {
 /**
  * Thứ tự các lượt duyệt qua cây Virtual Node trong một sự kiện con trỏ.
  * Tuân thủ mô hình 3-pass của Jetpack Compose (AOSP):
+ *
+ * ```
+ *   Root Node ──────(Initial: Tunneling)─────► Leaf Node
+ *                                                   │
+ *                                                   ▼
+ *   Root Node ◄──────(Main: Bubbling)───────── Leaf Node
+ *       │
+ *       ▼
+ *   Root Node ───────(Final: Clean-up)───────► Leaf Node
+ * ```
  * - Initial: Tunneling từ Root xuống Leaf (cho phép cha đánh chặn trước).
  * - Main: Bubbling từ Leaf lên Root (lượt xử lý chính của widget con).
  * - Final: Hậu xử lý (dọn dẹp hoặc theo dõi trạng thái cuối).
@@ -129,6 +143,8 @@ class ConsumedData(
     var isConsumed: Boolean = false
 )
 
+// ─── Pointer Input Change ─────────────────────────────────────────
+
 /**
  * Đại diện cho sự thay đổi trạng thái của một con trỏ tại một thời điểm cụ thể.
  */
@@ -157,17 +173,13 @@ class PointerInputChange(
 
     fun positionChange(): Offset = position - previousPosition
 
-    fun isOutOfBounds(size: IntSize, slop: Float = 0f): Boolean {
-        val x = position.x
-        val y = position.y
-        return x < -slop || x > size.width + slop || y < -slop || y > size.height + slop
-    }
+    fun isOutOfBounds(size: IntSize, slop: Float = 0f): Boolean =
+        position.x < -slop || position.x > size.width + slop ||
+        position.y < -slop || position.y > size.height + slop
 
-    fun isOutOfBounds(width: Float, height: Float, slop: Float = 0f): Boolean {
-        val x = position.x
-        val y = position.y
-        return x < -slop || x > width + slop || y < -slop || y > height + slop
-    }
+    fun isOutOfBounds(width: Float, height: Float, slop: Float = 0f): Boolean =
+        position.x < -slop || position.x > width + slop ||
+        position.y < -slop || position.y > height + slop
 
     val changedToDown: Boolean
         get() = !isConsumed && !previousPressed && pressed
@@ -181,6 +193,8 @@ class PointerInputChange(
     val changedToUpIgnoreConsumed: Boolean
         get() = previousPressed && !pressed
 }
+
+// ─── Pointer Event Packet ─────────────────────────────────────────
 
 /**
  * Gói sự kiện con trỏ chứa danh sách các thay đổi của tất cả các con trỏ đang hoạt động.
@@ -201,3 +215,4 @@ class PointerEvent(
     fun isButtonPressed(targetButton: PointerButton): Boolean =
         changes.fastAny { it.pressed && it.button == targetButton }
 }
+

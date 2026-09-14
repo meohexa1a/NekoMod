@@ -10,29 +10,43 @@ import org.hubdustry.core.compose.foundation.ScrollState
 import org.hubdustry.core.compose.input.Offset
 import org.hubdustry.core.compose.input.PointerEventPass
 import org.hubdustry.core.compose.input.PointerEventType
+import org.hubdustry.core.compose.input.PointerInputChange
 import org.hubdustry.core.compose.input.gestures.VelocityTracker1D
-import org.hubdustry.core.compose.input.gestures.detectHorizontalDragGestures
-import org.hubdustry.core.compose.input.gestures.detectVerticalDragGestures
+import org.hubdustry.core.compose.input.gestures.detectOrientedDragGestures
 import org.hubdustry.core.layout.LayoutNode
+import org.hubdustry.core.layout.Orientation
 import kotlin.math.abs
+
+// ── VẬT LÝ VÀ THỜI GIAN CUỘN (SCROLL & FLING CONSTANTS) ─────────────────────
+private const val MOUSE_WHEEL_SCROLL_FACTOR = 32f
+private const val MIN_FLING_VELOCITY = 300f
+private const val FLING_STOP_VELOCITY = 15f
+private const val FLING_FRICTION = 0.94f
+private const val FLING_FRAME_DELTA_SECONDS = 0.016f
+private const val FLING_FRAME_DELAY_MILLIS = 16L
 
 /**
  * Modifier phần tử quản lý cấu hình cuộn trên [LayoutNode] (GEMINI.md Rule 14 Data Class Contract).
+ *
+ * Áp dụng trừu tượng hóa đối xứng (Rule 2.4) qua [Orientation] thay vì cờ Boolean.
+ * Khi [enabled] = false, node vẫn duy trì scissor clip và gắn [state] để hỗ trợ cuộn
+ * theo lập trình (programmatic scroll), chỉ tắt tương tác cử chỉ người dùng (Rule 0.2).
  */
 data class ScrollModifier(
     val state: ScrollState,
-    val isVertical: Boolean = true,
+    val orientation: Orientation = Orientation.VERTICAL,
     val enabled: Boolean = true
 ) : Modifier.Element {
-    override fun applyTo(node: LayoutNode) {
-        if (isVertical) {
+    override fun applyTo(node: LayoutNode) = when (orientation) {
+        Orientation.VERTICAL -> {
             node.clipVertical = true
-            node.isScrollableVertical = enabled
-            node.verticalScrollState = if (enabled) state else null
-        } else {
+            node.isScrollableVertical = true
+            node.verticalScrollState = state
+        }
+        Orientation.HORIZONTAL -> {
             node.clipHorizontal = true
-            node.isScrollableHorizontal = enabled
-            node.horizontalScrollState = if (enabled) state else null
+            node.isScrollableHorizontal = true
+            node.horizontalScrollState = state
         }
     }
 }
@@ -51,24 +65,29 @@ private class ScrollAnimationDriver {
 }
 
 /**
- * Áp dụng hành vi cuộn dọc cho container (Column, Box, etc.) theo chuẩn Jetpack Compose Foundation.
- * Tự động cắt bỏ (Scissor Clip) nội dung tràn khỏi viewport.
- * Hỗ trợ cuộn bánh xe chuột chuẩn xác và vuốt thả quán tính (Kinetic Fling).
+ * Áp dụng hành vi cuộn định hướng cho container theo chuẩn Jetpack Compose Foundation.
+ * Tự động cắt bỏ (Scissor Clip) nội dung tràn khỏi viewport và liên kết [ScrollState].
+ *
+ * KHI [enabled] = false:
+ * - Vẫn gắn [ScrollModifier] (bật scissor clip và duy trì [ScrollState] để hỗ trợ cuộn lập trình programmatic scroll).
+ * - Bỏ qua việc gắn các bộ lắng nghe sự kiện con trỏ và cử chỉ kéo trượt (GEMINI.md Rule 0.2 No Phantom APIs).
  */
 @Composable
-fun Modifier.verticalScroll(
+private fun Modifier.scroll(
     state: ScrollState,
-    enabled: Boolean = true,
-    fling: Boolean = true
+    orientation: Orientation,
+    enabled: Boolean,
+    fling: Boolean
 ): Modifier {
-    if (!enabled) return this
+    val base = this.then(ScrollModifier(state, orientation = orientation, enabled = enabled))
+    if (!enabled) return base
+
     val scope = rememberCoroutineScope()
     val driver = remember(state) { ScrollAnimationDriver() }
     val tracker = remember(state) { VelocityTracker1D() }
 
-    return this
-        .then(ScrollModifier(state, isVertical = true, enabled = enabled))
-        .pointerInput(state) {
+    return base
+        .pointerInput(state, orientation) {
             awaitPointerEventScope {
                 while (true) {
                     val event = awaitPointerEvent(PointerEventPass.Main)
@@ -80,7 +99,8 @@ fun Modifier.verticalScroll(
                         PointerEventType.Scroll -> {
                             val change = event.changes.firstOrNull() ?: continue
                             if (change.isConsumed || change.scrollDelta == Offset.Zero) continue
-                            val delta = change.scrollDelta.y * 32f
+                            val rawDelta = orientation.main(change.scrollDelta.x, change.scrollDelta.y)
+                            val delta = rawDelta * MOUSE_WHEEL_SCROLL_FACTOR
                             val consumed = state.dispatchRawDelta(delta)
                             if (consumed != 0f) {
                                 change.consume()
@@ -91,36 +111,36 @@ fun Modifier.verticalScroll(
                 }
             }
         }
-        .pointerInput(state, fling) {
-            detectVerticalDragGestures(
+        .pointerInput(state, orientation, fling) {
+            detectOrientedDragGestures(
+                orientation = orientation,
                 onDragStart = {
                     driver.cancel()
                     tracker.reset()
                 },
-                onVerticalDrag = { change, dragAmount ->
-                    if (change.isConsumed) return@detectVerticalDragGestures
-                    change.consume()
-                    tracker.addPosition(change.uptimeMillis, change.position.y)
-                    val delta = -dragAmount
-                    state.dispatchRawDelta(delta)
+                onDrag = { change, dragAmount ->
+                    if (!change.isConsumed) {
+                        change.consume()
+                        val orientedPosition = orientation.main(change.position.x, change.position.y)
+                        tracker.addPosition(change.uptimeMillis, orientedPosition)
+                        val delta = -dragAmount
+                        state.dispatchRawDelta(delta)
+                    }
                 },
                 onDragEnd = {
-                    if (!fling) return@detectVerticalDragGestures
-                    val velocity = tracker.calculateVelocity()
-                    val scrollVelocity = -velocity
-                    if (abs(scrollVelocity) < 300f) return@detectVerticalDragGestures
+                    if (!fling) return@detectOrientedDragGestures
+                    val scrollVelocity = -tracker.calculateVelocity()
+                    if (abs(scrollVelocity) < MIN_FLING_VELOCITY) return@detectOrientedDragGestures
 
                     driver.cancel()
                     driver.activeJob = scope.launch {
-                        var currentV = scrollVelocity
-                        val dt = 0.016f
-                        val friction = 0.94f
-                        while (abs(currentV) > 15f) {
-                            val delta = currentV * dt
+                        var currentVelocity = scrollVelocity
+                        while (abs(currentVelocity) > FLING_STOP_VELOCITY) {
+                            val delta = currentVelocity * FLING_FRAME_DELTA_SECONDS
                             val consumed = state.dispatchRawDelta(delta)
                             if (consumed == 0f) break
-                            currentV *= friction
-                            delay(16)
+                            currentVelocity *= FLING_FRICTION
+                            delay(FLING_FRAME_DELAY_MILLIS)
                         }
                     }
                 },
@@ -133,6 +153,18 @@ fun Modifier.verticalScroll(
 }
 
 /**
+ * Áp dụng hành vi cuộn dọc cho container (Column, Box, etc.) theo chuẩn Jetpack Compose Foundation.
+ * Tự động cắt bỏ (Scissor Clip) nội dung tràn khỏi viewport.
+ * Hỗ trợ cuộn bánh xe chuột chuẩn xác và vuốt thả quán tính (Kinetic Fling).
+ */
+@Composable
+fun Modifier.verticalScroll(
+    state: ScrollState,
+    enabled: Boolean = true,
+    fling: Boolean = true
+): Modifier = scroll(state, Orientation.VERTICAL, enabled, fling)
+
+/**
  * Áp dụng hành vi cuộn ngang cho container (Row, Box, etc.) theo chuẩn Jetpack Compose Foundation.
  */
 @Composable
@@ -140,73 +172,4 @@ fun Modifier.horizontalScroll(
     state: ScrollState,
     enabled: Boolean = true,
     fling: Boolean = true
-): Modifier {
-    if (!enabled) return this
-    val scope = rememberCoroutineScope()
-    val driver = remember(state) { ScrollAnimationDriver() }
-    val tracker = remember(state) { VelocityTracker1D() }
-
-    return this
-        .then(ScrollModifier(state, isVertical = false, enabled = enabled))
-        .pointerInput(state) {
-            awaitPointerEventScope {
-                while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Main)
-                    when (event.type) {
-                        PointerEventType.Press -> {
-                            driver.cancel()
-                        }
-                        PointerEventType.Scroll -> {
-                            val change = event.changes.firstOrNull() ?: continue
-                            if (change.isConsumed || change.scrollDelta == Offset.Zero) continue
-                            val delta = change.scrollDelta.x * 32f
-                            val consumed = state.dispatchRawDelta(delta)
-                            if (consumed != 0f) {
-                                change.consume()
-                            }
-                        }
-                        else -> Unit
-                    }
-                }
-            }
-        }
-        .pointerInput(state, fling) {
-            detectHorizontalDragGestures(
-                onDragStart = {
-                    driver.cancel()
-                    tracker.reset()
-                },
-                onHorizontalDrag = { change, dragAmount ->
-                    if (change.isConsumed) return@detectHorizontalDragGestures
-                    change.consume()
-                    tracker.addPosition(change.uptimeMillis, change.position.x)
-                    val delta = -dragAmount
-                    state.dispatchRawDelta(delta)
-                },
-                onDragEnd = {
-                    if (!fling) return@detectHorizontalDragGestures
-                    val velocity = tracker.calculateVelocity()
-                    val scrollVelocity = -velocity
-                    if (abs(scrollVelocity) < 300f) return@detectHorizontalDragGestures
-
-                    driver.cancel()
-                    driver.activeJob = scope.launch {
-                        var currentV = scrollVelocity
-                        val dt = 0.016f
-                        val friction = 0.94f
-                        while (abs(currentV) > 15f) {
-                            val delta = currentV * dt
-                            val consumed = state.dispatchRawDelta(delta)
-                            if (consumed == 0f) break
-                            currentV *= friction
-                            delay(16)
-                        }
-                    }
-                },
-                onDragCancel = {
-                    driver.cancel()
-                    tracker.reset()
-                }
-            )
-        }
-}
+): Modifier = scroll(state, Orientation.HORIZONTAL, enabled, fling)

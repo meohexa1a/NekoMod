@@ -14,12 +14,12 @@ interface KeyboardInputHandler {
     /**
      * Nhận sự kiện nhấn phím xuống (bao gồm phím mũi tên, backspace, delete, escape, enter).
      */
-    fun onKeyDown(keycode: KeyCode?): Boolean
+    fun onKeyDown(keyCode: KeyCode?): Boolean
 
     /**
      * Nhận sự kiện nhả phím lên.
      */
-    fun onKeyUp(keycode: KeyCode?): Boolean = false
+    fun onKeyUp(keyCode: KeyCode?): Boolean = false
 
     /**
      * Thông báo component đã mất tiêu điểm bàn phím (Focus Lost).

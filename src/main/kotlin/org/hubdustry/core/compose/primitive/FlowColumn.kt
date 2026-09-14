@@ -7,6 +7,8 @@ import org.hubdustry.core.compose.modifier.FlowColumnScopeInstance
 import org.hubdustry.core.compose.modifier.Modifier
 import org.hubdustry.core.compose.modifier.applyTo
 import org.hubdustry.core.compose.runtime.LayoutNodeApplier
+import org.hubdustry.core.compose.unit.Dp
+import org.hubdustry.core.compose.unit.dp
 import org.hubdustry.core.layout.LayoutNode
 import org.hubdustry.core.layout.SizeFlag
 import org.hubdustry.core.layout.policies.FlowColumnPolicy
@@ -21,7 +23,7 @@ import org.hubdustry.core.layout.policies.FlowColumnPolicy
  */
 @Composable
 inline fun FlowColumn(
-    modifier: Modifier = Modifier.Companion,
+    modifier: Modifier = Modifier,
     verticalGap: Float = 0f,
     horizontalGap: Float = 0f,
     crossinline content: @Composable FlowColumnScope.() -> Unit = {}
@@ -43,3 +45,19 @@ inline fun FlowColumn(
         content = { FlowColumnScopeInstance.content() }
     )
 }
+
+/**
+ * Overload tiện lợi nhận [Dp] cho khoảng cách giữa các phần tử và các cột của [FlowColumn].
+ */
+@Composable
+inline fun FlowColumn(
+    modifier: Modifier = Modifier,
+    verticalGap: Dp,
+    horizontalGap: Dp = 0.dp,
+    crossinline content: @Composable FlowColumnScope.() -> Unit = {}
+) = FlowColumn(
+    modifier = modifier,
+    verticalGap = verticalGap.toPx,
+    horizontalGap = horizontalGap.toPx,
+    content = content
+)
