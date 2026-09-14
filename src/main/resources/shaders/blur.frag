@@ -1,21 +1,40 @@
 uniform sampler2D u_texture;
 uniform vec2 u_texelSize;
 uniform float u_radius;
-uniform vec2 u_dir;
+uniform float u_mode; // 0.0 = Dual Kawase Downsample, 1.0 = Dual Kawase Upsample
 
-varying vec2 v_texCoord0;
+varying vec2 v_texCoords;
 
 void main() {
-    // Clamped continuous sampling step to avoid Nyquist undersampling gaps / grid artifacts
-    float safeRadius = clamp(u_radius, 0.4, 1.2);
-    vec2 step = u_texelSize * u_dir * safeRadius;
+    vec2 offset = u_texelSize * u_radius;
 
-    // Mathematically correct center-peaked 9-tap Gaussian bilinear convolution (Zero Ghosting)
-    vec4 color = texture2D(u_texture, v_texCoord0) * 0.382928;
-    color += texture2D(u_texture, v_texCoord0 + step * 1.411764) * 0.241536;
-    color += texture2D(u_texture, v_texCoord0 - step * 1.411764) * 0.241536;
-    color += texture2D(u_texture, v_texCoord0 + step * 3.294117) * 0.067000;
-    color += texture2D(u_texture, v_texCoord0 - step * 3.294117) * 0.067000;
+    if (u_mode < 0.5) {
+        // --- DOWNSAMPLE PASS (5-tap rotated bilinear box: 1 center + 4 diagonal corners) ---
+        // Samples 16 source texels smoothly via GPU bilinear filtering
+        vec4 sum = texture2D(u_texture, v_texCoords) * 4.0;
+        sum += texture2D(u_texture, v_texCoords + vec2(-offset.x, -offset.y));
+        sum += texture2D(u_texture, v_texCoords + vec2( offset.x, -offset.y));
+        sum += texture2D(u_texture, v_texCoords + vec2(-offset.x,  offset.y));
+        sum += texture2D(u_texture, v_texCoords + vec2( offset.x,  offset.y));
+        gl_FragColor = sum * 0.125;
+    } else {
+        // --- UPSAMPLE PASS (9-tap smooth tent filter with center weight) ---
+        // Center weight 4.0 eliminates ghosting/doughnut-hole/split-image artifacts
+        vec4 sum = texture2D(u_texture, v_texCoords) * 4.0;
 
-    gl_FragColor = color;
+        // 4 diagonal corners (weight 2.0 each = 8.0)
+        sum += texture2D(u_texture, v_texCoords + vec2(-offset.x, -offset.y)) * 2.0;
+        sum += texture2D(u_texture, v_texCoords + vec2( offset.x, -offset.y)) * 2.0;
+        sum += texture2D(u_texture, v_texCoords + vec2(-offset.x,  offset.y)) * 2.0;
+        sum += texture2D(u_texture, v_texCoords + vec2( offset.x,  offset.y)) * 2.0;
+
+        // 4 cardinal axis edges (weight 1.0 each = 4.0)
+        sum += texture2D(u_texture, v_texCoords + vec2(-offset.x * 2.0, 0.0));
+        sum += texture2D(u_texture, v_texCoords + vec2( offset.x * 2.0, 0.0));
+        sum += texture2D(u_texture, v_texCoords + vec2(0.0, -offset.y * 2.0));
+        sum += texture2D(u_texture, v_texCoords + vec2(0.0,  offset.y * 2.0));
+
+        // Total weight = 4.0 + 8.0 + 4.0 = 16.0
+        gl_FragColor = sum * 0.0625;
+    }
 }

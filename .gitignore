@@ -54,3 +54,8 @@ script-prod/dist/
 .idea/
 
 .lib-source
+
+# Agent temporary logs and briefing artifacts
+.agents/*
+!.agents/skills/
+!.agents/skills/**

@@ -1,0 +1,63 @@
+#!/bin/sh
+# =============================================================================
+# NekoMod v3 Architecture Lockdown Pre-Commit Hook
+# Ngăn chặn việc vô tình sửa đổi hoặc commit vào các module đã ĐÓNG BĂNG (Stable).
+# =============================================================================
+
+# Cho phép bỏ qua nếu có cờ môi trường tường minh
+if [ "$ALLOW_LOCKED_MODIFICATIONS" = "1" ] || [ "$ALLOW_LOCKED_MODIFICATIONS" = "true" ]; then
+    echo "[NekoMod Hook] ⚠️ Bỏ qua kiểm tra khóa kiến trúc (ALLOW_LOCKED_MODIFICATIONS=$ALLOW_LOCKED_MODIFICATIONS)."
+    exit 0
+fi
+
+# Danh sách các đường dẫn được ĐÓNG BĂNG (🟢 Stable / Architectural Lockdown)
+PROTECTED_PATHS="
+src/main/kotlin/org/hubdustry/core/layout/
+src/main/kotlin/org/hubdustry/core/graphics/UIBatch.kt
+src/main/kotlin/org/hubdustry/core/graphics/RoundedCorners.kt
+"
+
+# Lấy danh sách tệp đang nằm trong Git Staging Area (chỉ các file được thêm/sửa/đổi tên)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+
+VIOLATIONS=""
+
+for file in $STAGED_FILES; do
+    for pattern in $PROTECTED_PATHS; do
+        if [ -n "$pattern" ]; then
+            case "$file" in
+                $pattern*)
+                    VIOLATIONS="$VIOLATIONS\n  • $file"
+                    break
+                    ;;
+            esac
+        fi
+    done
+done
+
+if [ -n "$VIOLATIONS" ]; then
+    echo ""
+    echo "============================================================================="
+    echo "🛑 [NEKOMOD ARCHITECTURE LOCKOUT] PHÁT HIỆN VI PHẠM KHÓA KIẾN TRÚC!"
+    echo "============================================================================="
+    echo "Bạn đang cố gắng commit vào các tệp thuộc module ĐÃ ĐÓNG BĂNG (🟢 Stable):"
+    printf "$VIOLATIONS\n"
+    echo ""
+    echo "LÝ DO:"
+    echo "  Các module này đã hoàn thành kiểm thử toàn diện 100% (153/153 tests),"
+    echo "  được khóa quyền ghi hình học và đóng băng theo ADR-01..05."
+    echo "  Nghiêm cấm tự ý sửa đổi để tránh gây hồi quy (regression) kiến trúc cốt lõi."
+    echo ""
+    echo "HƯỚNG XỬ LÝ:"
+    echo "  1. Nếu vô tình stage nhầm, hãy unstage các tệp trên:"
+    echo "     git restore --staged <đường-dẫn-tệp>"
+    echo ""
+    echo "  2. Nếu bạn có chủ đích mở khóa nâng cấp kiến trúc sau khi được Lead phê duyệt:"
+    echo "     git commit --no-verify -m \"your commit message\""
+    echo "     (hoặc set biến môi trường: ALLOW_LOCKED_MODIFICATIONS=1 git commit)"
+    echo "============================================================================="
+    echo ""
+    exit 1
+fi
+
+exit 0

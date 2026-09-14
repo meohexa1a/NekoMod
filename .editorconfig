@@ -1,0 +1,41 @@
+# Top-most EditorConfig file
+root = true
+
+# Default formatting for all files
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+max_line_length = 120
+
+# Kotlin & Kotlin Script (Strict No-Wildcard / No Star Imports)
+[*.{kt,kts}]
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true
+ij_kotlin_name_count_to_use_star_import = 2147483647
+ij_kotlin_name_count_to_use_star_import_for_members = 2147483647
+ij_kotlin_packages_to_use_import_on_demand = unset
+ij_kotlin_imports_layout = *,java.**,javax.**,kotlin.**,^
+
+# Java
+[*.java]
+ij_java_names_count_to_use_import_on_demand = 2147483647
+ij_java_class_count_to_use_import_on_demand = 2147483647
+ij_java_packages_to_use_import_on_demand = unset
+
+# JSON / HJSON
+[*.{json,hjson}]
+indent_size = 2
+
+# YAML
+[*.{yml,yaml}]
+indent_size = 2
+
+# Markdown documentation
+[*.md]
+indent_size = 2
+trim_trailing_whitespace = false
+max_line_length = off
