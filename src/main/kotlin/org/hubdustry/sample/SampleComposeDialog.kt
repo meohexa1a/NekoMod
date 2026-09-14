@@ -202,15 +202,14 @@ class SampleComposeDialog : BaseDialog("NekoMod v3 Engine Showcase") {
                 }
 
                 // 6. Footer Info
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .align(Alignment.CENTER),
-                    gap = 8f
                 ) {
                     Text(
                         text = "Zero-GC Engine * SDF Shader * Berlin Wall Y-Down * IME Reflection",
-                        textColor = Color.gray
+                        textColor = Color.gray,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
